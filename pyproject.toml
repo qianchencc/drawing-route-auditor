@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=72"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drawing-route-auditor"
+version = "0.1.0"
+description = "Drawing-to-process-route decision infrastructure"
+requires-python = ">=3.13"
+dependencies = [
+  "psycopg2-binary>=2.9.11,<3",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.6,<3",
+  "openai>=2.32,<3",
+  "rich>=14,<15",
+  "typer>=0.16,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<9",
+]
+
+[project.scripts]
+jn = "drawing_route_auditor.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+drawing_route_auditor = ["db/sql/*.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "integration: requires the Docker Compose PostgreSQL service",
+]

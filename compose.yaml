@@ -1,0 +1,29 @@
+name: drawing-route-auditor
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DRA_POSTGRES_DB:-drawing_route_auditor}
+      POSTGRES_USER: ${DRA_POSTGRES_USER:-drawing_route_auditor}
+      POSTGRES_PASSWORD: ${DRA_POSTGRES_PASSWORD:-drawing_route_auditor_dev}
+    ports:
+      - "${DRA_POSTGRES_PORT:-55434}:5432"
+    volumes:
+      - drawing_route_auditor_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DRA_POSTGRES_USER:-drawing_route_auditor} -d ${DRA_POSTGRES_DB:-drawing_route_auditor}"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${DRA_DOCKER_SUBNET:-10.241.0.0/24}
+
+volumes:
+  drawing_route_auditor_postgres_data:

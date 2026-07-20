@@ -51,13 +51,11 @@ def load_decision_tree_source(path: Path) -> DecisionTreeSource:
         for column in payload.get("columns", [])
     )
     if actual_columns != EXPECTED_COLUMNS:
-        raise ValueError(
-            f"Unexpected decision-tree columns: {actual_columns!r}"
-        )
+        raise ValueError(f"决策树列定义不符合预期：{actual_columns!r}")
 
     source_rows = payload.get("rows")
     if not isinstance(source_rows, list) or not source_rows:
-        raise ValueError("Decision-tree source must contain non-empty rows")
+        raise ValueError("决策树来源必须包含非空 rows 数组")
 
     resolved_cells: dict[str, str | None] = {}
     parsed_rows: list[SourceRow] = []
@@ -65,14 +63,12 @@ def load_decision_tree_source(path: Path) -> DecisionTreeSource:
     for expected_row_number, source_row in enumerate(source_rows, start=1):
         row_number = source_row.get("row")
         if row_number != expected_row_number:
-            raise ValueError(
-                f"Expected row {expected_row_number}, found {row_number!r}"
-            )
+            raise ValueError(f"预期第 {expected_row_number} 行，实际为 {row_number!r}")
 
         cells = source_row.get("cells")
         if not isinstance(cells, list) or len(cells) != len(EXPECTED_COLUMNS):
             raise ValueError(
-                f"Row {row_number} must contain {len(EXPECTED_COLUMNS)} cells"
+                f"第 {row_number} 行必须包含 {len(EXPECTED_COLUMNS)} 个单元格"
             )
 
         values: list[str | None] = []
@@ -98,19 +94,17 @@ def load_decision_tree_source(path: Path) -> DecisionTreeSource:
                 if key in cell
             }
             if style:
-                formatting_cells.append(
-                    {"column": column_number, **style}
-                )
+                formatting_cells.append({"column": column_number, **style})
 
         node_ref = values[2]
         node_title = values[3]
         if node_ref is None or node_title is None:
-            raise ValueError(f"Row {row_number} is missing its logical node")
+            raise ValueError(f"第 {row_number} 行缺少逻辑节点")
         try:
             int(node_ref)
         except ValueError as error:
             raise ValueError(
-                f"Row {row_number} has non-numeric node reference {node_ref!r}"
+                f"第 {row_number} 行的节点引用不是数字：{node_ref!r}"
             ) from error
 
         parsed_rows.append(

@@ -8,6 +8,48 @@ from psycopg2.extensions import connection as Connection
 def test_fact_observation_preserves_subject_coverage_and_evidence(
     db_connection: Connection,
 ) -> None:
+    tree_id = db_connection.execute(
+        """
+        INSERT INTO decision_trees (tree_key, name)
+        VALUES ('fact-observation-test', 'Fact observation test')
+        RETURNING id
+        """
+    ).fetchone()["id"]
+    version_id = db_connection.execute(
+        """
+        INSERT INTO decision_tree_versions (
+            tree_id, version, source_path, source_sha256, source_payload,
+            schema_version
+        )
+        VALUES (%s, 1, 'test', 'test', '{}'::jsonb, 2)
+        RETURNING id
+        """,
+        (tree_id,),
+    ).fetchone()["id"]
+    reader_id = db_connection.execute(
+        """
+        INSERT INTO decision_readers (
+            version_id, reader_key, label, capability_definition, sequence
+        )
+        VALUES (%s, 'test_reader', '测试读取器', '读取测试事实', 1)
+        RETURNING id
+        """,
+        (version_id,),
+    ).fetchone()["id"]
+    fact_definition_id = db_connection.execute(
+        """
+        INSERT INTO fact_definitions (
+            version_id, reader_id, fact_key, source_kind, subject_scope,
+            value_type, label, description, judgement_definition
+        )
+        VALUES (
+            %s, %s, 'test_title_fact', 'observed_drawing', 'bom_item',
+            'boolean', '测试事实', 'Integration-test fact', '按图纸判断'
+        )
+        RETURNING id
+        """,
+        (version_id, reader_id),
+    ).fetchone()["id"]
     run_id = db_connection.execute(
         "INSERT INTO runs DEFAULT VALUES RETURNING id"
     ).fetchone()["id"]
@@ -27,25 +69,12 @@ def test_fact_observation_preserves_subject_coverage_and_evidence(
         """,
         (run_id,),
     ).fetchone()["id"]
-    fact_definition_id = db_connection.execute(
-        """
-        INSERT INTO fact_definitions (fact_key, value_type, description)
-        VALUES ('test_title_fact', 'boolean', 'Integration-test fact')
-        RETURNING id
-        """
-    ).fetchone()["id"]
-    fact_observation_id = db_connection.execute(
+    observation_id = db_connection.execute(
         """
         INSERT INTO fact_observations (
-            run_id,
-            fact_definition_id,
-            reader_task_id,
-            status,
-            scope,
-            subject_ref,
-            confidence,
-            observation_coverage,
-            coverage_complete
+            run_id, fact_definition_id, reader_task_id,
+            status, scope, subject_ref, confidence,
+            observation_coverage, coverage_complete
         )
         VALUES (
             %s, %s, %s, 'unable_to_judge', 'bom_item', %s, 0.35, %s, false
@@ -63,37 +92,32 @@ def test_fact_observation_preserves_subject_coverage_and_evidence(
     db_connection.execute(
         """
         INSERT INTO evidence (
-            fact_observation_id,
-            input_id,
-            source_type,
-            page_number,
-            view_ref,
-            region,
-            original_text
+            fact_observation_id, input_id, source_type,
+            page_number, view_ref, region, original_text
         )
         VALUES (%s, %s, 'drawing', 1, 'title_block', %s, '无法辨认')
         """,
-        (fact_observation_id, input_id, Json({"bbox": [10, 20, 30, 40]})),
+        (observation_id, input_id, Json({"bbox": [10, 20, 30, 40]})),
     )
 
     stored = db_connection.execute(
         """
         SELECT
-            hit.status,
-            hit.scope,
-            hit.subject_ref,
-            hit.observation_coverage,
-            hit.confidence,
+            observation.status,
+            observation.scope,
+            observation.subject_ref,
+            observation.observation_coverage,
+            observation.confidence,
             evidence.source_type,
             evidence.page_number,
             evidence.view_ref,
             evidence.region,
             evidence.original_text
-        FROM fact_observations AS hit
-        JOIN evidence ON evidence.fact_observation_id = hit.id
-        WHERE hit.id = %s
+        FROM fact_observations AS observation
+        JOIN evidence ON evidence.fact_observation_id = observation.id
+        WHERE observation.id = %s
         """,
-        (fact_observation_id,),
+        (observation_id,),
     ).fetchone()
 
     assert stored["status"] == "unable_to_judge"

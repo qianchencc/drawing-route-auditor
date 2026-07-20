@@ -45,7 +45,7 @@ def load_migrations() -> tuple[Migration, ...]:
     migrations.sort(key=lambda migration: migration.version)
     versions = [migration.version for migration in migrations]
     if len(versions) != len(set(versions)):
-        raise RuntimeError("Migration versions must be unique")
+        raise RuntimeError("迁移版本号必须唯一")
     return tuple(migrations)
 
 
@@ -65,7 +65,7 @@ def _ensure_migration_table(connection: Connection) -> None:
 
 def migrate(connection: Connection) -> MigrationResult:
     if not connection.autocommit:
-        raise ValueError("Migration connection must use autocommit=True")
+        raise ValueError("执行迁移的连接必须设置 autocommit=True")
 
     migrations = load_migrations()
     connection.execute("SELECT pg_advisory_lock(hashtext(%s))", (_LOCK_KEY,))

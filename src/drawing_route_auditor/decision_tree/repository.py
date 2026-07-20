@@ -54,34 +54,54 @@ def list_tree_versions(connection: Connection) -> list[dict[str, Any]]:
 def _version_row(
     connection: Connection,
     tree_key: str,
-    version: int,
+    version: int | None,
 ) -> dict[str, Any]:
-    row = connection.execute(
-        """
-        SELECT
-            tree.name,
-            tree.description,
-            version.id AS version_id,
-            version.version,
-            version.status,
-            version.source_path,
-            version.source_sha256,
-            version.created_at
-        FROM decision_trees AS tree
-        JOIN decision_tree_versions AS version ON version.tree_id = tree.id
-        WHERE tree.tree_key = %s AND version.version = %s
-        """,
-        (tree_key, version),
-    ).fetchone()
+    if version is None:
+        row = connection.execute(
+            """
+            SELECT
+                tree.name,
+                tree.description,
+                version.id AS version_id,
+                version.version,
+                version.status,
+                version.source_path,
+                version.source_sha256,
+                version.created_at
+            FROM decision_trees AS tree
+            JOIN decision_tree_versions AS version ON version.tree_id = tree.id
+            WHERE tree.tree_key = %s AND version.status = 'active'
+            """,
+            (tree_key,),
+        ).fetchone()
+    else:
+        row = connection.execute(
+            """
+            SELECT
+                tree.name,
+                tree.description,
+                version.id AS version_id,
+                version.version,
+                version.status,
+                version.source_path,
+                version.source_sha256,
+                version.created_at
+            FROM decision_trees AS tree
+            JOIN decision_tree_versions AS version ON version.tree_id = tree.id
+            WHERE tree.tree_key = %s AND version.version = %s
+            """,
+            (tree_key, version),
+        ).fetchone()
     if row is None:
-        raise LookupError(f"Decision tree {tree_key!r} version {version} was not found")
+        requested = "启用版本" if version is None else f"版本 {version}"
+        raise LookupError(f"未找到决策树 {tree_key!r} 的{requested}")
     return row
 
 
 def tree_details(
     connection: Connection,
     tree_key: str,
-    version: int,
+    version: int | None,
 ) -> dict[str, Any]:
     version_row = _version_row(connection, tree_key, version)
     version_id = version_row["version_id"]
@@ -136,19 +156,87 @@ def tree_details(
         """,
         (version_id,),
     ).fetchall()
+    readers = connection.execute(
+        """
+        SELECT reader_key, label, capability_definition, sequence
+        FROM decision_readers
+        WHERE version_id = %s
+        ORDER BY sequence
+        """,
+        (version_id,),
+    ).fetchall()
+    facts = connection.execute(
+        """
+        SELECT
+            fact.fact_key,
+            fact.label,
+            fact.source_kind,
+            reader.reader_key,
+            fact.subject_scope,
+            fact.value_type,
+            fact.allowed_values,
+            fact.judgement_definition
+        FROM fact_definitions AS fact
+        LEFT JOIN decision_readers AS reader ON reader.id = fact.reader_id
+        WHERE fact.version_id = %s
+        ORDER BY fact.source_kind, reader.sequence, fact.fact_key
+        """,
+        (version_id,),
+    ).fetchall()
+    rules = connection.execute(
+        """
+        SELECT
+            node.node_key,
+            branch.branch_key,
+            rule.rule_key,
+            rule.description,
+            rule.decision_key,
+            rule.question,
+            rule.option_key,
+            rule.option_label,
+            rule.result_kind,
+            rule.outcome_type,
+            rule.outcome_key,
+            rule.outcome_value,
+            coalesce(
+                jsonb_agg(
+                    jsonb_build_object(
+                        'fact_key', fact.fact_key,
+                        'operator', clause.operator,
+                        'expected_value', clause.expected_value
+                    ) ORDER BY clause.sequence
+                ) FILTER (WHERE clause.id IS NOT NULL),
+                '[]'::jsonb
+            ) AS clauses
+        FROM decision_rules AS rule
+        JOIN decision_branches AS branch ON branch.id = rule.branch_id
+        JOIN decision_nodes AS node ON node.id = branch.node_id
+        LEFT JOIN decision_rule_clauses AS clause ON clause.rule_id = rule.id
+        LEFT JOIN fact_definitions AS fact
+            ON fact.id = clause.fact_definition_id
+        WHERE rule.version_id = %s
+        GROUP BY node.node_key, branch.branch_key, rule.id
+        ORDER BY node.node_key::integer, branch.branch_key, rule.priority DESC
+        """,
+        (version_id,),
+    ).fetchall()
+
     return {
         "tree_key": tree_key,
         **version_row,
         "nodes": nodes,
         "branches": branches,
         "edges": edges,
+        "readers": readers,
+        "facts": facts,
+        "rules": rules,
     }
 
 
 def validate_tree(
     connection: Connection,
     tree_key: str,
-    version: int,
+    version: int | None,
 ) -> ValidationReport:
     details = tree_details(connection, tree_key, version)
     version_id = details["version_id"]
@@ -161,7 +249,7 @@ def validate_tree(
                     kind="ERROR",
                     code="UNRESOLVED_PREDECESSOR",
                     location=f"node:{edge['to_node_key']}",
-                    message=edge["reason"] or "The predecessor could not be resolved",
+                    message=edge["reason"] or "无法解析前置节点",
                     details={"predecessor_ref": edge["predecessor_ref"]},
                 )
             )
@@ -171,7 +259,7 @@ def validate_tree(
                     kind="CANDIDATES",
                     code="AMBIGUOUS_EDGE",
                     location=f"node:{edge['to_node_key']}",
-                    message=edge["reason"] or "The predecessor permits multiple targets",
+                    message=edge["reason"] or "前置节点允许多个目标",
                     details={"predecessor_ref": edge["predecessor_ref"]},
                 )
             )
@@ -234,7 +322,7 @@ def validate_tree(
     ).fetchone()
     return ValidationReport(
         tree_key=tree_key,
-        version=version,
+        version=details["version"],
         counts=dict(counts_row),
         issues=tuple(issues),
     )
@@ -243,18 +331,48 @@ def validate_tree(
 def evaluate_tree(
     connection: Connection,
     tree_key: str,
-    version: int,
+    version: int | None,
     facts: dict[str, Any],
 ) -> list[dict[str, Any]]:
     if not isinstance(facts, dict):
-        raise ValueError("Facts must be a JSON object")
-    _version_row(connection, tree_key, version)
+        raise ValueError("事实输入必须是 JSON 对象")
+    version_row = _version_row(connection, tree_key, version)
+    resolved_version = version_row["version"]
     return connection.execute(
         """
-        SELECT *
-        FROM evaluate_decision_tree(%s, %s, %s)
+        WITH evaluated AS (
+            SELECT *
+            FROM evaluate_decision_tree(%s, %s, %s)
+        )
+        SELECT
+            evaluated.*,
+            rule.decision_key,
+            rule.question,
+            rule.option_key,
+            rule.option_label,
+            rule.priority,
+            ARRAY(
+                SELECT fact.fact_key
+                FROM decision_rule_clauses AS clause
+                JOIN fact_definitions AS fact
+                    ON fact.id = clause.fact_definition_id
+                WHERE clause.rule_id = rule.id
+                ORDER BY clause.sequence
+            ) AS decisive_facts
+        FROM evaluated
+        JOIN decision_trees AS tree ON tree.tree_key = %s
+        JOIN decision_tree_versions AS version
+            ON version.tree_id = tree.id AND version.version = %s
+        JOIN decision_rules AS rule
+            ON rule.version_id = version.id
+           AND rule.rule_key = evaluated.rule_key
+        ORDER BY
+            evaluated.node_key::integer,
+            evaluated.branch_key,
+            rule.priority DESC,
+            evaluated.rule_key
         """,
-        (tree_key, version, Json(facts)),
+        (tree_key, resolved_version, Json(facts), tree_key, resolved_version),
     ).fetchall()
 
 
@@ -268,8 +386,8 @@ def activate_tree(
     report = validate_tree(connection, tree_key, version)
     if report.error_count and not allow_incomplete:
         raise ValueError(
-            f"Tree has {report.error_count} validation errors; "
-            "use allow_incomplete only for an explicitly accepted draft"
+            f"决策树存在 {report.error_count} 个验证错误；"
+            "只有明确接受草稿时才能使用 allow_incomplete"
         )
     version_row = _version_row(connection, tree_key, version)
     connection.execute(

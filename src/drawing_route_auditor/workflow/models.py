@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
@@ -7,17 +8,14 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-FactStatus = Literal[
-    "hit",
-    "not_hit",
-    "unable_to_judge",
-    "conflict",
-    "missing_due_to_reader_failure",
+FactStatus = Literal["hit", "not_hit", "unable_to_judge", "conflict"]
+ReaderRequestStatus = Literal["succeeded", "error"]
+RecommendationStatus = Literal[
+    "complete",
+    "complete_with_candidates",
+    "partial",
+    "error",
 ]
-FlowStatus = Literal["complete", "partial", "error", "skipped"]
-IssueKind = Literal["error", "candidates"]
-ExecutionState = Literal["ready", "blocked", "conditional", "invalid"]
-NecessityStatus = Literal["confirmed_required", "conditional"]
 
 
 class EvidenceRef(BaseModel):
@@ -34,123 +32,183 @@ class FactObservation(BaseModel):
     fact_key: str = Field(min_length=1)
     subject_ref: str = Field(min_length=1)
     status: FactStatus
-    value: str | float | bool | None
+    value: str | float | bool | list[str] | None
     evidence: list[EvidenceRef]
     coverage_complete: bool
 
     @model_validator(mode="after")
-    def not_hit_requires_complete_coverage(self) -> FactObservation:
+    def validate_not_hit_coverage(self) -> FactObservation:
         if self.status == "not_hit" and not self.coverage_complete:
-            raise ValueError("NOT_HIT requires complete observation coverage")
+            raise ValueError("NOT_HIT 要求观察范围已完整覆盖")
         return self
 
 
-class ReaderOperation(BaseModel):
+class ReaderResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    operation_key: str = Field(min_length=1)
-    process: str = Field(min_length=1)
-    content: str
-    targets: list[str]
-    necessity_status: NecessityStatus
-    execution_state: ExecutionState
-    blocked_by: list[str]
-
-
-class RouteConstraint(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    before_operation: str = Field(min_length=1)
-    after_operation: str = Field(min_length=1)
-    reason: str = Field(min_length=1)
-
-
-class FlowIssue(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    kind: IssueKind
-    code: str = Field(min_length=1)
-    message: str = Field(min_length=1)
-    affected_operation_keys: list[str]
-    missing_facts: list[str]
-    candidate_options: list[str]
-
-
-class FlowResult(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    flow_id: str = Field(min_length=1)
-    status: FlowStatus
+    reader_key: str = Field(min_length=1)
     observations: list[FactObservation]
-    operations: list[ReaderOperation]
-    constraints: list[RouteConstraint]
-    issues: list[FlowIssue]
 
 
-class AssembledOperation(BaseModel):
+class RequestedFeature(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    operation_key: str
-    flow_id: str
-    process: str
-    content: str
-    targets: list[str]
-    necessity_status: NecessityStatus
-    execution_state: ExecutionState
-    blocked_by: list[str]
-    sequence: int | None = None
-    lineage: dict[str, object]
+    fact_key: str
+    label: str
+    subject_scope: str
+    value_type: str
+    allowed_values: list[str] | None
+    judgement_definition: str
+    hit_criteria: str | None
+    not_hit_criteria: str | None
+    coverage_requirement: str | None
+    evidence_requirement: str | None
 
 
-class RouteResult(BaseModel):
+class ReaderPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    status: Literal["complete", "partial", "error"]
-    operations: list[AssembledOperation]
-    constraints: list[RouteConstraint]
-    issues: list[FlowIssue]
-    committable_operation_keys: list[str]
-    blocked_operation_keys: list[str]
+    reader_id: int
+    reader_key: str
+    label: str
+    capability_definition: str
+    sequence: int
+    requested_features: list[RequestedFeature]
 
 
 class ReaderExecution(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    flow_result: FlowResult
+    reader_key: str
+    reader_label: str
+    status: ReaderRequestStatus
+    response: ReaderResponse | None
     duration_seconds: float = Field(ge=0)
     prompt_tokens: int = Field(ge=0)
     completion_tokens: int = Field(ge=0)
+    error_code: str | None = None
+    error_message: str | None = None
 
 
-class DrawingCase(BaseModel):
+@dataclass(frozen=True, slots=True)
+class WorkflowProgress:
+    stage: Literal["render", "readers", "evaluate", "assemble", "complete"]
+    state: Literal["started", "updated", "completed", "failed"]
+    message: str
+    completed_readers: int = 0
+    total_readers: int = 0
+    reader_label: str | None = None
+    duration_seconds: float | None = None
+
+
+ProgressCallback = Callable[[WorkflowProgress], None]
+
+
+class RuleMatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    material_code: str
+    node_key: str
+    branch_key: str
+    rule_key: str
+    decision_key: str
+    question: str
+    option_key: str
+    option_label: str
+    result_status: Literal["resolved", "candidate", "error"]
+    outcome_type: str
+    outcome_key: str
+    outcome_value: object | None
+    decisive_facts: list[str]
+    reason: str
+    missing_facts: list[str]
+    priority: int = 0
+
+
+class DecisionFact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fact_key: str
+    label: str
+    status: FactStatus
+    value: object | None
+    evidence: list[EvidenceRef]
+
+
+class OperationDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rule_key: str
+    decision_key: str
+    question: str
+    selected_option: str
+    alternative_options: list[str]
+    result_status: Literal["resolved", "candidate"]
+    reason: str
+    missing_facts: list[str]
+    decisive_facts: list[DecisionFact]
+    rule_version: int
+
+
+class RouteOperation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sequence: int = Field(gt=0)
+    operation_key: str
+    process_name: str
+    source_rule_keys: list[str]
+    decisions: list[OperationDecision]
+
+
+class RouteCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    route_candidate_id: str
+    operations: list[RouteOperation]
+
+
+class LocalIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["error", "candidates"]
+    code: str
+    location: str
+    message: str
+    missing_facts: list[str]
+
+
+class RouteRecommendation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: RecommendationStatus
+    route: list[RouteOperation] | None
+    route_candidates: list[RouteCandidate]
+    local_issues: list[LocalIssue]
+
+
+class DrawingInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     pdf_path: Path
-    drawing_no: str
-    part_name: str
-    material_type: str
-    parent_drawing_no: str | None = None
-    parent_material_code: str | None = None
-    parent_name: str | None = None
-    parent_part_type: str | None = None
-    source_batch: str | None = None
+    material_code: str | None = None
 
 
 class WorkflowResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     run_id: str
-    case: DrawingCase
+    drawing_input: DrawingInput
     drawing_sha256: str
-    knowledge_snapshot: dict[str, object]
-    dispatched_flows: list[str]
-    skipped_flows: list[str]
+    tree_key: str
+    tree_version: int
+    model_version: str
+    prompt_template_version: str
     reader_executions: list[ReaderExecution]
-    route: RouteResult
+    derived_facts: dict[str, object]
+    rule_matches: list[RuleMatch]
+    recommendation: RouteRecommendation
     elapsed_seconds: float
     render_seconds: float
-    inference_seconds: float
+    reader_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,10 +219,10 @@ class RenderedDrawing:
     cache_hit: bool
 
 
-class FlowReader(Protocol):
+class ReaderAdapter(Protocol):
     async def read(
         self,
-        flow_id: str,
+        plan: ReaderPlan,
         pages: tuple[Path, ...],
-        case: DrawingCase,
+        subject_context: str,
     ) -> ReaderExecution: ...

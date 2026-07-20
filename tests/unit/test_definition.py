@@ -1,0 +1,49 @@
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+from drawing_route_auditor.decision_tree.definition import load_tree_definition
+
+
+SOURCE = Path("docs/decision_tree_v3.json")
+
+
+def test_tree_definition_is_the_single_reader_fact_rule_source() -> None:
+    definition = load_tree_definition(SOURCE)
+
+    assert definition.version == 3
+    assert [item.reader_key for item in definition.readers] == [
+        "document_structure_reader",
+        "geometry_dimension_reader",
+        "symbol_relation_reader",
+        "requirement_annotation_reader",
+    ]
+    fact_keys = {item.fact_key for item in definition.facts}
+    assert {
+        clause.fact_key for rule in definition.rules for clause in rule.clauses
+    } <= fact_keys
+    observed = [
+        item for item in definition.facts if item.source_kind == "observed_drawing"
+    ]
+    assert observed
+    assert all(item.reader_key is not None for item in observed)
+    assert all(
+        item.reader_key is None
+        for item in definition.facts
+        if item.source_kind != "observed_drawing"
+    )
+
+
+def test_observed_fact_requires_registered_reader(tmp_path: Path) -> None:
+    payload = SOURCE.read_text(encoding="utf-8")
+    invalid = payload.replace(
+        '"reader_key": "document_structure_reader"',
+        '"reader_key": "missing_reader"',
+        1,
+    )
+    path = tmp_path / "invalid.json"
+    path.write_text(invalid, encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="已注册读取器"):
+        load_tree_definition(path)

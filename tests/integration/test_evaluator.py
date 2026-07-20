@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -5,64 +6,219 @@ from drawing_route_auditor.db.connection import Connection
 
 from drawing_route_auditor.decision_tree.importer import import_decision_tree
 from drawing_route_auditor.decision_tree.repository import evaluate_tree
+from drawing_route_auditor.decision_tree.runtime import (
+    evaluate_closure,
+    evaluate_scenarios,
+    load_runtime_tree,
+)
+from drawing_route_auditor.workflow.assembler import assemble_recommendation
 
 
-SOURCE_PATH = Path("docs/1.json")
-TREE_KEY = "integration-evaluator"
+SOURCE_PATH = Path("docs/decision_tree_v3.json")
+TREE_KEY = "integration-tree-evaluator"
 
 
 @pytest.fixture
-def imported_tree(db_connection: Connection) -> Connection:
-    import_decision_tree(
-        db_connection,
-        SOURCE_PATH,
-        tree_key=TREE_KEY,
-        name="Integration evaluator tree",
-        version=1,
-    )
-    return db_connection
+def imported_tree(
+    db_connection: Connection,
+    tmp_path: Path,
+) -> tuple[Connection, object]:
+    payload = json.loads(SOURCE_PATH.read_text(encoding="utf-8"))
+    payload["tree_key"] = TREE_KEY
+    payload["base_source_path"] = str(Path("docs/1.json").resolve())
+    path = tmp_path / "tree.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    import_decision_tree(db_connection, path)
+    runtime = load_runtime_tree(db_connection, TREE_KEY, 3)
+    return db_connection, runtime
 
 
 @pytest.mark.integration
-def test_evaluator_resolves_clear_rules(imported_tree: Connection) -> None:
+def test_evaluator_returns_decision_metadata(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, _ = imported_tree
     results = evaluate_tree(
-        imported_tree,
+        connection,
         TREE_KEY,
-        1,
+        3,
+        {"route_family": {"status": "hit", "value": "rolled_sheet_part"}},
+    )
+
+    blanking = [item for item in results if item["decision_key"] == "blanking_method"]
+    assert len(blanking) == 2
+    assert {item["option_label"] for item in blanking} == {
+        "激光下料",
+        "剪板下料",
+    }
+    assert all(item["decisive_facts"] == ["route_family"] for item in blanking)
+    assert {
+        item["rule_key"] for item in results if item["result_status"] == "resolved"
+    } == {"rolling_operation"}
+
+
+@pytest.mark.integration
+def test_closure_and_route_expansion_generate_complete_candidates(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    initial_facts = {
+        "drawing_number_numeric_prefix": {"status": "hit", "value": "80"},
+        "object_has_bom": {"status": "not_hit", "value": False},
+        "is_plate_part": {"status": "hit", "value": True},
+        "continuous_revolved_surface": {"status": "hit", "value": True},
+        "has_bend_feature": {"status": "not_hit", "value": False},
+        "outer_surface_polish_required": {"status": "not_hit", "value": False},
+        "formal_cleaning_required": {"status": "not_hit", "value": False},
+    }
+
+    scenarios = evaluate_scenarios(connection, runtime, initial_facts)
+    recommendation = assemble_recommendation(scenarios, tree_version=3)
+
+    assert len(scenarios) == 1
+    assert scenarios[0].facts["object_kind"] == {
+        "status": "hit",
+        "value": "part",
+    }
+    assert scenarios[0].facts["route_family"] == {
+        "status": "hit",
+        "value": "rolled_sheet_part",
+    }
+    assert recommendation.status == "complete_with_candidates"
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {
+        ("激光下料", "卷圆", "转装配"),
+        ("激光下料", "卷圆", "转部装"),
+        ("激光下料", "卷圆", "转焊接"),
+        ("剪板下料", "卷圆", "转装配"),
+        ("剪板下料", "卷圆", "转部装"),
+        ("剪板下料", "卷圆", "转焊接"),
+    }
+    assert all(
+        operation.decisions
+        for candidate in recommendation.route_candidates
+        for operation in candidate.operations
+    )
+
+
+@pytest.mark.integration
+def test_known_parent_suppresses_transfer_candidates(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            "drawing_number_numeric_prefix": {"status": "hit", "value": "80"},
+            "object_has_bom": {"status": "not_hit", "value": False},
+            "is_plate_part": {"status": "hit", "value": True},
+            "continuous_revolved_surface": {"status": "hit", "value": True},
+            "has_bend_feature": {"status": "not_hit", "value": False},
+            "outer_surface_polish_required": {"status": "not_hit", "value": False},
+            "formal_cleaning_required": {"status": "not_hit", "value": False},
+            "parent_part_type": {"status": "hit", "value": "sub_assembly"},
+        },
+    )
+
+    recommendation = assemble_recommendation(scenarios, tree_version=3)
+
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {
+        ("激光下料", "卷圆", "转部装"),
+        ("剪板下料", "卷圆", "转部装"),
+    }
+
+
+@pytest.mark.integration
+def test_missing_base_route_is_not_reported_as_complete(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            "drawing_number_numeric_prefix": {"status": "hit", "value": "80"},
+            "object_has_bom": {"status": "not_hit", "value": False},
+            "is_plate_part": {"status": "not_hit", "value": False},
+            "continuous_revolved_surface": {"status": "hit", "value": True},
+            "has_bend_feature": {"status": "not_hit", "value": False},
+            "raw_form": {"status": "hit", "value": "other"},
+            "outer_surface_polish_required": {"status": "hit", "value": True},
+            "formal_cleaning_required": {"status": "not_hit", "value": False},
+        },
+    )
+
+    recommendation = assemble_recommendation(scenarios, tree_version=3)
+
+    assert recommendation.status == "partial"
+    assert recommendation.route is not None
+    assert [item.process_name for item in recommendation.route] == ["抛光"]
+    assert any(
+        missing.startswith("route_family:")
+        for issue in recommendation.local_issues
+        for missing in issue.missing_facts
+    )
+
+
+@pytest.mark.integration
+def test_component_without_route_template_is_not_reported_as_complete(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
         {
             "drawing_number_numeric_prefix": {"status": "hit", "value": "50"},
             "object_has_bom": {"status": "hit", "value": True},
-            "object_kind": {"status": "hit", "value": "component"},
             "title_contains_welding": {"status": "hit", "value": True},
-            "component_kind": {"status": "hit", "value": "welded"},
-            "parent_part_type": {"status": "hit", "value": "final_assembly"},
+            "outer_surface_polish_required": {"status": "not_hit", "value": False},
+            "formal_cleaning_required": {"status": "not_hit", "value": False},
         },
     )
-    resolved_keys = {
-        row["rule_key"]
-        for row in results
-        if row["result_status"] == "resolved"
-    }
 
-    assert "object_component_by_number" in resolved_keys
-    assert "object_component_by_bom" in resolved_keys
-    assert "welded_component_by_title" in resolved_keys
-    assert "welded_component_first_operation" in resolved_keys
-    assert "transfer_assembly_to_assembly" not in resolved_keys
-    assert "transfer_welded_to_assembly" in resolved_keys
-    assert "welded_component_by_requirement_candidate" not in {
-        row["rule_key"] for row in results
-    }
+    recommendation = assemble_recommendation(scenarios, tree_version=3)
+
+    assert recommendation.status == "error"
+    assert any(
+        "尚未定义部件的完整基础工艺路线" in issue.message
+        for issue in recommendation.local_issues
+    )
 
 
 @pytest.mark.integration
-def test_evaluator_returns_multiple_explained_candidates(
-    imported_tree: Connection,
+def test_higher_priority_structural_fact_resolves_conflicting_prefix(
+    imported_tree: tuple[Connection, object],
 ) -> None:
-    results = evaluate_tree(
-        imported_tree,
-        TREE_KEY,
-        1,
+    connection, runtime = imported_tree
+
+    facts, _, issues = evaluate_closure(
+        connection,
+        runtime,
+        {
+            "drawing_number_numeric_prefix": {"status": "hit", "value": "50"},
+            "object_has_bom": {"status": "not_hit", "value": False},
+        },
+    )
+
+    assert facts["object_kind"] == {"status": "hit", "value": "part"}
+    assert all(issue.code != "DERIVED_FACT_CONFLICT" for issue in issues)
+
+
+@pytest.mark.integration
+def test_candidate_facts_branch_without_stopping_evaluation(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
         {
             "technical_requirement_mentions_welding": {
                 "status": "hit",
@@ -74,91 +230,31 @@ def test_evaluator_returns_multiple_explained_candidates(
             },
         },
     )
-    candidates = [
-        row
-        for row in results
-        if row["result_status"] == "candidate"
-        and row["branch_key"] == "2.3"
-    ]
 
-    assert len(candidates) == 2
-    assert len(results) == 2
-    assert {row["outcome_key"] for row in candidates} == {"component_kind"}
-    assert {row["outcome_value"] for row in candidates} == {"welded", "assembly"}
-    assert all(row["reason"] for row in candidates)
+    assert len(scenarios) == 2
+    assert {
+        option.outcome_value
+        for scenario in scenarios
+        for option in scenario.selected_fact_options
+    } == {"welded", "assembly"}
 
 
 @pytest.mark.integration
-def test_evaluator_returns_every_matching_route_family_candidate(
-    imported_tree: Connection,
+def test_unavailable_fact_is_localized_to_referencing_rules(
+    imported_tree: tuple[Connection, object],
 ) -> None:
+    connection, _ = imported_tree
     results = evaluate_tree(
-        imported_tree,
+        connection,
         TREE_KEY,
-        1,
-        {
-            "object_kind": {"status": "hit", "value": "part"},
-            "is_plate_part": {"status": "hit", "value": True},
-            "has_bend_feature": {"status": "hit", "value": True},
-            "has_welding_feature": {"status": "hit", "value": True},
-            "requires_precision_machining": {"status": "hit", "value": True},
-            "raw_form": {"status": "hit", "value": "sheet"},
-        },
+        3,
+        {"drawing_number_numeric_prefix": {"status": "unable_to_judge"}},
     )
 
-    assert len(results) == 3
-    assert all(row["result_status"] == "candidate" for row in results)
-    assert {row["outcome_key"] for row in results} == {
-        "bent_sheet_part",
-        "machined_plate_part",
-        "welded_sheet_part",
-    }
-    assert all(row["reason"] for row in results)
-
-
-@pytest.mark.integration
-def test_evaluator_marks_unavailable_weak_fact_as_error(
-    imported_tree: Connection,
-) -> None:
-    results = evaluate_tree(
-        imported_tree,
-        TREE_KEY,
-        1,
-        {
-            "technical_requirement_mentions_welding": {
-                "status": "unable_to_judge"
-            },
-        },
-    )
-
-    assert len(results) == 1
-    assert results[0]["rule_key"] == "welded_component_by_requirement_candidate"
-    assert results[0]["result_status"] == "error"
-    assert results[0]["missing_facts"] == [
-        "technical_requirement_mentions_welding:unable_to_judge"
-    ]
-
-
-@pytest.mark.integration
-def test_evaluator_marks_unavailable_fact_at_its_rule(
-    imported_tree: Connection,
-) -> None:
-    results = evaluate_tree(
-        imported_tree,
-        TREE_KEY,
-        1,
-        {
-            "title_contains_welding": {"status": "unable_to_judge"},
-        },
-    )
-    title_results = [
-        row for row in results if row["branch_key"] == "2.1"
-    ]
-
-    assert title_results
-    assert results == title_results
-    assert all(row["result_status"] == "error" for row in title_results)
+    assert results
+    assert all(item["branch_key"] == "1.1" for item in results)
+    assert all(item["result_status"] == "error" for item in results)
     assert all(
-        "title_contains_welding:unable_to_judge" in row["missing_facts"]
-        for row in title_results
+        "drawing_number_numeric_prefix:unable_to_judge" in item["missing_facts"]
+        for item in results
     )

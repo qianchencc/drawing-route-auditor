@@ -5,12 +5,18 @@ import pytest
 from PIL import Image, ImageDraw
 from pydantic import ValidationError
 
-from drawing_route_auditor.decision_tree.runtime import EvaluationScenario
+from drawing_route_auditor.decision_tree.runtime import (
+    EvaluationScenario,
+    RuntimeTree,
+    observations_to_facts,
+)
 from drawing_route_auditor.workflow.assembler import assemble_recommendation
 from drawing_route_auditor.workflow.golden import evaluate_against_golden, load_golden_routes
 from drawing_route_auditor.workflow.models import (
     EvidenceRef,
+    DrawingInput,
     FactObservation,
+    ExternalFact,
     ReaderExecution,
     ReaderPlan,
     ReaderResponse,
@@ -20,8 +26,14 @@ from drawing_route_auditor.workflow.models import (
     RouteOperation,
     RouteRecommendation,
 )
-from drawing_route_auditor.workflow.readers import build_reader_prompt, read_all
+from drawing_route_auditor.workflow.readers import (
+    build_reader_prompt,
+    read_all,
+    select_reader_views,
+    validate_reader_response,
+)
 from drawing_route_auditor.workflow.render import prepare_reader_views
+from drawing_route_auditor.workflow.runner import _merge_external_facts
 
 
 def _plan(number: int) -> ReaderPlan:
@@ -93,6 +105,45 @@ def test_not_hit_requires_complete_subject_coverage() -> None:
         )
 
 
+def test_not_hit_requires_false_value() -> None:
+    with pytest.raises(ValidationError, match="value 必须为 false"):
+        FactObservation(
+            fact_key="weld_symbol_present",
+            subject_ref="bom-link:3-4",
+            status="not_hit",
+            value=True,
+            evidence=[EvidenceRef(page=1, region="主视图", text="未发现")],
+            coverage_complete=True,
+        )
+
+
+def test_external_current_object_fact_rejects_another_subject() -> None:
+    runtime = RuntimeTree(
+        revision_id=1,
+        tree_key="test-tree",
+        revision=1,
+        plans=(),
+        external_fact_keys=("parent_part_type",),
+        fact_labels={"parent_part_type": "上级制造类型"},
+        fact_scopes={"parent_part_type": "current_object"},
+    )
+    drawing_input = DrawingInput(
+        pdf_path=Path("material-A.pdf"),
+        material_code="material-A",
+        external_facts={
+            "parent_part_type": ExternalFact(
+                status="hit",
+                value="welded",
+                source_ref="PLM",
+                subject_ref="material-B",
+            )
+        },
+    )
+
+    with pytest.raises(ValueError, match="必须绑定当前对象"):
+        _merge_external_facts({}, drawing_input, runtime)
+
+
 def test_fixed_prompt_uses_tree_features_and_response_has_no_processes() -> None:
     prompt = build_reader_prompt(_plan(1))
     schema = ReaderResponse.model_json_schema()
@@ -103,7 +154,7 @@ def test_fixed_prompt_uses_tree_features_and_response_has_no_processes() -> None
     assert set(schema["properties"]) == {"reader_key", "observations"}
 
 
-def test_reader_views_include_cached_drawing_frame_focus(tmp_path: Path) -> None:
+def test_reader_views_include_cached_responsibility_regions(tmp_path: Path) -> None:
     page = tmp_path / "page-1.png"
     image = Image.new("RGB", (1000, 800), "white")
     drawing = ImageDraw.Draw(image)
@@ -113,11 +164,90 @@ def test_reader_views_include_cached_drawing_frame_focus(tmp_path: Path) -> None
     first = prepare_reader_views((page,))
     second = prepare_reader_views((page,))
 
-    assert [item.name for item in first] == ["page-1.png", "page-1-focus.png"]
+    assert [item.name for item in first] == [
+        "page-1.png",
+        "page-1-title.png",
+        "page-1-geometry.png",
+        "page-1-requirements.png",
+    ]
     assert second == first
-    with Image.open(first[1]) as focus:
-        assert focus.width < image.width
-        assert focus.height < image.height
+    document_plan = _plan(1).model_copy(
+        update={"reader_key": "document_structure_reader"}
+    )
+    assert [item.name for item in select_reader_views(document_plan, first)] == [
+        "page-1.png",
+        "page-1-title.png",
+    ]
+
+
+def test_reader_response_is_checked_against_dynamic_plan() -> None:
+    plan = _plan(1)
+    valid = ReaderResponse(
+        reader_key=plan.reader_key,
+        observations=[
+            FactObservation(
+                fact_key="fact_1",
+                subject_ref="drawing",
+                status="hit",
+                value=True,
+                evidence=[EvidenceRef(page=1, region="主视图", text="明确证据")],
+                coverage_complete=True,
+            )
+        ],
+    )
+
+    assert validate_reader_response(plan, valid, "drawing") == valid
+    invalid = valid.model_copy(
+        update={
+            "observations": [
+                valid.observations[0].model_copy(update={"evidence": []})
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="缺少要求的证据"):
+        validate_reader_response(plan, invalid, "drawing")
+
+
+def test_fact_merge_keeps_subjects_before_presence_aggregation() -> None:
+    def execution(observations: list[FactObservation]) -> ReaderExecution:
+        return ReaderExecution(
+            reader_key="symbol_relation_reader",
+            reader_label="符号关系读取器",
+            status="succeeded",
+            response=ReaderResponse(
+                reader_key="symbol_relation_reader",
+                observations=observations,
+            ),
+            duration_seconds=0.1,
+            prompt_tokens=1,
+            completion_tokens=1,
+        )
+
+    hit = FactObservation(
+        fact_key="weld_symbol_present",
+        subject_ref="occurrence:A",
+        status="hit",
+        value=True,
+        evidence=[EvidenceRef(page=1, region="A", text="焊接符号")],
+        coverage_complete=True,
+    )
+    not_hit = hit.model_copy(
+        update={
+            "subject_ref": "occurrence:B",
+            "status": "not_hit",
+            "value": False,
+            "evidence": [EvidenceRef(page=1, region="B", text="完整检查未发现")],
+        }
+    )
+    facts, issues = observations_to_facts((execution([hit, not_hit]),))
+
+    assert facts["weld_symbol_present"] == {"status": "hit", "value": True}
+    assert issues == []
+
+    conflicting = not_hit.model_copy(update={"subject_ref": "occurrence:A"})
+    facts, issues = observations_to_facts((execution([hit, conflicting]),))
+    assert facts["weld_symbol_present"] == {"status": "conflict"}
+    assert {issue.code for issue in issues} == {"SUBJECT_OBSERVATION_CONFLICT"}
 
 
 class BarrierReader:
@@ -214,7 +344,7 @@ def test_process_candidates_expand_to_complete_routes() -> None:
 
     result = assemble_recommendation(
         (scenario,),
-        tree_version=3,
+        tree_revision=3,
         evidence_by_fact={
             "route_family": [EvidenceRef(page=1, region="主视图", text="连续回转曲面")]
         },

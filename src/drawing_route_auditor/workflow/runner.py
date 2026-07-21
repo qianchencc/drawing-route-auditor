@@ -10,10 +10,15 @@ from drawing_route_auditor.db.connection import connect
 from drawing_route_auditor.decision_tree.runtime import (
     evaluate_scenarios,
     EvaluationScenario,
+    RuntimeTree,
     load_runtime_tree,
     observations_to_facts,
 )
-from drawing_route_auditor.workflow.assembler import assemble_recommendation, collect_fact_evidence
+from drawing_route_auditor.workflow.assembler import (
+    assemble_recommendation,
+    collect_fact_evidence,
+    collect_fact_observations,
+)
 from drawing_route_auditor.workflow.golden import (
     GoldenEvaluation,
     evaluate_against_golden,
@@ -41,6 +46,7 @@ from drawing_route_auditor.workflow.repository import (
     finish_task,
     persist_evaluation,
     persist_reader_executions,
+    persist_external_facts,
     persist_workflow_result,
     start_tasks,
 )
@@ -67,7 +73,6 @@ async def run_drawing(
     settings: Settings,
     *,
     tree_key: str = DEFAULT_TREE_KEY,
-    tree_version: int | None = None,
     adapter: ReaderAdapter | None = None,
     runtime_root: Path = Path(".runtime"),
     progress_callback: ProgressCallback | None = None,
@@ -82,11 +87,12 @@ async def run_drawing(
     subject_context = drawing_input.material_code or drawing_input.pdf_path.stem
 
     with connect(settings) as connection:
-        runtime = load_runtime_tree(connection, tree_key, tree_version)
+        runtime = load_runtime_tree(connection, tree_key)
+        external_facts = _merge_external_facts({}, drawing_input, runtime)
     active_adapter = adapter or _configured_adapter(settings)
     model_version = settings.vision_model or "未配置"
     with connect(settings) as connection:
-        run_id, input_id = create_run(
+        run_id, input_id, context_input_id = create_run(
             connection,
             drawing_input=drawing_input,
             drawing_sha256=drawing_sha256,
@@ -193,6 +199,13 @@ async def run_drawing(
                 executions=executions,
                 page_paths=[str(view) for view in reader_views],
             )
+            persist_external_facts(
+                connection,
+                run_id=run_id,
+                input_id=context_input_id,
+                runtime=runtime,
+                drawing_input=drawing_input,
+            )
             for execution in executions:
                 finish_task(
                     connection,
@@ -209,7 +222,8 @@ async def run_drawing(
             progress_callback,
             WorkflowProgress("evaluate", "started", "正在执行决策树并展开事实闭包"),
         )
-        initial_facts, reader_issues = observations_to_facts(executions)
+        initial_facts, reader_issues = observations_to_facts(executions, runtime)
+        initial_facts.update(external_facts)
         with connect(settings) as connection:
             scenarios = evaluate_scenarios(
                 connection,
@@ -247,8 +261,9 @@ async def run_drawing(
         )
         recommendation = assemble_recommendation(
             scenarios,
-            tree_version=runtime.version,
+            tree_revision=runtime.revision,
             evidence_by_fact=collect_fact_evidence(executions),
+            observations_by_fact=collect_fact_observations(executions),
             fact_labels=runtime.fact_labels,
         )
         derived_facts = _common_facts(scenarios)
@@ -259,7 +274,7 @@ async def run_drawing(
             drawing_input=drawing_input,
             drawing_sha256=rendered.drawing_sha256,
             tree_key=runtime.tree_key,
-            tree_version=runtime.version,
+            tree_revision=runtime.revision,
             model_version=model_version,
             prompt_template_version=PROMPT_TEMPLATE_VERSION,
             reader_executions=list(executions),
@@ -281,7 +296,7 @@ async def run_drawing(
             persist_workflow_result(
                 connection,
                 workflow,
-                version_id=runtime.version_id,
+                revision_id=runtime.revision_id,
             )
         _notify(
             progress_callback,
@@ -317,7 +332,6 @@ async def run_and_evaluate(
     settings: Settings,
     *,
     tree_key: str = DEFAULT_TREE_KEY,
-    tree_version: int | None = None,
     adapter: ReaderAdapter | None = None,
     runtime_root: Path = Path(".runtime"),
     progress_callback: ProgressCallback | None = None,
@@ -333,7 +347,6 @@ async def run_and_evaluate(
         drawing_input,
         settings,
         tree_key=tree_key,
-        tree_version=tree_version,
         adapter=adapter,
         runtime_root=runtime_root,
         progress_callback=progress_callback,
@@ -372,6 +385,40 @@ def _configured_adapter(settings: Settings) -> OpenAIReaderAdapter:
         model=settings.vision_model,
         timeout_seconds=settings.vision_timeout_seconds,
     )
+
+
+def _merge_external_facts(
+    facts: dict[str, object],
+    drawing_input: DrawingInput,
+    runtime: RuntimeTree,
+) -> dict[str, object]:
+    merged = dict(facts)
+    allowed = set(runtime.external_fact_keys)
+    unknown = set(drawing_input.external_facts) - allowed
+    if unknown:
+        raise ValueError(f"当前决策树未声明外部事实：{sorted(unknown)}")
+    default_subject = drawing_input.material_code or drawing_input.pdf_path.stem
+    for fact_key, external in drawing_input.external_facts.items():
+        scope = runtime.fact_scopes[fact_key]
+        subject_ref = external.subject_ref
+        if scope == "current_object":
+            subject_ref = subject_ref or default_subject
+            if subject_ref != default_subject:
+                raise ValueError(
+                    f"外部事实 {fact_key!r} 必须绑定当前对象 {default_subject!r}"
+                )
+        elif scope == "drawing_text":
+            subject_ref = subject_ref or "drawing_text"
+            if subject_ref != "drawing_text":
+                raise ValueError(f"外部事实 {fact_key!r} 必须绑定 drawing_text")
+        elif subject_ref is None:
+            raise ValueError(f"外部事实 {fact_key!r} 必须显式提供 subject_ref")
+
+        payload: dict[str, object] = {"status": external.status}
+        if external.value is not None:
+            payload["value"] = external.value
+        merged[fact_key] = payload
+    return merged
 
 
 def _common_facts(

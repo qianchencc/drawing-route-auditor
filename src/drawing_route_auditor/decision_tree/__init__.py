@@ -1,1 +1,1 @@
-"""Decision-tree source parsing and PostgreSQL import."""
+"""Current decision-tree loading, evaluation, and PostgreSQL storage."""

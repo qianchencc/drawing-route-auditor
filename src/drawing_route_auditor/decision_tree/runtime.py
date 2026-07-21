@@ -17,12 +17,13 @@ from drawing_route_auditor.workflow.models import (
 
 @dataclass(frozen=True, slots=True)
 class RuntimeTree:
-    version_id: int
+    revision_id: int
     tree_key: str
-    version: int
+    revision: int
     plans: tuple[ReaderPlan, ...]
     external_fact_keys: tuple[str, ...]
     fact_labels: dict[str, str]
+    fact_scopes: dict[str, str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,32 +37,18 @@ class EvaluationScenario:
 def load_runtime_tree(
     connection: Connection,
     tree_key: str,
-    version: int | None = None,
 ) -> RuntimeTree:
-    if version is None:
-        version_row = connection.execute(
-            """
-            SELECT version.id AS version_id, version.version
-            FROM decision_trees AS tree
-            JOIN decision_tree_versions AS version ON version.tree_id = tree.id
-            WHERE tree.tree_key = %s AND version.status = 'active'
-            """,
-            (tree_key,),
-        ).fetchone()
-    else:
-        version_row = connection.execute(
-            """
-            SELECT version.id AS version_id, version.version
-            FROM decision_trees AS tree
-            JOIN decision_tree_versions AS version ON version.tree_id = tree.id
-            WHERE tree.tree_key = %s AND version.version = %s
-            """,
-            (tree_key, version),
-        ).fetchone()
-    if version_row is None:
-        requested = "启用版本" if version is None else f"版本 {version}"
-        raise LookupError(f"决策树 {tree_key!r} 没有{requested}")
-
+    revision_row = connection.execute(
+        """
+        SELECT revision.id AS revision_id, revision.version AS revision
+        FROM decision_trees AS tree
+        JOIN decision_tree_versions AS revision ON revision.tree_id = tree.id
+        WHERE tree.tree_key = %s AND revision.status = 'active'
+        """,
+        (tree_key,),
+    ).fetchone()
+    if revision_row is None:
+        raise LookupError(f"决策树 {tree_key!r} 尚未加载")
     rows = connection.execute(
         """
         SELECT
@@ -87,21 +74,22 @@ def load_runtime_tree(
         WHERE reader.version_id = %s
         ORDER BY reader.sequence, fact.fact_key
         """,
-        (version_row["version_id"],),
+        (revision_row["revision_id"],),
     ).fetchall()
     fact_rows = connection.execute(
         """
-        SELECT fact_key, label, source_kind
+        SELECT fact_key, label, source_kind, subject_scope
         FROM fact_definitions
         WHERE version_id = %s
         ORDER BY fact_key
         """,
-        (version_row["version_id"],),
+        (revision_row["revision_id"],),
     ).fetchall()
     external_fact_keys = tuple(
         row["fact_key"] for row in fact_rows if row["source_kind"] == "external"
     )
     fact_labels = {row["fact_key"]: row["label"] for row in fact_rows}
+    fact_scopes = {row["fact_key"]: row["subject_scope"] for row in fact_rows}
 
     plans_by_key: dict[str, dict[str, object]] = {}
     for row in rows:
@@ -141,77 +129,128 @@ def load_runtime_tree(
     )
     if len(plans) != 4:
         raise ValueError(
-            f"决策树版本必须定义且仅定义四个读取器；当前为 {len(plans)} 个"
+            f"当前决策树必须定义且仅定义四个读取器；当前为 {len(plans)} 个"
         )
     if any(not plan.requested_features for plan in plans):
         raise ValueError("每个读取器必须负责至少一个图纸观察事实")
     return RuntimeTree(
-        version_id=version_row["version_id"],
+        revision_id=revision_row["revision_id"],
         tree_key=tree_key,
-        version=version_row["version"],
+        revision=revision_row["revision"],
         plans=plans,
         external_fact_keys=external_fact_keys,
         fact_labels=fact_labels,
+        fact_scopes=fact_scopes,
     )
 
 
 def observations_to_facts(
     executions: tuple[ReaderExecution, ...],
+    runtime: RuntimeTree | None = None,
 ) -> tuple[dict[str, object], list[LocalIssue]]:
-    observations: dict[str, list[FactObservation]] = {}
+    observations: dict[str, dict[str, list[FactObservation]]] = {}
     issues: list[LocalIssue] = []
+    plan_features = {
+        plan.reader_key: [feature.fact_key for feature in plan.requested_features]
+        for plan in runtime.plans
+    } if runtime is not None else {}
+
     for execution in executions:
         if execution.status == "error" or execution.response is None:
+            missing = plan_features.get(execution.reader_key, [])
             issues.append(
                 LocalIssue(
                     kind="error",
                     code="READER_FAILURE",
                     location=execution.reader_key,
                     message=execution.error_message or "读取器执行失败",
-                    missing_facts=[],
+                    missing_facts=missing,
                 )
             )
             continue
         for observation in execution.response.observations:
-            observations.setdefault(observation.fact_key, []).append(observation)
+            observations.setdefault(observation.fact_key, {}).setdefault(
+                observation.subject_ref,
+                [],
+            ).append(observation)
 
     facts: dict[str, object] = {}
-    for fact_key, values in observations.items():
-        if len(values) == 1:
-            observation = values[0]
-            facts[fact_key] = {
-                "status": observation.status,
-                "value": observation.value,
+    for fact_key, by_subject in observations.items():
+        subject_results: list[FactObservation] = []
+        for subject_ref, values in by_subject.items():
+            signatures = {
+                (
+                    observation.status,
+                    json.dumps(
+                        observation.value,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                )
+                for observation in values
             }
-            continue
-        signatures = {
-            (
-                observation.status,
-                json.dumps(
-                    observation.value,
-                    ensure_ascii=False,
-                    sort_keys=True,
-                ),
-            )
-            for observation in values
-        }
-        if len(signatures) == 1:
-            observation = values[0]
-            facts[fact_key] = {
-                "status": observation.status,
-                "value": observation.value,
-            }
-        else:
-            facts[fact_key] = {"status": "conflict"}
+            if len(signatures) == 1:
+                subject_results.append(values[0])
+                continue
             issues.append(
                 LocalIssue(
                     kind="error",
                     code="SUBJECT_OBSERVATION_CONFLICT",
-                    location=fact_key,
-                    message="同一 Reader 对该事实返回了冲突对象观察",
+                    location=f"{fact_key}/{subject_ref}",
+                    message="同一对象的同一事实存在冲突观察",
                     missing_facts=[fact_key],
                 )
             )
+            subject_results.append(
+                values[0].model_copy(
+                    update={"status": "conflict", "value": None}
+                )
+            )
+
+        if any(item.status == "conflict" for item in subject_results):
+            facts[fact_key] = {"status": "conflict"}
+            continue
+        hits = [item for item in subject_results if item.status == "hit"]
+        if hits:
+            hit_values = {
+                json.dumps(item.value, ensure_ascii=False, sort_keys=True)
+                for item in hits
+            }
+            if all(isinstance(item.value, bool) for item in hits):
+                facts[fact_key] = {
+                    "status": "hit",
+                    "value": any(bool(item.value) for item in hits),
+                }
+            elif len(hit_values) == 1:
+                facts[fact_key] = {"status": "hit", "value": hits[0].value}
+            else:
+                facts[fact_key] = {"status": "conflict"}
+                issues.append(
+                    LocalIssue(
+                        kind="error",
+                        code="CROSS_SUBJECT_VALUE_CONFLICT",
+                        location=fact_key,
+                        message="不同对象对非布尔事实给出不同值，无法聚合为当前对象事实",
+                        missing_facts=[fact_key],
+                    )
+                )
+            continue
+        if all(item.status == "not_hit" for item in subject_results):
+            facts[fact_key] = {
+                "status": "not_hit",
+                "value": False,
+            }
+            continue
+        facts[fact_key] = {"status": "unable_to_judge"}
+
+    for reader_key, fact_keys in plan_features.items():
+        execution = next(
+            (item for item in executions if item.reader_key == reader_key),
+            None,
+        )
+        if execution is None or execution.status != "succeeded":
+            for fact_key in fact_keys:
+                facts.setdefault(fact_key, {"status": "unable_to_judge"})
     return facts, issues
 
 
@@ -228,8 +267,8 @@ def evaluate_closure(
         rows = evaluate_tree(
             connection,
             runtime.tree_key,
-            runtime.version,
             facts,
+            revision=runtime.revision,
         )
         current_matches: dict[str, RuleMatch] = {}
         for row in rows:

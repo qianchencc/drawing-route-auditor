@@ -5,7 +5,11 @@ from time import monotonic, sleep
 from typing import Any
 
 from psycopg2 import OperationalError, connect as postgres_connect
-from psycopg2.extensions import connection as RawConnection
+from psycopg2.extensions import (
+    TRANSACTION_STATUS_IDLE,
+    TRANSACTION_STATUS_INTRANS,
+    connection as RawConnection,
+)
 from psycopg2.extras import RealDictCursor
 
 from drawing_route_auditor.config import Settings, get_settings
@@ -25,6 +29,8 @@ class QueryResult:
 class Connection:
     def __init__(self, raw: RawConnection) -> None:
         self._raw = raw
+        self._transaction_depth = 0
+        self._savepoint_sequence = 0
 
     @property
     def autocommit(self) -> bool:
@@ -49,16 +55,44 @@ class Connection:
         was_autocommit = self._raw.autocommit
         if was_autocommit:
             self._raw.autocommit = False
+
+        status = self._raw.get_transaction_status()
+        owns_transaction = self._transaction_depth == 0
+        savepoint: str | None = None
+        if owns_transaction:
+            if status == TRANSACTION_STATUS_IDLE:
+                self.execute("BEGIN")
+            elif status != TRANSACTION_STATUS_INTRANS:
+                if was_autocommit:
+                    self._raw.autocommit = True
+                raise RuntimeError("数据库连接当前无法开始事务")
+        else:
+            if status != TRANSACTION_STATUS_INTRANS:
+                raise RuntimeError("数据库连接当前无法创建事务保存点")
+            self._savepoint_sequence += 1
+            savepoint = f"drawing_route_auditor_sp_{self._savepoint_sequence}"
+            self.execute(f"SAVEPOINT {savepoint}")
+
+        self._transaction_depth += 1
         try:
             yield
         except BaseException:
-            self._raw.rollback()
+            if owns_transaction:
+                self._raw.rollback()
+            else:
+                self.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+                self.execute(f"RELEASE SAVEPOINT {savepoint}")
             raise
         else:
-            self._raw.commit()
+            if owns_transaction:
+                self._raw.commit()
+            else:
+                self.execute(f"RELEASE SAVEPOINT {savepoint}")
         finally:
+            self._transaction_depth -= 1
             if was_autocommit:
                 self._raw.autocommit = True
+
 
     def rollback(self) -> None:
         self._raw.rollback()

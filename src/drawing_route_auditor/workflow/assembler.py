@@ -7,6 +7,7 @@ import json
 from drawing_route_auditor.decision_tree.runtime import EvaluationScenario
 from drawing_route_auditor.workflow.models import (
     DecisionFact,
+    FactObservation,
     EvidenceRef,
     LocalIssue,
     OperationDecision,
@@ -33,6 +34,17 @@ def collect_fact_evidence(
                 if signature not in known:
                     bucket.append(evidence)
                     known.add(signature)
+    return collected
+
+def collect_fact_observations(
+    executions: tuple[ReaderExecution, ...],
+) -> dict[str, list[FactObservation]]:
+    collected: dict[str, list[FactObservation]] = {}
+    for execution in executions:
+        if execution.response is None:
+            continue
+        for observation in execution.response.observations:
+            collected.setdefault(observation.fact_key, []).append(observation)
     return collected
 
 
@@ -129,8 +141,9 @@ def _operation_decision(
     *,
     scenario: EvaluationScenario,
     evidence_by_fact: dict[str, list[EvidenceRef]],
+    observations_by_fact: dict[str, list[FactObservation]],
     fact_labels: dict[str, str],
-    tree_version: int,
+    tree_revision: int,
 ) -> OperationDecision:
     leaf_keys = _leaf_fact_keys(
         match.decisive_facts,
@@ -160,10 +173,11 @@ def _operation_decision(
                 status=_fact_status(scenario.facts, fact_key),
                 value=_fact_value(scenario.facts, fact_key),
                 evidence=evidence_by_fact.get(fact_key, []),
+                subject_observations=observations_by_fact.get(fact_key, []),
             )
             for fact_key in leaf_keys
         ],
-        rule_version=tree_version,
+        rule_revision=tree_revision,
     )
 
 
@@ -173,8 +187,9 @@ def _ordered_operations(
     scenario: EvaluationScenario,
     candidate_groups: dict[str, list[RuleMatch]],
     evidence_by_fact: dict[str, list[EvidenceRef]],
+    observations_by_fact: dict[str, list[FactObservation]],
     fact_labels: dict[str, str],
-    tree_version: int,
+    tree_revision: int,
 ) -> list[RouteOperation]:
     specs: dict[tuple[str, str], dict[str, object]] = {}
     for match in matches:
@@ -211,8 +226,9 @@ def _ordered_operations(
                 candidate_groups.get(match.decision_key, [match]),
                 scenario=scenario,
                 evidence_by_fact=evidence_by_fact,
+                observations_by_fact=observations_by_fact,
                 fact_labels=fact_labels,
-                tree_version=tree_version,
+                tree_revision=tree_revision,
             )
             for match in matched_rules
         ]
@@ -245,11 +261,13 @@ def _deduplicate_issues(issues: list[LocalIssue]) -> list[LocalIssue]:
 def assemble_recommendation(
     scenarios: tuple[EvaluationScenario, ...],
     *,
-    tree_version: int,
+    tree_revision: int,
     evidence_by_fact: dict[str, list[EvidenceRef]] | None = None,
+    observations_by_fact: dict[str, list[FactObservation]] | None = None,
     fact_labels: dict[str, str] | None = None,
 ) -> RouteRecommendation:
     evidence = evidence_by_fact or {}
+    observations = observations_by_fact or {}
     labels = fact_labels or {}
     all_issues: list[LocalIssue] = []
     clean_candidates: list[RouteCandidate] = []
@@ -305,8 +323,9 @@ def assemble_recommendation(
                 scenario=scenario,
                 candidate_groups=candidate_groups,
                 evidence_by_fact=evidence,
+                observations_by_fact=observations,
                 fact_labels=labels,
-                tree_version=tree_version,
+                tree_revision=tree_revision,
             )
         )
         all_issues.extend(scenario_issues)
@@ -321,8 +340,9 @@ def assemble_recommendation(
                 scenario=scenario,
                 candidate_groups=candidate_groups,
                 evidence_by_fact=evidence,
+                observations_by_fact=observations,
                 fact_labels=labels,
-                tree_version=tree_version,
+                tree_revision=tree_revision,
             )
             signature = json.dumps(
                 [item.process_name for item in operations],

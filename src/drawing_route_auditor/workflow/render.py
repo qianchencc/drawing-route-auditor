@@ -66,18 +66,37 @@ def _drawing_frame_bounds(page: Path) -> tuple[int, int, int, int] | None:
 
 def prepare_reader_views(pages: tuple[Path, ...]) -> tuple[Path, ...]:
     views: list[Path] = []
+    relative_regions = {
+        "title": (0.38, 0.67, 1.0, 1.0),
+        "geometry": (0.10, 0.08, 0.93, 0.74),
+        "requirements": (0.0, 0.62, 0.58, 1.0),
+    }
     for page in pages:
-        focus = page.with_name(f"{page.stem}-focus.png")
-        if focus.exists():
-            views.extend((page, focus))
-            continue
-        bounds = _drawing_frame_bounds(page)
-        if bounds is None:
-            views.append(page)
-            continue
-        with Image.open(page) as image:
-            image.crop(bounds).save(focus, format="PNG", optimize=True)
-        views.extend((page, focus))
+        detail_paths = {
+            role: page.with_name(f"{page.stem}-{role}.png")
+            for role in relative_regions
+        }
+        if not all(path.exists() for path in detail_paths.values()):
+            with Image.open(page) as source:
+                bounds = _drawing_frame_bounds(page)
+                frame = source.crop(bounds) if bounds is not None else source.copy()
+                width, height = frame.size
+                for role, relative in relative_regions.items():
+                    if detail_paths[role].exists():
+                        continue
+                    left, top, right, bottom = relative
+                    detail = frame.crop(
+                        (
+                            round(width * left),
+                            round(height * top),
+                            round(width * right),
+                            round(height * bottom),
+                        )
+                    )
+                    detail.thumbnail((2600, 2000), Image.Resampling.LANCZOS)
+                    detail.save(detail_paths[role], format="PNG", optimize=True)
+        views.append(page)
+        views.extend(detail_paths.values())
     return tuple(views)
 
 

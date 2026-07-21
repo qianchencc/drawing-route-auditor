@@ -53,9 +53,6 @@ class NodeDefinition(BaseModel):
     node_kind: Literal["classification", "route_generation", "calculation"]
     maintenance_status: Literal["complete", "needs_review", "incomplete"]
     sequence: int = Field(gt=0)
-    source_predecessor_ref: str | None = None
-    source_row_start: int = Field(gt=0)
-    source_row_end: int = Field(gt=0)
     route_required: bool = False
 
 
@@ -65,12 +62,10 @@ class BranchDefinition(BaseModel):
     branch_key: str
     node_key: str
     title: str
-    thought: str
     rule_text: str
     maintenance_status: Literal["executable", "needs_review", "incomplete"]
     confidence_mode: Literal["certain", "candidate", "unknown"]
     priority: int = 0
-    source_row_number: int = Field(gt=0)
 
 
 class ClauseDefinition(BaseModel):
@@ -131,9 +126,6 @@ class DecisionTreeDefinition(BaseModel):
     tree_key: str
     name: str
     description: str | None = None
-    version: int = Field(gt=0)
-    base_source_path: str
-    base_source_sha256: str
     readers: list[ReaderDefinition]
     facts: list[FactDefinition]
     nodes: list[NodeDefinition]

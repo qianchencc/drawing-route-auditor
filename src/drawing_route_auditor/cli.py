@@ -12,11 +12,11 @@ from rich.table import Table
 from drawing_route_auditor.config import get_settings
 from drawing_route_auditor.db.connection import connect, wait_for_database
 from drawing_route_auditor.db.migrations import current_versions, load_migrations, migrate
-from drawing_route_auditor.decision_tree.importer import import_decision_tree
+from drawing_route_auditor.decision_tree.editor import apply_tree_patch
+from drawing_route_auditor.decision_tree.importer import initialize_decision_tree
 from drawing_route_auditor.decision_tree.repository import (
-    activate_tree,
     evaluate_tree,
-    list_tree_versions,
+    list_trees,
     tree_details,
     validate_tree,
 )
@@ -42,7 +42,7 @@ db_app = typer.Typer(
 tree_app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
-    help="维护版本化决策树。",
+    help="维护当前决策树。",
 )
 app.add_typer(db_app, name="db")
 app.add_typer(tree_app, name="tree")
@@ -245,7 +245,6 @@ def _operation_decision_cn(decision: Any) -> dict[str, object]:
         "规则说明": decision.reason,
         "缺失事实": decision.missing_facts,
         "事实依据": [_decision_fact_cn(item) for item in decision.decisive_facts],
-        "规则版本": decision.rule_version,
     }
 
 
@@ -337,7 +336,6 @@ def _workflow_cn(workflow: Any) -> dict[str, object]:
             "图纸哈希": workflow.drawing_sha256,
         },
         "决策树键": workflow.tree_key,
-        "决策树版本": workflow.tree_version,
         "模型版本": workflow.model_version,
         "提示词模板版本": workflow.prompt_template_version,
         "读取器结果": [
@@ -480,14 +478,20 @@ def route(
         str | None,
         typer.Option("--material-code", help="开发评估使用的物料编码。"),
     ] = None,
+    external_facts: Annotated[
+        Path | None,
+        typer.Option(
+            "--external-facts",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="当前决策树声明的外部事实 JSON。",
+        ),
+    ] = None,
     tree_key: Annotated[
         str,
         typer.Option("--tree-key", help="决策树稳定键。"),
     ] = DEFAULT_TREE_KEY,
-    version: Annotated[
-        int | None,
-        typer.Option("--version", min=1, help="决策树版本；默认使用启用版本。"),
-    ] = None,
     evaluate: Annotated[
         bool,
         typer.Option("--evaluate/--no-evaluate", help="是否后置加载开发答案。"),
@@ -517,23 +521,27 @@ def route(
                 drawing_input,
                 settings,
                 tree_key=tree_key,
-                tree_version=version,
                 progress_callback=progress_callback,
             )
         workflow = await run_drawing(
             drawing_input,
             settings,
             tree_key=tree_key,
-            tree_version=version,
             progress_callback=progress_callback,
         )
         return workflow, None
 
     try:
         settings = get_settings()
+        external_payload = (
+            json.loads(external_facts.read_text(encoding="utf-8"))
+            if external_facts is not None
+            else {}
+        )
         drawing_input = DrawingInput(
             pdf_path=pdf,
             material_code=material_code,
+            external_facts=external_payload,
         )
         if output_format == "table":
             with console.status(
@@ -731,15 +739,15 @@ def _print_recommendation(recommendation: Any) -> None:
         console.print(table)
 
 
-@tree_app.command("import", help="导入一个版本化决策树定义。")
-def tree_import(
+@tree_app.command("init", help="从完整定义初始化空决策树。")
+def tree_init(
     source: Annotated[
         Path,
         typer.Argument(
             exists=True,
             dir_okay=False,
             readable=True,
-            help="决策树 JSON 定义文件。",
+            help="完整决策树 JSON 定义文件。",
             metavar="定义文件",
         ),
     ],
@@ -748,20 +756,17 @@ def tree_import(
         typer.Option("--format", help="输出格式：table 或 json。"),
     ] = "table",
 ) -> None:
+    if output_format not in {"table", "json"}:
+        _abort("--format 只能是 table 或 json", code=2)
     try:
         with connect() as connection:
-            with connection.transaction():
-                summary = import_decision_tree(connection, source)
+            summary = initialize_decision_tree(connection, source)
     except (DatabaseError, OSError, ValueError, RuntimeError) as error:
-        _abort(f"决策树导入失败：{error}")
+        _abort(f"决策树初始化失败：{error}")
 
     payload = {
         "决策树键": summary.tree_key,
-        "版本": summary.version,
-        "版本编号": summary.version_id,
-        "来源哈希": summary.source_sha256,
-        "已存在": summary.existing,
-        "原始行数": summary.source_row_count,
+        "已更新": summary.changed,
         "读取器数": summary.reader_count,
         "事实数": summary.fact_count,
         "节点数": summary.node_count,
@@ -771,9 +776,7 @@ def tree_import(
     if output_format == "json":
         _emit_json(payload)
         return
-    if output_format != "table":
-        _abort("--format 只能是 table 或 json", code=2)
-    table = Table(title="决策树导入")
+    table = Table(title="当前决策树")
     table.add_column("字段")
     table.add_column("值")
     for key, value in payload.items():
@@ -781,7 +784,52 @@ def tree_import(
     console.print(table)
 
 
-@tree_app.command("list", help="列出全部决策树版本。")
+@tree_app.command("apply", help="原子应用决策树增量补丁。")
+def tree_apply(
+    patch: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="增量补丁 JSON 文件。",
+            metavar="补丁文件",
+        ),
+    ],
+    output_format: Annotated[
+        str,
+        typer.Option("--format", help="输出格式：table 或 json。"),
+    ] = "table",
+) -> None:
+    if output_format not in {"table", "json"}:
+        _abort("--format 只能是 table 或 json", code=2)
+    try:
+        with connect() as connection:
+            summary = apply_tree_patch(connection, patch)
+    except (DatabaseError, LookupError, OSError, ValueError, RuntimeError) as error:
+        _abort(f"决策树增量更新失败：{error}")
+
+    payload = {
+        "决策树键": summary.tree_key,
+        "已更新": summary.changed,
+        "读取器数": summary.reader_count,
+        "事实数": summary.fact_count,
+        "节点数": summary.node_count,
+        "分支数": summary.branch_count,
+        "规则数": summary.rule_count,
+    }
+    if output_format == "json":
+        _emit_json(payload)
+        return
+    table = Table(title="决策树增量更新")
+    table.add_column("字段")
+    table.add_column("值")
+    for key, value in payload.items():
+        table.add_row(key, str(value))
+    console.print(table)
+
+
+@tree_app.command("list", help="列出当前维护的决策树。")
 def tree_list(
     output_format: Annotated[
         str,
@@ -790,19 +838,16 @@ def tree_list(
 ) -> None:
     try:
         with connect() as connection:
-            rows = list_tree_versions(connection)
+            rows = list_trees(connection)
     except DatabaseError as error:
         _abort(f"读取决策树列表失败：{error}")
     payload = [
         {
             "决策树键": row["tree_key"],
             "名称": row["name"],
-            "版本": row["version"],
-            "状态": _cn_status(row["status"]),
             "节点数": row["node_count"],
             "分支数": row["branch_count"],
             "规则数": row["executable_rule_count"],
-            "来源": row["source_path"],
         }
         for row in rows
     ]
@@ -811,32 +856,26 @@ def tree_list(
         return
     if output_format != "table":
         _abort("--format 只能是 table 或 json", code=2)
-    table = Table(title="决策树版本")
-    for heading in ("决策树键", "版本", "状态", "节点", "分支", "规则", "来源"):
+    table = Table(title="当前决策树")
+    for heading in ("决策树键", "名称", "节点", "分支", "规则"):
         table.add_column(heading)
     for item in payload:
         table.add_row(
             str(item["决策树键"]),
-            str(item["版本"]),
-            str(item["状态"]),
+            str(item["名称"]),
             str(item["节点数"]),
             str(item["分支数"]),
             str(item["规则数"]),
-            str(item["来源"]),
         )
     console.print(table)
 
 
-@tree_app.command("show", help="打印决策树；默认显示当前启用版本。")
+@tree_app.command("show", help="打印当前决策树。")
 def tree_show(
     tree_key: Annotated[
         str,
         typer.Argument(help="决策树稳定键。", metavar="决策树键"),
     ] = DEFAULT_TREE_KEY,
-    version: Annotated[
-        int | None,
-        typer.Option("--version", min=1, help="版本号；默认使用启用版本。"),
-    ] = None,
     output_format: Annotated[
         str,
         typer.Option("--format", help="输出格式：table 或 json。"),
@@ -844,7 +883,7 @@ def tree_show(
 ) -> None:
     try:
         with connect() as connection:
-            details = tree_details(connection, tree_key, version)
+            details = tree_details(connection, tree_key)
     except (DatabaseError, LookupError) as error:
         _abort(f"读取决策树详情失败：{error}")
     payload = _tree_details_cn(details)
@@ -853,10 +892,7 @@ def tree_show(
         return
     if output_format != "table":
         _abort("--format 只能是 table 或 json", code=2)
-    console.print(
-        f"决策树 [bold]{tree_key}[/bold] 版本={details['version']} "
-        f"状态={_cn_status(details['status'])} 来源={details['source_path']}"
-    )
+    console.print(f"决策树 [bold]{tree_key}[/bold]")
     reader_table = Table(title="读取器")
     for heading in ("顺序", "读取器键", "名称", "能力"):
         reader_table.add_column(heading)
@@ -882,7 +918,7 @@ def tree_show(
         )
     console.print(fact_table)
     node_table = Table(title="节点")
-    for heading in ("节点", "名称", "类型", "维护状态", "来源行"):
+    for heading in ("节点", "名称", "类型", "维护状态"):
         node_table.add_column(heading)
     for node in details["nodes"]:
         node_table.add_row(
@@ -890,7 +926,6 @@ def tree_show(
             node["title"],
             _NODE_KIND_CN.get(node["node_kind"], node["node_kind"]),
             _MAINTENANCE_CN.get(node["maintenance_status"], node["maintenance_status"]),
-            f"{node['source_row_start']}-{node['source_row_end']}",
         )
     console.print(node_table)
     rule_table = Table(title="规则条件与结果")
@@ -923,10 +958,6 @@ def _tree_details_cn(details: dict[str, Any]) -> dict[str, object]:
         "决策树键": details["tree_key"],
         "名称": details["name"],
         "说明": details["description"],
-        "版本": details["version"],
-        "状态": _cn_status(details["status"]),
-        "来源": details["source_path"],
-        "来源哈希": details["source_sha256"],
         "读取器": [
             {
                 "读取器键": item["reader_key"],
@@ -961,8 +992,6 @@ def _tree_details_cn(details: dict[str, Any]) -> dict[str, object]:
                 "维护状态": _MAINTENANCE_CN.get(
                     item["maintenance_status"], item["maintenance_status"]
                 ),
-                "来源行开始": item["source_row_start"],
-                "来源行结束": item["source_row_end"],
             }
             for item in details["nodes"]
         ],
@@ -1011,16 +1040,12 @@ def _tree_details_cn(details: dict[str, Any]) -> dict[str, object]:
     }
 
 
-@tree_app.command("validate", help="校验决策树结构；默认校验启用版本。")
+@tree_app.command("validate", help="校验当前决策树结构。")
 def tree_validate(
     tree_key: Annotated[
         str,
         typer.Argument(help="决策树稳定键。", metavar="决策树键"),
     ] = DEFAULT_TREE_KEY,
-    version: Annotated[
-        int | None,
-        typer.Option("--version", min=1, help="版本号；默认使用启用版本。"),
-    ] = None,
     strict: Annotated[
         bool,
         typer.Option("--strict", help="存在任何问题时返回非零退出码。"),
@@ -1032,11 +1057,10 @@ def tree_validate(
 ) -> None:
     try:
         with connect() as connection:
-            report = validate_tree(connection, tree_key, version)
+            report = validate_tree(connection, tree_key)
     except (DatabaseError, LookupError) as error:
         _abort(f"验证决策树失败：{error}")
     count_names = {
-        "source_rows": "原始行",
         "nodes": "节点",
         "branches": "分支",
         "edges": "边",
@@ -1045,7 +1069,6 @@ def tree_validate(
     }
     payload = {
         "决策树键": report.tree_key,
-        "版本": report.version,
         "数量": {
             count_names.get(key, key): value for key, value in report.counts.items()
         },
@@ -1063,7 +1086,7 @@ def tree_validate(
         _emit_json(payload)
     elif output_format == "table":
         console.print(
-            f"{tree_key} 版本={report.version} "
+            f"{tree_key} "
             + " ".join(
                 f"{count_names.get(key, key)}={value}"
                 for key, value in report.counts.items()
@@ -1103,10 +1126,6 @@ def tree_evaluate(
         str,
         typer.Argument(help="决策树稳定键。", metavar="决策树键"),
     ] = DEFAULT_TREE_KEY,
-    version: Annotated[
-        int | None,
-        typer.Option("--version", min=1, help="版本号；默认使用启用版本。"),
-    ] = None,
     output_format: Annotated[
         str,
         typer.Option("--format", help="输出格式：table 或 json。"),
@@ -1115,7 +1134,7 @@ def tree_evaluate(
     try:
         facts = json.loads(facts_path.read_text(encoding="utf-8"))
         with connect() as connection:
-            rows = evaluate_tree(connection, tree_key, version, facts)
+            rows = evaluate_tree(connection, tree_key, facts)
     except (DatabaseError, LookupError, OSError, ValueError) as error:
         _abort(f"决策树求值失败：{error}")
     payload = [
@@ -1156,33 +1175,6 @@ def tree_evaluate(
     console.print(table)
 
 
-@tree_app.command("activate", help="启用指定决策树版本。")
-def tree_activate(
-    version: Annotated[
-        int,
-        typer.Option("--version", min=1, help="要启用的版本号。"),
-    ],
-    tree_key: Annotated[
-        str,
-        typer.Argument(help="决策树稳定键。", metavar="决策树键"),
-    ] = DEFAULT_TREE_KEY,
-    allow_incomplete: Annotated[
-        bool,
-        typer.Option("--allow-incomplete", help="显式接受含错误的草稿。"),
-    ] = False,
-) -> None:
-    try:
-        with connect() as connection:
-            with connection.transaction():
-                activate_tree(
-                    connection,
-                    tree_key,
-                    version,
-                    allow_incomplete=allow_incomplete,
-                )
-    except (DatabaseError, LookupError, ValueError) as error:
-        _abort(f"启用决策树失败：{error}")
-    console.print(f"已启用决策树 {tree_key} 版本 {version}。")
 
 
 if __name__ == "__main__":

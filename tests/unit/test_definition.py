@@ -6,13 +6,13 @@ from pydantic import ValidationError
 from drawing_route_auditor.decision_tree.definition import load_tree_definition
 
 
-SOURCE = Path("docs/decision_tree_v3.json")
+SOURCE = Path("docs/decision_tree.json")
 
 
 def test_tree_definition_is_the_single_reader_fact_rule_source() -> None:
     definition = load_tree_definition(SOURCE)
 
-    assert definition.version == 3
+    assert definition.tree_key == "drawing-process-tree"
     assert [item.reader_key for item in definition.readers] == [
         "document_structure_reader",
         "geometry_dimension_reader",

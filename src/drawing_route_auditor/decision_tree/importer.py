@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from hashlib import sha256
-import json
 from pathlib import Path
 
 from psycopg2.extras import Json
@@ -12,20 +12,13 @@ from drawing_route_auditor.decision_tree.definition import (
     DecisionTreeDefinition,
     load_tree_definition,
 )
-from drawing_route_auditor.decision_tree.source import (
-    DecisionTreeSource,
-    load_decision_tree_source,
-)
 
 
 @dataclass(frozen=True, slots=True)
-class ImportSummary:
+class TreeUpdateSummary:
     tree_key: str
-    version: int
-    version_id: int
-    source_sha256: str
-    existing: bool
-    source_row_count: int
+    revision_id: int
+    changed: bool
     reader_count: int
     fact_count: int
     node_count: int
@@ -35,101 +28,43 @@ class ImportSummary:
 
 def _summary(
     connection: Connection,
-    version_id: int,
+    revision_id: int,
     *,
-    existing: bool,
-) -> ImportSummary:
+    changed: bool,
+) -> TreeUpdateSummary:
     row = connection.execute(
         """
         SELECT
             tree.tree_key,
-            version.version,
-            version.id AS version_id,
-            version.source_sha256,
-            (SELECT count(*) FROM decision_source_rows
-                WHERE version_id = version.id) AS source_row_count,
+            revision.id AS revision_id,
             (SELECT count(*) FROM decision_readers
-                WHERE version_id = version.id) AS reader_count,
+                WHERE version_id = revision.id) AS reader_count,
             (SELECT count(*) FROM fact_definitions
-                WHERE version_id = version.id) AS fact_count,
+                WHERE version_id = revision.id) AS fact_count,
             (SELECT count(*) FROM decision_nodes
-                WHERE version_id = version.id) AS node_count,
+                WHERE version_id = revision.id) AS node_count,
             (SELECT count(*) FROM decision_branches
-                WHERE version_id = version.id) AS branch_count,
+                WHERE version_id = revision.id) AS branch_count,
             (SELECT count(*) FROM decision_rules
-                WHERE version_id = version.id) AS rule_count
-        FROM decision_tree_versions AS version
-        JOIN decision_trees AS tree ON tree.id = version.tree_id
-        WHERE version.id = %s
+                WHERE version_id = revision.id) AS rule_count
+        FROM decision_tree_versions AS revision
+        JOIN decision_trees AS tree ON tree.id = revision.tree_id
+        WHERE revision.id = %s
         """,
-        (version_id,),
+        (revision_id,),
     ).fetchone()
     if row is None:
-        raise RuntimeError(f"决策树版本 {version_id} 已不存在")
-    return ImportSummary(
+        raise RuntimeError(f"决策树存储修订 {revision_id} 已不存在")
+    return TreeUpdateSummary(
         tree_key=row["tree_key"],
-        version=row["version"],
-        version_id=row["version_id"],
-        source_sha256=row["source_sha256"],
-        existing=existing,
-        source_row_count=row["source_row_count"],
+        revision_id=row["revision_id"],
+        changed=changed,
         reader_count=row["reader_count"],
         fact_count=row["fact_count"],
         node_count=row["node_count"],
         branch_count=row["branch_count"],
         rule_count=row["rule_count"],
     )
-
-
-def _load_base_source(
-    definition_path: Path,
-    definition: DecisionTreeDefinition,
-) -> DecisionTreeSource:
-    base_path = Path(definition.base_source_path)
-    if not base_path.is_absolute():
-        base_path = definition_path.parent / base_path
-    actual_sha256 = sha256(base_path.read_bytes()).hexdigest()
-    if actual_sha256 != definition.base_source_sha256:
-        raise ValueError("基础决策树来源校验和与定义不一致")
-    return load_decision_tree_source(base_path)
-
-
-def _insert_source_rows(
-    connection: Connection,
-    version_id: int,
-    source: DecisionTreeSource,
-) -> dict[int, int]:
-    source_row_ids: dict[int, int] = {}
-    for row in source.rows:
-        inserted = connection.execute(
-            """
-            INSERT INTO decision_source_rows (
-                version_id, row_number, serial_text, predecessor_ref,
-                node_ref, node_title, branch_ref, thought, rule_text,
-                raw_cells, formatting, source_row
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-            """,
-            (
-                version_id,
-                row.row_number,
-                row.serial_text,
-                row.predecessor_ref,
-                row.node_ref,
-                row.node_title,
-                row.branch_ref,
-                row.thought,
-                row.rule_text,
-                Json(list(row.raw_cells)),
-                Json(row.formatting),
-                Json(row.source_row),
-            ),
-        ).fetchone()
-        if inserted is None:
-            raise RuntimeError("保存决策树来源行失败")
-        source_row_ids[row.row_number] = inserted["id"]
-    return source_row_ids
 
 
 def _insert_readers(
@@ -210,7 +145,7 @@ def _insert_facts(
 
 def _insert_nodes(
     connection: Connection,
-    version_id: int,
+    revision_id: int,
     definition: DecisionTreeDefinition,
 ) -> dict[str, int]:
     node_ids: dict[str, int] = {}
@@ -219,22 +154,18 @@ def _insert_nodes(
             """
             INSERT INTO decision_nodes (
                 version_id, node_key, title, node_kind,
-                maintenance_status, sequence, source_predecessor_ref,
-                source_row_start, source_row_end, route_required
+                maintenance_status, sequence, route_required
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
-                version_id,
+                revision_id,
                 node.node_key,
                 node.title,
                 node.node_kind,
                 node.maintenance_status,
                 node.sequence,
-                node.source_predecessor_ref,
-                node.source_row_start,
-                node.source_row_end,
                 node.route_required,
             ),
         ).fetchone()
@@ -246,27 +177,24 @@ def _insert_nodes(
 
 def _insert_branches(
     connection: Connection,
-    version_id: int,
+    revision_id: int,
     definition: DecisionTreeDefinition,
     node_ids: dict[str, int],
-    source_row_ids: dict[int, int],
 ) -> dict[str, int]:
     branch_ids: dict[str, int] = {}
     for branch in definition.branches:
         row = connection.execute(
             """
             INSERT INTO decision_branches (
-                version_id, node_id, source_row_id, branch_key,
-                title, raw_rule_text, maintenance_status,
-                confidence_mode, priority
+                version_id, node_id, branch_key, title, raw_rule_text,
+                maintenance_status, confidence_mode, priority
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
-                version_id,
+                revision_id,
                 node_ids[branch.node_key],
-                source_row_ids[branch.source_row_number],
                 branch.branch_key,
                 branch.title,
                 branch.rule_text,
@@ -375,97 +303,160 @@ def _insert_edges(
         )
 
 
-def import_decision_tree(
-    connection: Connection,
-    source_path: Path,
-) -> ImportSummary:
-    definition = load_tree_definition(source_path)
-    source_bytes = source_path.read_bytes()
-    source_hash = sha256(source_bytes).hexdigest()
-    source_payload = json.loads(source_bytes.decode("utf-8-sig"))
-    base_source = _load_base_source(source_path, definition)
+def _source_hash(payload: dict[str, object]) -> str:
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return sha256(canonical).hexdigest()
 
+
+def persist_tree_revision(
+    connection: Connection,
+    *,
+    definition: DecisionTreeDefinition,
+    source_payload: dict[str, object],
+    source_label: str,
+    allow_update: bool = True,
+) -> TreeUpdateSummary:
+    source_hash = _source_hash(source_payload)
     tree_row = connection.execute(
         """
         INSERT INTO decision_trees (tree_key, name, description)
         VALUES (%s, %s, %s)
-        ON CONFLICT (tree_key) DO UPDATE SET
-            name = EXCLUDED.name,
-            description = EXCLUDED.description
+        ON CONFLICT (tree_key) DO NOTHING
         RETURNING id
         """,
         (definition.tree_key, definition.name, definition.description),
     ).fetchone()
     if tree_row is None:
+        tree_row = connection.execute(
+            "SELECT id FROM decision_trees WHERE tree_key = %s FOR UPDATE",
+            (definition.tree_key,),
+        ).fetchone()
+    if tree_row is None:
         raise RuntimeError("保存决策树失败")
     tree_id = tree_row["id"]
 
-    existing = connection.execute(
+    current = connection.execute(
         """
         SELECT id, source_sha256
         FROM decision_tree_versions
-        WHERE tree_id = %s AND version = %s
+        WHERE tree_id = %s AND status = 'active'
         """,
-        (tree_id, definition.version),
+        (tree_id,),
     ).fetchone()
-    if existing is not None:
-        if existing["source_sha256"] != source_hash:
-            raise ValueError(
-                f"决策树 {definition.tree_key!r} 版本 {definition.version} "
-                "已存在且内容不同"
-            )
-        return _summary(connection, existing["id"], existing=True)
+    if current is not None and current["source_sha256"] == source_hash:
+        return _summary(connection, current["id"], changed=False)
+    if current is not None and not allow_update:
+        raise ValueError(
+            f"决策树 {definition.tree_key!r} 已初始化；请使用增量补丁更新"
+        )
+    connection.execute(
+        """
+        UPDATE decision_trees
+        SET name = %s, description = %s
+        WHERE id = %s
+        """,
+        (definition.name, definition.description, tree_id),
+    )
 
-    version_row = connection.execute(
+    revision_row = connection.execute(
         """
         INSERT INTO decision_tree_versions (
             tree_id, version, status, source_path,
             source_sha256, source_payload, schema_version
         )
-        VALUES (%s, %s, 'draft', %s, %s, %s, %s)
+        SELECT
+            %s, coalesce(max(version), 0) + 1, 'draft',
+            %s, %s, %s, %s
+        FROM decision_tree_versions
+        WHERE tree_id = %s
         RETURNING id
         """,
         (
             tree_id,
-            definition.version,
-            str(source_path),
+            source_label,
             source_hash,
             Json(source_payload),
             definition.schema_version,
+            tree_id,
         ),
     ).fetchone()
-    if version_row is None:
-        raise RuntimeError("保存决策树版本失败")
-    version_id = version_row["id"]
+    if revision_row is None:
+        raise RuntimeError("保存决策树存储修订失败")
+    revision_id = revision_row["id"]
 
-    source_row_ids = _insert_source_rows(connection, version_id, base_source)
-    reader_ids = _insert_readers(connection, version_id, definition)
+    reader_ids = _insert_readers(connection, revision_id, definition)
     fact_ids = _insert_facts(
         connection,
-        version_id,
+        revision_id,
         definition,
         reader_ids,
     )
-    node_ids = _insert_nodes(connection, version_id, definition)
+    node_ids = _insert_nodes(connection, revision_id, definition)
     branch_ids = _insert_branches(
         connection,
-        version_id,
+        revision_id,
         definition,
         node_ids,
-        source_row_ids,
     )
     _insert_rules(
         connection,
-        version_id,
+        revision_id,
         definition,
         branch_ids,
         fact_ids,
     )
     _insert_edges(
         connection,
-        version_id,
+        revision_id,
         definition,
         node_ids,
         branch_ids,
     )
-    return _summary(connection, version_id, existing=False)
+
+    connection.execute(
+        """
+        UPDATE decision_tree_versions
+        SET status = 'retired', activated_at = NULL
+        WHERE tree_id = %s AND status = 'active'
+        """,
+        (tree_id,),
+    )
+    connection.execute(
+        """
+        UPDATE decision_tree_versions
+        SET status = 'active', activated_at = now()
+        WHERE id = %s
+        """,
+        (revision_id,),
+    )
+
+    from drawing_route_auditor.decision_tree.repository import validate_tree
+
+    report = validate_tree(connection, definition.tree_key)
+    if report.error_count:
+        raise ValueError(f"决策树存在 {report.error_count} 个验证错误，拒绝更新")
+    from drawing_route_auditor.decision_tree.runtime import load_runtime_tree
+
+    load_runtime_tree(connection, definition.tree_key)
+    return _summary(connection, revision_id, changed=True)
+
+
+def initialize_decision_tree(
+    connection: Connection,
+    source_path: Path,
+) -> TreeUpdateSummary:
+    source_payload = json.loads(source_path.read_text(encoding="utf-8-sig"))
+    definition = load_tree_definition(source_path)
+    with connection.transaction():
+        return persist_tree_revision(
+            connection,
+            definition=definition,
+            source_payload=source_payload,
+            source_label=f"init:{source_path}",
+            allow_update=False,
+        )

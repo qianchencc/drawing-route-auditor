@@ -37,9 +37,35 @@ class FactObservation(BaseModel):
     coverage_complete: bool
 
     @model_validator(mode="after")
-    def validate_not_hit_coverage(self) -> FactObservation:
-        if self.status == "not_hit" and not self.coverage_complete:
-            raise ValueError("NOT_HIT 要求观察范围已完整覆盖")
+    def validate_status_value(self) -> FactObservation:
+        if self.status == "hit" and self.value is None:
+            raise ValueError("HIT 必须提供 value")
+        if self.status == "not_hit":
+            if not self.coverage_complete:
+                raise ValueError("NOT_HIT 要求观察范围已完整覆盖")
+            if self.value is not False:
+                raise ValueError("NOT_HIT 的 value 必须为 false")
+        if self.status in {"unable_to_judge", "conflict"} and self.value is not None:
+            raise ValueError("UNABLE_TO_JUDGE 或 CONFLICT 的 value 必须为 null")
+        return self
+
+
+class ExternalFact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: FactStatus
+    value: str | float | bool | list[str] | None
+    source_ref: str = Field(min_length=1)
+    subject_ref: str | None = None
+
+    @model_validator(mode="after")
+    def validate_value(self) -> ExternalFact:
+        if self.status == "hit" and self.value is None:
+            raise ValueError("外部事实 HIT 必须提供 value")
+        if self.status == "not_hit" and self.value is not False:
+            raise ValueError("外部事实 NOT_HIT 的 value 必须为 false")
+        if self.status in {"unable_to_judge", "conflict"} and self.value is not None:
+            raise ValueError("未知或冲突的外部事实 value 必须为 null")
         return self
 
 
@@ -88,6 +114,7 @@ class ReaderExecution(BaseModel):
     completion_tokens: int = Field(ge=0)
     error_code: str | None = None
     error_message: str | None = None
+    page_inputs: list[str] = Field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +159,7 @@ class DecisionFact(BaseModel):
     status: FactStatus
     value: object | None
     evidence: list[EvidenceRef]
+    subject_observations: list[FactObservation] = Field(default_factory=list)
 
 
 class OperationDecision(BaseModel):
@@ -146,7 +174,7 @@ class OperationDecision(BaseModel):
     reason: str
     missing_facts: list[str]
     decisive_facts: list[DecisionFact]
-    rule_version: int
+    rule_revision: int
 
 
 class RouteOperation(BaseModel):
@@ -190,6 +218,7 @@ class DrawingInput(BaseModel):
 
     pdf_path: Path
     material_code: str | None = None
+    external_facts: dict[str, ExternalFact] = Field(default_factory=dict)
 
 
 class WorkflowResult(BaseModel):
@@ -199,7 +228,7 @@ class WorkflowResult(BaseModel):
     drawing_input: DrawingInput
     drawing_sha256: str
     tree_key: str
-    tree_version: int
+    tree_revision: int
     model_version: str
     prompt_template_version: str
     reader_executions: list[ReaderExecution]

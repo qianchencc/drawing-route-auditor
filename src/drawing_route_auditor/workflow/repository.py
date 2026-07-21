@@ -25,7 +25,7 @@ def create_run(
     drawing_sha256: str,
     runtime: RuntimeTree,
     model: str,
-) -> tuple[str, int]:
+) -> tuple[str, int, int | None]:
     task_keys = [
         ("render", "pdf_render"),
         *((f"reader:{plan.reader_key}", "vision_reader") for plan in runtime.plans),
@@ -43,11 +43,11 @@ def create_run(
             RETURNING id
             """,
             (
-                f"{runtime.tree_key}:v{runtime.version}",
+                runtime.tree_key,
                 Json(
                     {
                         "tree_key": runtime.tree_key,
-                        "tree_version": runtime.version,
+                        "tree_revision": runtime.revision,
                         "reader_keys": [plan.reader_key for plan in runtime.plans],
                         "prompt_template_version": PROMPT_TEMPLATE_VERSION,
                         "output_schema_version": OUTPUT_SCHEMA_VERSION,
@@ -77,6 +77,29 @@ def create_run(
         ).fetchone()
         if input_row is None:
             raise RuntimeError("创建运行输入记录失败")
+        context_input_id: int | None = None
+        if drawing_input.external_facts:
+            context_row = connection.execute(
+                """
+                INSERT INTO run_inputs (
+                    run_id, input_kind, source_path, metadata
+                )
+                VALUES (%s, 'context', 'cli:external-facts', %s)
+                RETURNING id
+                """,
+                (
+                    run_id,
+                    Json(
+                        {
+                            key: value.model_dump(mode="json")
+                            for key, value in drawing_input.external_facts.items()
+                        }
+                    ),
+                ),
+            ).fetchone()
+            if context_row is None:
+                raise RuntimeError("创建外部事实输入记录失败")
+            context_input_id = context_row["id"]
         for task_key, task_type in task_keys:
             connection.execute(
                 """
@@ -102,7 +125,7 @@ def create_run(
                 """,
                 (
                     run_id,
-                    runtime.version_id,
+                    runtime.revision_id,
                     plan.reader_id,
                     task_ids[f"reader:{plan.reader_key}"],
                     Json(
@@ -116,7 +139,70 @@ def create_run(
                     model,
                 ),
             )
-    return run_id, input_row["id"]
+    return run_id, input_row["id"], context_input_id
+
+
+def persist_external_facts(
+    connection: Connection,
+    *,
+    run_id: str,
+    input_id: int | None,
+    runtime: RuntimeTree,
+    drawing_input: DrawingInput,
+) -> None:
+    if not drawing_input.external_facts:
+        return
+    fact_rows = connection.execute(
+        """
+        SELECT id, fact_key, subject_scope
+        FROM fact_definitions
+        WHERE version_id = %s AND source_kind = 'external'
+        """,
+        (runtime.revision_id,),
+    ).fetchall()
+    definitions = {row["fact_key"]: row for row in fact_rows}
+    unknown = set(drawing_input.external_facts) - set(definitions)
+    if unknown:
+        raise ValueError(f"当前决策树未声明外部事实：{sorted(unknown)}")
+    default_subject = drawing_input.material_code or drawing_input.pdf_path.stem
+    with connection.transaction():
+        for fact_key, external in drawing_input.external_facts.items():
+            definition = definitions[fact_key]
+            row = connection.execute(
+                """
+                INSERT INTO fact_observations (
+                    run_id, fact_definition_id, status, scope,
+                    subject_ref, value, observation_coverage, coverage_complete
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, true)
+                RETURNING id
+                """,
+                (
+                    run_id,
+                    definition["id"],
+                    external.status,
+                    definition["subject_scope"],
+                    Json({"ref": external.subject_ref or default_subject}),
+                    Json(external.value) if external.value is not None else None,
+                    Json(
+                        {
+                            "source_ref": external.source_ref,
+                            "is_complete_for_subject": True,
+                        }
+                    ),
+                ),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("保存外部事实失败")
+            connection.execute(
+                """
+                INSERT INTO evidence (
+                    fact_observation_id, input_id, source_type, original_text
+                )
+                VALUES (%s, %s, 'plm', %s)
+                """,
+                (row["id"], input_id, external.source_ref),
+            )
 
 
 def start_tasks(
@@ -213,7 +299,7 @@ def persist_reader_executions(
         JOIN decision_readers AS reader ON reader.id = fact.reader_id
         WHERE fact.version_id = %s
         """,
-        (runtime.version_id,),
+        (runtime.revision_id,),
     ).fetchall()
     fact_ids = {(row["reader_key"], row["fact_key"]): row["id"] for row in fact_rows}
     plan_ids = {plan.reader_key: plan.reader_id for plan in runtime.plans}
@@ -238,7 +324,7 @@ def persist_reader_executions(
                 """,
                 (
                     execution.status,
-                    Json(page_paths),
+                    Json(execution.page_inputs or page_paths),
                     round(execution.duration_seconds * 1000),
                     execution.prompt_tokens,
                     execution.completion_tokens,
@@ -311,7 +397,7 @@ def persist_workflow_result(
     connection: Connection,
     workflow: WorkflowResult,
     *,
-    version_id: int,
+    revision_id: int,
 ) -> None:
     recommendation = workflow.recommendation
     with connection.transaction():
@@ -325,7 +411,7 @@ def persist_workflow_result(
             """,
             (
                 workflow.run_id,
-                version_id,
+                revision_id,
                 recommendation.status,
                 Json([item.model_dump(mode="json") for item in recommendation.route])
                 if recommendation.route is not None

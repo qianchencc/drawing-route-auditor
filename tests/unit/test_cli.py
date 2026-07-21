@@ -1,8 +1,11 @@
 import json
 from contextlib import contextmanager
+from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Iterator
 
+from rich.console import Console
 from typer.testing import CliRunner
 
 import drawing_route_auditor.cli as cli
@@ -73,3 +76,52 @@ def test_tree_apply_rejects_format_before_connecting(
 
     assert result.exit_code == 2
     assert "--format 只能是 table 或 json" in result.stdout
+
+
+def test_development_evaluation_labels_correct_answer_and_sources(
+    monkeypatch: object,
+) -> None:
+    sequence = [
+        "激光下料",
+        "焊接(校正)",
+        "卷圆",
+        "焊接(校正)",
+        "卷圆",
+        "转焊接",
+    ]
+    candidate = SimpleNamespace(
+        expected_processes=sequence,
+        source_ranges=["docs/routes_2.csv:113-118"],
+    )
+    evaluation = SimpleNamespace(
+        material_code="DEMO-PLATE-001",
+        status="pass",
+        operation_sequences_match=True,
+        predicted_sequences=[sequence],
+        expected_sequences=[sequence],
+        missing_sequences=[],
+        extra_sequences=[],
+        route_candidates=[candidate],
+        unresolved_route_issues=[],
+    )
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "console",
+        Console(file=stream, width=160, color_system=None),
+    )
+
+    payload = cli._evaluation_cn(evaluation)
+    cli._print_evaluation(evaluation)
+
+    assert payload["正确答案（历史标准路线）"] == [
+        {
+            "工序序列": sequence,
+            "数据来源": ["docs/routes_2.csv:113-118"],
+        }
+    ]
+    output = stream.getvalue()
+    assert "开发评估：通过；工序序列一致：是" in output
+    assert "正确答案" in output
+    assert "激光下料 → 焊接(校正) → 卷圆 → 焊接(校正) → 卷圆 → 转焊接" in output
+    assert "docs/routes_2.csv:113-118" in output

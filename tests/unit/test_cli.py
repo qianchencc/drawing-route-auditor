@@ -78,7 +78,7 @@ def test_tree_apply_rejects_format_before_connecting(
     assert "--format 只能是 table 或 json" in result.stdout
 
 
-def test_development_evaluation_appends_reference_route(
+def test_pdf_stem_loads_reference_route_without_evaluation(
     monkeypatch: object,
 ) -> None:
     sequence = [
@@ -89,17 +89,18 @@ def test_development_evaluation_appends_reference_route(
         "卷圆",
         "转焊接",
     ]
-    evaluation = SimpleNamespace(
-        material_code="DEMO-PLATE-001",
-        status="pass",
-        operation_sequences_match=True,
-        predicted_sequences=[sequence],
-        expected_sequences=[sequence],
-        missing_sequences=[],
-        extra_sequences=[],
-        route_candidates=[],
-        unresolved_route_issues=[],
-    )
+    requested_codes: list[str] = []
+
+    def load_golden_routes(
+        material_code: str,
+        *,
+        route_sources: tuple[Path, ...],
+    ) -> tuple[SimpleNamespace, ...]:
+        requested_codes.append(material_code)
+        assert route_sources == cli.DEFAULT_ROUTE_SOURCES
+        return (SimpleNamespace(expected_processes=sequence),)
+
+    monkeypatch.setattr(cli, "load_golden_routes", load_golden_routes)
     stream = StringIO()
     monkeypatch.setattr(
         cli,
@@ -107,11 +108,15 @@ def test_development_evaluation_appends_reference_route(
         Console(file=stream, width=160, color_system=None),
     )
 
-    payload = cli._evaluation_cn(evaluation)
-    cli._print_evaluation(evaluation)
+    references = cli._reference_sequences(
+        Path("/drawings/DEMO-PLATE-001.pdf"),
+        material_code=None,
+        evaluation=None,
+    )
+    cli._print_reference_routes(references)
 
-    assert payload["标准序列"] == [sequence]
+    assert requested_codes == ["DEMO-PLATE-001"]
+    assert references == [sequence]
     output = stream.getvalue()
-    assert "开发评估：通过" in output
     assert "参考路线：激光下料 → 焊接(校正) → 卷圆 → 焊接(校正) → 卷圆 → 转焊接" in output
-    assert "正确答案" not in output
+    assert "开发评估" not in output

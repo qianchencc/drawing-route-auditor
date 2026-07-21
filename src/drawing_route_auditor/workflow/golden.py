@@ -9,6 +9,11 @@ from pydantic import BaseModel, ConfigDict
 
 from drawing_route_auditor.workflow.models import RouteRecommendation
 
+DEFAULT_ROUTE_SOURCES: tuple[Path, ...] = (
+    Path("docs/routes_1.csv"),
+    Path("docs/routes_2.csv"),
+)
+
 
 class GoldenOperation(BaseModel):
     model_config = ConfigDict(extra="forbid")

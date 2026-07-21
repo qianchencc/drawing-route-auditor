@@ -20,7 +20,11 @@ from drawing_route_auditor.decision_tree.repository import (
     tree_details,
     validate_tree,
 )
-from drawing_route_auditor.workflow.golden import GoldenEvaluation
+from drawing_route_auditor.workflow.golden import (
+    DEFAULT_ROUTE_SOURCES,
+    GoldenEvaluation,
+    load_golden_routes,
+)
 from drawing_route_auditor.workflow.models import DrawingInput, ProgressCallback, WorkflowProgress
 from drawing_route_auditor.workflow.runner import (
     DEFAULT_TREE_KEY,
@@ -367,10 +371,26 @@ def _evaluation_cn(evaluation: GoldenEvaluation) -> dict[str, object]:
     }
 
 
-def _print_evaluation(evaluation: GoldenEvaluation) -> None:
-    console.print(f"开发评估：{_cn_status(evaluation.status)}")
-    multiple = len(evaluation.expected_sequences) > 1
-    for index, sequence in enumerate(evaluation.expected_sequences, start=1):
+def _reference_sequences(
+    pdf: Path,
+    material_code: str | None,
+    evaluation: GoldenEvaluation | None,
+) -> list[list[str]]:
+    if evaluation is not None:
+        return evaluation.expected_sequences
+    try:
+        candidates = load_golden_routes(
+            material_code or pdf.stem,
+            route_sources=DEFAULT_ROUTE_SOURCES,
+        )
+    except (LookupError, OSError):
+        return []
+    return [candidate.expected_processes for candidate in candidates]
+
+
+def _print_reference_routes(sequences: list[list[str]]) -> None:
+    multiple = len(sequences) > 1
+    for index, sequence in enumerate(sequences, start=1):
         label = f"参考路线 {index}" if multiple else "参考路线"
         console.print(f"{label}：{' → '.join(sequence)}")
 
@@ -566,10 +586,12 @@ def route(
             workflow, evaluation = asyncio.run(execute(None))
     except Exception as error:
         _abort(f"图纸路线运行失败：{error}")
+    reference_sequences = _reference_sequences(pdf, material_code, evaluation)
 
     payload = {
         "运行结果": _workflow_cn(workflow),
         "开发评估": _evaluation_cn(evaluation) if evaluation else None,
+        "参考路线": reference_sequences,
     }
     if output_format == "json":
         _emit_json(payload)
@@ -596,8 +618,7 @@ def route(
             )
         console.print(reader_table)
         _print_recommendation(workflow.recommendation)
-        if evaluation is not None:
-            _print_evaluation(evaluation)
+        _print_reference_routes(reference_sequences)
 
     complete = workflow.recommendation.status in {
         "complete",

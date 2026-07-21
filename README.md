@@ -162,7 +162,7 @@ docker compose up -d postgres
   --evaluate
 ```
 
-`--evaluate` 先持久化模型推荐，再读取 `docs/routes_1.csv` 和 `docs/routes_2.csv`。历史答案不会进入 Reader 或决策树上下文。表格输出在工艺路线下方追加可读的参考路线；JSON 输出在 `开发评估.标准序列` 中返回相同内容。
+路线生成并持久化后，CLI 会用 `--material-code`（未提供时使用 PDF 文件名）在 `docs/routes_1.csv` 和 `docs/routes_2.csv` 中查找参考路线；找到时仅在表格底部追加显示，不进入 Reader 或决策树上下文。JSON 输出在顶层 `参考路线` 返回相同内容。`--evaluate` 仍用于额外持久化开发对比结果。
 
 ## 结果状态
 

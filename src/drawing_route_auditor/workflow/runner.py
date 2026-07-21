@@ -20,6 +20,7 @@ from drawing_route_auditor.workflow.assembler import (
     collect_fact_observations,
 )
 from drawing_route_auditor.workflow.golden import (
+    DEFAULT_ROUTE_SOURCES,
     GoldenEvaluation,
     evaluate_against_golden,
     load_golden_routes,
@@ -335,10 +336,7 @@ async def run_and_evaluate(
     adapter: ReaderAdapter | None = None,
     runtime_root: Path = Path(".runtime"),
     progress_callback: ProgressCallback | None = None,
-    route_sources: tuple[Path, ...] = (
-        Path("docs/routes_1.csv"),
-        Path("docs/routes_2.csv"),
-    ),
+    route_sources: tuple[Path, ...] = DEFAULT_ROUTE_SOURCES,
     answer_path: Path | None = None,
 ) -> tuple[WorkflowResult, GoldenEvaluation]:
     if drawing_input.material_code is None:

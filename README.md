@@ -162,7 +162,7 @@ docker compose up -d postgres
   --evaluate
 ```
 
-`--evaluate` 先持久化模型推荐，再读取 `docs/routes_1.csv` 和 `docs/routes_2.csv`。历史答案不会进入 Reader 或决策树上下文。表格输出会把“模型输出”和“正确答案”逐条并列，并标出正确答案的 CSV 行范围；JSON 输出在 `开发评估.正确答案（历史标准路线）` 中返回相同序列和来源。
+`--evaluate` 先持久化模型推荐，再读取 `docs/routes_1.csv` 和 `docs/routes_2.csv`。历史答案不会进入 Reader 或决策树上下文。表格输出在工艺路线下方追加可读的参考路线；JSON 输出在 `开发评估.标准序列` 中返回相同内容。
 
 ## 结果状态
 

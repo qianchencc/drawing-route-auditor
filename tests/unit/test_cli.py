@@ -78,7 +78,7 @@ def test_tree_apply_rejects_format_before_connecting(
     assert "--format 只能是 table 或 json" in result.stdout
 
 
-def test_development_evaluation_labels_correct_answer_and_sources(
+def test_development_evaluation_appends_reference_route(
     monkeypatch: object,
 ) -> None:
     sequence = [
@@ -89,10 +89,6 @@ def test_development_evaluation_labels_correct_answer_and_sources(
         "卷圆",
         "转焊接",
     ]
-    candidate = SimpleNamespace(
-        expected_processes=sequence,
-        source_ranges=["docs/routes_2.csv:113-118"],
-    )
     evaluation = SimpleNamespace(
         material_code="DEMO-PLATE-001",
         status="pass",
@@ -101,7 +97,7 @@ def test_development_evaluation_labels_correct_answer_and_sources(
         expected_sequences=[sequence],
         missing_sequences=[],
         extra_sequences=[],
-        route_candidates=[candidate],
+        route_candidates=[],
         unresolved_route_issues=[],
     )
     stream = StringIO()
@@ -114,14 +110,8 @@ def test_development_evaluation_labels_correct_answer_and_sources(
     payload = cli._evaluation_cn(evaluation)
     cli._print_evaluation(evaluation)
 
-    assert payload["正确答案（历史标准路线）"] == [
-        {
-            "工序序列": sequence,
-            "数据来源": ["docs/routes_2.csv:113-118"],
-        }
-    ]
+    assert payload["标准序列"] == [sequence]
     output = stream.getvalue()
-    assert "开发评估：通过；工序序列一致：是" in output
-    assert "正确答案" in output
-    assert "激光下料 → 焊接(校正) → 卷圆 → 焊接(校正) → 卷圆 → 转焊接" in output
-    assert "docs/routes_2.csv:113-118" in output
+    assert "开发评估：通过" in output
+    assert "参考路线：激光下料 → 焊接(校正) → 卷圆 → 焊接(校正) → 卷圆 → 转焊接" in output
+    assert "正确答案" not in output

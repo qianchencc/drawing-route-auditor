@@ -360,13 +360,7 @@ def _evaluation_cn(evaluation: GoldenEvaluation) -> dict[str, object]:
         "状态": _cn_status(evaluation.status),
         "工序序列一致": evaluation.operation_sequences_match,
         "推荐序列": evaluation.predicted_sequences,
-        "正确答案（历史标准路线）": [
-            {
-                "工序序列": candidate.expected_processes,
-                "数据来源": candidate.source_ranges,
-            }
-            for candidate in evaluation.route_candidates
-        ],
+        "标准序列": evaluation.expected_sequences,
         "缺失序列": evaluation.missing_sequences,
         "多出序列": evaluation.extra_sequences,
         "未解决路线问题": evaluation.unresolved_route_issues,
@@ -374,28 +368,11 @@ def _evaluation_cn(evaluation: GoldenEvaluation) -> dict[str, object]:
 
 
 def _print_evaluation(evaluation: GoldenEvaluation) -> None:
-    match_label = "是" if evaluation.operation_sequences_match else "否"
-    table = Table(
-        title=(
-            f"开发评估：{_cn_status(evaluation.status)}；"
-            f"工序序列一致：{match_label}"
-        ),
-        show_lines=True,
-    )
-    table.add_column("类型", no_wrap=True)
-    table.add_column("编号", justify="right", no_wrap=True)
-    table.add_column("完整工序序列")
-    table.add_column("数据来源")
-    for index, sequence in enumerate(evaluation.predicted_sequences, start=1):
-        table.add_row("模型输出", str(index), " → ".join(sequence), "—")
-    for index, candidate in enumerate(evaluation.route_candidates, start=1):
-        table.add_row(
-            "[bold]正确答案[/bold]",
-            str(index),
-            " → ".join(candidate.expected_processes),
-            "\n".join(candidate.source_ranges),
-        )
-    console.print(table)
+    console.print(f"开发评估：{_cn_status(evaluation.status)}")
+    multiple = len(evaluation.expected_sequences) > 1
+    for index, sequence in enumerate(evaluation.expected_sequences, start=1):
+        label = f"参考路线 {index}" if multiple else "参考路线"
+        console.print(f"{label}：{' → '.join(sequence)}")
 
 
 @db_app.command("wait", help="等待 PostgreSQL 就绪。")

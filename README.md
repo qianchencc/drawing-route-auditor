@@ -7,7 +7,7 @@
 ## 核心约束
 
 - Reader 只读取图纸事实，不直接生成工序或路线。
-- 每个事实保存状态、对象、覆盖情况和图纸证据。
+- 每个事实保存状态、对象、覆盖情况和 PDF 页码、区域、原文证据。
 - Reader 合同和决策规则统一来自 PostgreSQL 中的当前决策树。
 - 信息不足时返回候选或局部错误，不猜测唯一答案。
 - 表面、清洁或转序等局部工序不能单独冒充完整路线。
@@ -66,6 +66,8 @@ docker compose up -d postgres
 .venv/bin/draw-route db migrate
 ```
 
+`db migrate` 同时顺序应用数据库结构和知识迁移。知识迁移在当前树存在时通过 copy-on-write 生成新修订，空数据库则保持空操作；首次部署仍由 `tree init` 写入 `docs/decision_tree.json`。已应用迁移不可改写，后续调整必须追加新的版本号，并保持重复执行幂等。
+
 首次初始化决策树并校验：
 
 ```bash
@@ -86,12 +88,16 @@ docker compose up -d postgres
 ```bash
 .venv/bin/draw-route tree list
 .venv/bin/draw-route tree show
+.venv/bin/draw-route tree export > current-tree.json
 .venv/bin/draw-route tree validate
 .venv/bin/draw-route tree evaluate --facts facts.json
 .venv/bin/draw-route tree apply tree-patch.json
+
 ```
 
 增量补丁只描述要新增、修改或删除的 `readers`、`facts`、`nodes`、`branches`、`rules` 或 `edges` 项，不需要再次提交整棵树。前五类分别使用 `reader_key`、`fact_key`、`node_key`、`branch_key`、`rule_key`；边使用 `edge_kind:来源->目标:predecessor_ref` 作为稳定键。例如：
+
+`tree export` 从 PostgreSQL 无损导出当前规范载荷，可用于审查、生成下一份补丁和灾备；导出文件不是新的运行时主数据。`tree show --format json` 仍是面向人的中文展示投影。
 
 ```json
 {
@@ -131,11 +137,11 @@ docker compose up -d postgres
 }
 ```
 
-这里“增量”和“原子”描述不同层面：维护接口是增量的；提交实现会锁定当前树、在内存中应用全部补丁、执行结构校验及“四个 Reader、每个 Reader 至少负责一个观察事实”的运行时合同校验，并仅在全部成功后一次提交。每次路线运行在 Reader 启动前固定内部修订，后续事实闭包始终使用同一修订。数据库内部使用 copy-on-write 修订固定可执行决策和历史运行证据，但业务上始终只有一棵当前树，也不提供版本选择、启用或回退接口。
+这里“增量”和“原子”描述不同层面：维护接口是增量的；提交实现会锁定当前树、在内存中应用全部补丁、校验规则条件与规则产出的事实引用和值合同，并执行“四个 Reader、每个 Reader 至少负责一个观察事实”的运行时合同校验，只有全部成功才一次提交。每次路线运行在 Reader 启动前固定内部修订，后续事实闭包始终使用同一修订。数据库内部使用 copy-on-write 修订固定可执行决策和历史运行证据，但业务上始终只有一棵当前树，也不提供版本选择、启用或回退接口。
 
 ## 生成路线
 
-默认表格输出带实时阶段进度、Reader 结果、逐工序决策、事实依据和图纸证据：
+默认表格输出带实时阶段进度、Reader 结果、逐工序决策、事实依据和来源证据：
 
 ```bash
 .venv/bin/draw-route route /path/to/drawing.pdf
@@ -154,15 +160,13 @@ docker compose up -d postgres
 .venv/bin/draw-route route /path/to/drawing.pdf --require-complete
 ```
 
-开发评估必须同时提供物料编码：
+开发评估同样只接受 PDF；历史路线在推荐和全部推理证据持久化后，才按 PDF 文件名读取：
 
 ```bash
-.venv/bin/draw-route route /path/to/drawing.pdf \
-  --material-code DEMO-PLATE-001 \
-  --evaluate
+.venv/bin/draw-route route /path/to/DEMO-PLATE-001.pdf --evaluate
 ```
 
-路线生成并持久化后，CLI 会用 `--material-code`（未提供时使用 PDF 文件名）在 `docs/routes_1.csv` 和 `docs/routes_2.csv` 中查找参考路线；找到时仅在表格底部追加显示，不进入 Reader 或决策树上下文。JSON 输出在顶层 `参考路线` 返回相同内容。`--evaluate` 仍用于额外持久化开发对比结果。
+默认表格输出也会在推荐完成后按 PDF 文件名查找 `docs/routes_1.csv` 和 `docs/routes_2.csv`，仅追加显示参考路线。参考路线不进入 Reader、事实闭包或决策树上下文；JSON 输出在顶层 `参考路线` 返回相同的后置数据。
 
 ## 结果状态
 
@@ -178,17 +182,16 @@ docker compose up -d postgres
 - 触发规则和决策问题；
 - 已选项及其他候选项；
 - 关键事实的中文名称、状态和值；
-- 图纸页码、区域和原文证据；
-- 规则键、决策问题和规则说明。
+- PDF 页码、区域和逐字原文证据；
+- 规则键、决策问题、规则说明和只读内部修订号。
 
 每条候选都会打印完整工序序列；终端在全部路线之后集中打印一次候选差异和仍需事实。
 
 ## 数据与运行产物
 
-- PostgreSQL：当前决策树、Reader 请求、事实观察、规则命中、路线候选、逐工序决策和开发评估；
-- `.runtime/rendered/`：按 PDF 哈希和 DPI 缓存的渲染页；
-- `.runtime/probe/`：为 Reader 生成的图纸视图；
-- `docs/cases/`：隔离的开发案例上下文、历史答案和人工审查记录。
+- PostgreSQL：当前决策树、Reader 请求、PDF 事实观察、规则命中、路线候选、逐工序决策和开发评估；
+- `.runtime/rendered/`：按 PDF 哈希和 DPI 缓存的渲染页，以及带版本号的职责区域和旋转校正视图；
+- `docs/cases/`：隔离的开发案例上下文、历史答案和人工审查记录；这些文件不进入运行时推理。
 
 `.runtime/` 是可再生缓存，不应作为知识源提交。
 
@@ -204,15 +207,19 @@ ruff check src tests
 
 ## 文档索引
 
+- `docs/README.md`：文档入口、权威层级、系统数据流和维护流程；
+- `docs/iteration_protocol.md`：当前单图门禁、运行编号、并发边界和结果语义；
+- `docs/decision_tree.json`：空数据库初始化快照，也是当前 PostgreSQL 树的审查导出；
 - `docs/base_research.md`：原始研究与长期目标，不代表当前已实现行为；
-- `docs/iteration_protocol.md`：当前单图门禁、并发边界和结果语义；
-- `docs/decision_tree.json`：只用于空数据库首次初始化；后续增量更新以 PostgreSQL 当前树为基线；
-- `docs/cases/`：按物料保存的开发案例证据和审查结论。
+- `docs/drawing_process_tree_original.json`：客户原始决策树只读档案，不参与初始化、补丁或运行；
+- `docs/cases/`：开发评估上下文、历史答案和人工审查记录，不进入推理；
+- `docs/*.csv`：历史主数据和路线评估数据，只允许在推荐持久化后读取。
 
 ## 已知边界
 
-- CLI 当前只接收 PDF 和可选物料编码，尚未接入正式 PLM/BOM 上下文。
-- 当前树已覆盖基础板类路线和受限的卷制斗体/锥体模块；其他卷制名称及复杂部件仍由完整性守卫保持局部结果或错误。
-- 父级制造类型属于外部事实，缺失时转序和表面阶段不能默认为唯一结果。
+- `route` 的推理输入只有 PDF；CLI 不提供物料编码、外部事实、PLM 或案例上下文注入接口。
+- 决策条件只使用 PDF 中可观察的材料形态、全局几何、尺寸公差、孔槽拓扑、BOM 结构、焊接符号和技术要求。图号、名称和文件名只作审计元数据，禁止选择路线族或工序。
+- 当前树覆盖板材下料与折弯、受完整性守卫约束的卷制、标准管材定长锯切、轴类棒料加工，以及焊接部件的首道连接、焊缝修平和大型精密内圆加工。
+- 当前不推断最终转序。PDF 无法证明表面工序承担层级或后续制造阶段时，结果保持 `partial`，不得读取上级图号补齐。
 - 当前不生成可直接下发的材料定额、设备、班组和工时。
-- `DEMO-PLATE-001` 已通过工序序列与 30 秒门禁；详见对应案例审查。
+- 最新裸 PDF 门禁、运行编号、Reader 状态和安全路线以 `docs/iteration_protocol.md` 为准；禁止在 README 复制容易失效的通过数量。

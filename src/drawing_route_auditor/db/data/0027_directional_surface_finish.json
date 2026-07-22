@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "定向表面要求本身足以生成抛光，不以无法稳定判断的遮挡否定事实为门槛。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "intermediate_directional_surface_finish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "final_directional_surface_finish"
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "directional_surface_finish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "directional_surface_finish",
+        "description": "部件PDF明确要求外表面拉丝或定向机械表面处理时，在已确定的精密加工之后生成抛光；若另有确认的遮挡成员，排序规则仍将其置于延后焊接之前。",
+        "decision_key": "directional_surface_stage",
+        "question": "明确要求的定向表面处理何时执行？",
+        "option_key": "directional_surface_finish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "directional_surface_finish",
+        "outcome_value": {
+          "order_rank": 60,
+          "process_name": "抛光",
+          "operation_key": "directional_surface_finish"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "directional_surface_finish_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    }
+  ]
+}

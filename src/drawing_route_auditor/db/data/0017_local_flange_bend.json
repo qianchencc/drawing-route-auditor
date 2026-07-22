@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "has_bend_feature",
+      "value": {
+        "label": "存在折弯特征",
+        "fact_key": "has_bend_feature",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "是否存在明确折弯线、折角、折弯半径或钣金展开图中的折线。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "发现板材展开轮廓内部折弯线、钣金折角、明确折弯半径，或局部剖面/详图显示连续板厚的短翻边相对主体存在非零夹角；2°等小角度仍是折弯。必须排除由 φ/Ø 直径、中心线和圆锥母线共同定义的回转壳体轴向剖面。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查展开图和全部局部剖面/详图后，没有折弯线、钣金折角、折弯半径或带非零夹角的连续板厚短翻边；仅见直板、倒角，或由 φ/Ø 直径和中心线定义的圆筒/圆锥母线。",
+        "coverage_requirement": "检查全部主要视图、展开图内部线型、局部剖面/详图、短边角度、中心线、φ/Ø直径和折弯标注。",
+        "evidence_requirement": "命中时提供展开折弯线、钣金折角，或局部短翻边的连续板厚、长度和角度；未命中时若为回转壳体，引用其中心线、φ/Ø直径和母线证据。",
+        "judgement_definition": "折弯包括小角度短翻边：局部详图中短边与主体板保持连续板厚并标注2°等非零夹角时应命中，即使整件主视图近似平板。单纯材料边缘倒角不保持两段连续板面，不算折弯。圆锥/圆筒轴向剖面的母线、锥角和过渡R仍归连续回转而非折弯。"
+      }
+    }
+  ]
+}

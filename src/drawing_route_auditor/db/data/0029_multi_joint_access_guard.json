@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "多组焊接接头的阶段顺序在空间可达关系无法判断时保持部分结果。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "multi_joint_access_classification_required",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "multi_joint_access_classification_required",
+        "description": "包含两组及以上独立焊接接头时，必须从PDF确定这些接头是否位于分离可达区域，才能声称焊接阶段顺序完整。",
+        "decision_key": "route_completeness",
+        "question": "多组焊接接头的空间可达关系是否已确定？",
+        "option_key": "multi_joint_access_ready",
+        "option_label": "多组接头可达关系已确定",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "multi_joint_access_ready",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 2
+          },
+          {
+            "fact_key": "separated_weld_access_regions_present",
+            "operator": "in",
+            "expected_value": [
+              true,
+              false
+            ]
+          }
+        ],
+        "missing_behavior": "error",
+        "priority": 245
+      }
+    }
+  ]
+}

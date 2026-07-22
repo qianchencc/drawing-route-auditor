@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "branches",
+      "key": "3.5",
+      "value": {
+        "title": "下游转序",
+        "node_key": "3",
+        "priority": 5,
+        "rule_text": "PDF-only 当前范围不读取上级图号或上级类型，也不生成最终转序",
+        "branch_key": "3.5",
+        "confidence_mode": "unknown",
+        "maintenance_status": "needs_review"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "branches",
+      "key": "3.6",
+      "value": {
+        "node_key": "3",
+        "branch_key": "3.6",
+        "title": "已验证产品族路线模板",
+        "rule_text": "按 PDF 读取的当前对象类型、主标题栏名称、主标题栏图号和制造特征命中经样本与反例审查的路线模板",
+        "maintenance_status": "executable",
+        "confidence_mode": "certain",
+        "priority": 60
+      }
+    }
+  ]
+}

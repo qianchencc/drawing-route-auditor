@@ -351,9 +351,7 @@ def persist_tree_revision(
     if current is not None and current["source_sha256"] == source_hash:
         return _summary(connection, current["id"], changed=False)
     if current is not None and not allow_update:
-        raise ValueError(
-            f"决策树 {definition.tree_key!r} 已初始化；请使用增量补丁更新"
-        )
+        raise ValueError(f"决策树 {definition.tree_key!r} 已初始化；请使用增量补丁更新")
     connection.execute(
         """
         UPDATE decision_trees

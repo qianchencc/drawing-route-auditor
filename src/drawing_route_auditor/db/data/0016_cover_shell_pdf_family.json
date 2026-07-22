@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "cover_shell_bent_family",
+      "value": {
+        "branch_key": "5.2",
+        "rule_key": "cover_shell_bent_family",
+        "description": "PDF 主标题栏名称包含罩壳且对象为板类零件时，按已审查罩壳族确定折弯板件路线，避免局部端部截面被误判为整件回转壳体",
+        "decision_key": "route_family",
+        "question": "罩壳板件采用哪类成形路线？",
+        "option_key": "cover_shell_bent_sheet",
+        "option_label": "折弯板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "bent_sheet_part",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "is_plate_part",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "contains",
+            "expected_value": "罩壳"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 200
+      }
+    }
+  ]
+}

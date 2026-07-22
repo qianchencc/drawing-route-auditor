@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "区分定义原材料截面的连续内腔与局部后加工孔，防止M螺纹孔使整体长轴棒料事实变为无法判断。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "raw_form",
+      "value": {
+        "label": "原始形态",
+        "fact_key": "raw_form",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "text",
+        "description": "板、管、棒、铸件、锻件或其他制造前原始形态；局部后加工孔不得改变原材料形态。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "存在材料规格、板厚、管棒截面、铸锻说明，或长直整体阶梯外圆、明确轴向总长和最大外径等足够原始形态证据。整体轴类没有连续管壁或贯穿大型内腔时归一化为bar；局部M螺纹孔、盲孔、横孔或其他显著小于本体的后加工孔不妨碍命中bar。",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "plate",
+          "tube",
+          "bar",
+          "casting",
+          "forging",
+          "other"
+        ],
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查材料规格、全部主要视图、轴向长度、内外径和壁厚；区分定义原材料截面的连续管腔与局部后加工孔。",
+        "evidence_requirement": "提供材料规格或整体轮廓、轴向长度、最大外径，以及连续管壁/大型贯穿内腔是否存在的证据；存在局部孔时说明其相对尺度和范围。",
+        "judgement_definition": "判断制造前原材料形态，而不是最终成品几何。均匀薄壁卷制圆筒、圆锥和壳体归一化为plate；具有长直整体外圆或阶梯外圆、以外径和轴向长度为主且没有连续管壁或贯穿大型内腔时归一化为bar，即使标题栏只给出合金牌号。M10等局部螺纹孔、盲孔、横孔属于后加工特征，不得据此返回UNABLE_TO_JUDGE或改判tube。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "large_axisymmetric_bar_profile",
+      "value": {
+        "label": "长大整体轴对称棒料轮廓",
+        "fact_key": "large_axisymmetric_bar_profile",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否为沿单一主轴延伸的整体棒料/轴类轮廓，且轴向总长不小于500毫米、最大外径不小于50毫米。局部小孔不否定整体轴类；局部套筒或板壳上的圆柱特征不得把非轴类对象误判为整体轴类。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "主要视图和剖视图显示整件围绕单一轴线形成连续外圆或阶梯外圆轮廓，并有总长≥500mm和最大外径≥50mm的明确尺寸，且没有连续管壁或贯穿大型内腔定义整件为空心管材。M螺纹孔、盲孔、横孔及其他显著小于本体的局部后加工孔不影响命中。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "全部主要视图明确显示不是整体轴类棒料，或总长<500mm，或最大外径<50mm，或连续管壁/贯穿大型内腔明确表明整件为管材。不得仅因存在局部小螺纹孔、盲孔或横孔返回NOT_HIT或UNABLE_TO_JUDGE。",
+        "coverage_requirement": "检查全部主要视图、剖视图、中心线、整件总长、最大外径，以及内腔是否连续贯穿并定义原材料截面；区分局部后加工孔。",
+        "evidence_requirement": "提供整件轴线、连续外圆/阶梯外圆、总长、最大外径和连续管壁/大型贯穿内腔是否存在的证据；局部孔存在时提供孔径或螺纹规格。",
+        "judgement_definition": "判定整件的全局轴类棒料轮廓，而不是要求最终零件绝对无孔。满足单一主轴、连续整体外圆、总长和最大外径阈值，且没有连续管壁或贯穿大型内腔时返回HIT；M10等局部后加工孔不否定整体棒料。局部套筒、局部圆柱或板壳上的孔也不得反向把非轴类整件判为HIT。"
+      }
+    }
+  ]
+}

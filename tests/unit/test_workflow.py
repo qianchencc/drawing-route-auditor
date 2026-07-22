@@ -15,8 +15,8 @@ from drawing_route_auditor.workflow.golden import evaluate_against_golden, load_
 from drawing_route_auditor.workflow.models import (
     EvidenceRef,
     DrawingInput,
+    FactContract,
     FactObservation,
-    ExternalFact,
     ReaderExecution,
     ReaderPlan,
     ReaderResponse,
@@ -32,8 +32,11 @@ from drawing_route_auditor.workflow.readers import (
     select_reader_views,
     validate_reader_response,
 )
-from drawing_route_auditor.workflow.render import prepare_reader_views
-from drawing_route_auditor.workflow.runner import _merge_external_facts
+from drawing_route_auditor.workflow.render import READER_VIEW_VERSION, prepare_reader_views
+from drawing_route_auditor.workflow.runner import (
+    _require_pdf_only_runtime,
+    WorkflowConfigurationError,
+)
 
 
 def _plan(number: int) -> ReaderPlan:
@@ -105,6 +108,19 @@ def test_not_hit_requires_complete_subject_coverage() -> None:
         )
 
 
+def test_not_hit_normalizes_numeric_zero_from_reader() -> None:
+    observation = FactObservation(
+        fact_key="independent_weld_joint_group_count",
+        subject_ref="current_object",
+        status="not_hit",
+        value=0,
+        evidence=[EvidenceRef(page=1, region="整页", text="未发现焊接接头")],
+        coverage_complete=True,
+    )
+
+    assert observation.value is False
+
+
 def test_not_hit_requires_false_value() -> None:
     with pytest.raises(ValidationError, match="value 必须为 false"):
         FactObservation(
@@ -117,31 +133,127 @@ def test_not_hit_requires_false_value() -> None:
         )
 
 
-def test_external_current_object_fact_rejects_another_subject() -> None:
+@pytest.mark.parametrize("field", ["external_facts", "material_code"])
+def test_drawing_input_rejects_non_pdf_context(field: str) -> None:
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        DrawingInput.model_validate(
+            {
+                "pdf_path": "drawing.pdf",
+                field: {},
+            }
+        )
+
+
+def test_route_runtime_rejects_external_fact_contracts() -> None:
     runtime = RuntimeTree(
         revision_id=1,
-        tree_key="test-tree",
+        tree_key="legacy-tree",
         revision=1,
         plans=(),
-        external_fact_keys=("parent_part_type",),
-        fact_labels={"parent_part_type": "上级制造类型"},
-        fact_scopes={"parent_part_type": "current_object"},
-    )
-    drawing_input = DrawingInput(
-        pdf_path=Path("material-A.pdf"),
-        material_code="material-A",
-        external_facts={
-            "parent_part_type": ExternalFact(
-                status="hit",
-                value="welded",
-                source_ref="PLM",
-                subject_ref="material-B",
+        fact_contracts={
+            "plm_part_name": FactContract(
+                fact_key="plm_part_name",
+                label="PLM 物料名称",
+                source_kind="external",
+                subject_scope="current_object",
+                value_type="text",
+                allowed_values=None,
             )
         },
     )
 
-    with pytest.raises(ValueError, match="必须绑定当前对象"):
-        _merge_external_facts({}, drawing_input, runtime)
+    with pytest.raises(WorkflowConfigurationError, match="禁止外部事实"):
+        _require_pdf_only_runtime(runtime)
+
+
+def test_title_flags_are_derived_only_from_main_title_name() -> None:
+    evidence = [EvidenceRef(page=1, region="主标题栏名称", text="横梁部件")]
+    plan = ReaderPlan(
+        reader_id=1,
+        reader_key="document_structure_reader",
+        label="文档结构读取器",
+        capability_definition="读取主标题栏",
+        sequence=1,
+        requested_features=[
+            RequestedFeature(
+                fact_key="part_name",
+                label="名称",
+                subject_scope="current_object",
+                value_type="text",
+                allowed_values=None,
+                judgement_definition="逐字读取",
+                hit_criteria="名称可辨",
+                not_hit_criteria=None,
+                coverage_requirement="检查主标题栏",
+                evidence_requirement="提供原文",
+            ),
+            RequestedFeature(
+                fact_key="title_contains_welding",
+                label="名称包含焊接",
+                subject_scope="current_object",
+                value_type="boolean",
+                allowed_values=None,
+                judgement_definition="检查名称",
+                hit_criteria="包含焊接",
+                not_hit_criteria="不包含焊接",
+                coverage_requirement="检查名称",
+                evidence_requirement="提供名称原文",
+            ),
+            RequestedFeature(
+                fact_key="title_contains_assembly",
+                label="名称包含装配",
+                subject_scope="current_object",
+                value_type="boolean",
+                allowed_values=None,
+                judgement_definition="检查名称",
+                hit_criteria="包含装配动作",
+                not_hit_criteria="不包含装配动作",
+                coverage_requirement="检查名称",
+                evidence_requirement="提供名称原文",
+            ),
+        ],
+    )
+    response = ReaderResponse(
+        reader_key=plan.reader_key,
+        observations=[
+            FactObservation(
+                fact_key="part_name",
+                subject_ref="current_object",
+                status="hit",
+                value="横梁部件",
+                evidence=evidence,
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="title_contains_welding",
+                subject_ref="current_object",
+                status="hit",
+                value=True,
+                evidence=evidence,
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="title_contains_assembly",
+                subject_ref="current_object",
+                status="hit",
+                value=True,
+                evidence=evidence,
+                coverage_complete=True,
+            ),
+        ],
+    )
+
+    validated = validate_reader_response(plan, response, "current_object")
+    observations = {item.fact_key: item for item in validated.observations}
+
+    assert observations["title_contains_welding"].status == "not_hit"
+    assert observations["title_contains_welding"].value is False
+    assert observations["title_contains_assembly"].status == "not_hit"
+    assert observations["title_contains_assembly"].value is False
+    assert (
+        observations["title_contains_assembly"].evidence
+        == observations["part_name"].evidence
+    )
 
 
 def test_fixed_prompt_uses_tree_features_and_response_has_no_processes() -> None:
@@ -152,6 +264,35 @@ def test_fixed_prompt_uses_tree_features_and_response_has_no_processes() -> None
     assert "按图纸判断" in prompt
     assert "requested_features" in prompt
     assert set(schema["properties"]) == {"reader_key", "observations"}
+    source_type_schema = schema["$defs"]["DrawingEvidenceRef"]["properties"][
+        "source_type"
+    ]
+    assert source_type_schema["const"] == "drawing"
+
+
+def test_evidence_removes_postgresql_nul_characters() -> None:
+    evidence = EvidenceRef(
+        page=1,
+        region="主\x00视图",
+        text="焊缝\x00证据",
+    )
+
+    assert evidence.region == "主视图"
+    assert evidence.text == "焊缝证据"
+
+
+def test_reader_response_rejects_non_drawing_evidence() -> None:
+    observation = FactObservation(
+        fact_key="fact_1",
+        subject_ref="drawing",
+        status="hit",
+        value=True,
+        evidence=[EvidenceRef(source_type="plm", text="PLM 不是图纸证据")],
+        coverage_complete=True,
+    )
+
+    with pytest.raises(ValidationError, match="drawing"):
+        ReaderResponse(reader_key="reader_1", observations=[observation])
 
 
 def test_reader_views_include_cached_responsibility_regions(tmp_path: Path) -> None:
@@ -166,9 +307,9 @@ def test_reader_views_include_cached_responsibility_regions(tmp_path: Path) -> N
 
     assert [item.name for item in first] == [
         "page-1.png",
-        "page-1-title.png",
-        "page-1-geometry.png",
-        "page-1-requirements.png",
+        f"page-1-title-{READER_VIEW_VERSION}.png",
+        f"page-1-geometry-{READER_VIEW_VERSION}.png",
+        f"page-1-requirements-{READER_VIEW_VERSION}.png",
     ]
     assert second == first
     document_plan = _plan(1).model_copy(
@@ -176,7 +317,41 @@ def test_reader_views_include_cached_responsibility_regions(tmp_path: Path) -> N
     )
     assert [item.name for item in select_reader_views(document_plan, first)] == [
         "page-1.png",
-        "page-1-title.png",
+        f"page-1-title-{READER_VIEW_VERSION}.png",
+    ]
+    geometry_plan = _plan(2).model_copy(
+        update={"reader_key": "geometry_dimension_reader"}
+    )
+    assert [item.name for item in select_reader_views(geometry_plan, first)] == [
+        f"page-1-geometry-{READER_VIEW_VERSION}.png",
+    ]
+
+
+def test_portrait_reader_views_include_clockwise_corrections(tmp_path: Path) -> None:
+    page = tmp_path / "page-1.png"
+    image = Image.new("RGB", (800, 1000), "white")
+    drawing = ImageDraw.Draw(image)
+    drawing.rectangle((100, 100, 700, 900), outline="black", width=3)
+    image.save(page)
+
+    views = prepare_reader_views((page,))
+
+    assert [item.name for item in views] == [
+        "page-1.png",
+        f"page-1-title-{READER_VIEW_VERSION}.png",
+        f"page-1-geometry-{READER_VIEW_VERSION}.png",
+        f"page-1-requirements-{READER_VIEW_VERSION}.png",
+        f"page-1-title-{READER_VIEW_VERSION}-rotated.png",
+        f"page-1-geometry-{READER_VIEW_VERSION}-rotated.png",
+        f"page-1-requirements-{READER_VIEW_VERSION}-rotated.png",
+    ]
+    document_plan = _plan(1).model_copy(
+        update={"reader_key": "document_structure_reader"}
+    )
+    assert [item.name for item in select_reader_views(document_plan, views)] == [
+        "page-1.png",
+        f"page-1-title-{READER_VIEW_VERSION}.png",
+        f"page-1-title-{READER_VIEW_VERSION}-rotated.png",
     ]
 
 
@@ -199,9 +374,7 @@ def test_reader_response_is_checked_against_dynamic_plan() -> None:
     assert validate_reader_response(plan, valid, "drawing") == valid
     invalid = valid.model_copy(
         update={
-            "observations": [
-                valid.observations[0].model_copy(update={"evidence": []})
-            ]
+            "observations": [valid.observations[0].model_copy(update={"evidence": []})]
         }
     )
     with pytest.raises(ValueError, match="缺少要求的证据"):

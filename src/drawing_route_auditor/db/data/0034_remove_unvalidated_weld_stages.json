@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "跨横梁负例审查后删除未经验证的多阶段焊接映射；接头空间分组和主观遮挡不得直接复制成重复焊接工序。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "separated_access_secondary_weld"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "deferred_obstructing_member_weld"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "deferred_member_weld_finish_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "multi_joint_access_classification_required"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "precision_weldment_access_classification_required"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "separated_weld_access_regions_present"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "machining_access_obstructing_member_present"
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "symbol_relation_reader",
+      "value": {
+        "label": "符号关系读取器",
+        "sequence": 3,
+        "reader_key": "symbol_relation_reader",
+        "capability_definition": "读取焊接符号、焊缝标注、装配连接关系和独立接头组数量；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
+      }
+    }
+  ]
+}

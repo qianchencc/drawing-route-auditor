@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "document_structure_reader",
+      "value": {
+        "label": "文档结构读取器",
+        "sequence": 1,
+        "reader_key": "document_structure_reader",
+        "capability_definition": "读取当前图纸主标题栏中的图号、名称、材料和数量，以及 BOM 是否存在和 BOM 结构；同时比较原方向与旋转校正视图，严格区分主标题栏和 BOM 子件行。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "geometry_dimension_reader",
+      "value": {
+        "label": "几何尺寸读取器",
+        "sequence": 2,
+        "reader_key": "geometry_dimension_reader",
+        "capability_definition": "读取几何形态、尺寸、板厚、孔槽、圆柱平面、折弯线、圆弧和加工特征；同时检查原方向与旋转校正视图，并将 n-φd、n×φd 等重复孔标注识别为孔证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "drawing_number",
+      "value": {
+        "label": "图号",
+        "fact_key": "drawing_number",
+        "reader_key": "document_structure_reader",
+        "value_type": "text",
+        "description": "当前图纸主标题栏中的完整图号。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "标题栏图号清晰可辨。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查每页主标题栏及其旋转校正视图；不得读取 BOM 子件图号。",
+        "evidence_requirement": "提供主标题栏图号原文、区域和文字正立方向。",
+        "judgement_definition": "逐字读取当前图纸主标题栏 DRW.NO/图号字段；比较原方向与顺时针90°校正视图，区分 N/T/F/Z/I 等相近字符，不得用文件名、BOM 或外部索引纠正。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "part_name",
+      "value": {
+        "label": "名称",
+        "fact_key": "part_name",
+        "reader_key": "document_structure_reader",
+        "value_type": "text",
+        "description": "当前图纸主标题栏中的零部件名称。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "名称清晰可辨。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查每页主标题栏及其旋转校正视图；不得读取 BOM 子件名称。",
+        "evidence_requirement": "提供主标题栏名称原文、区域和文字正立方向。",
+        "judgement_definition": "逐字读取当前图纸主标题栏名称字段；即使名称仅为“板”也按原文返回，不得以 BOM、物料主数据或期望名称替换。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "has_hole_feature",
+      "value": {
+        "label": "存在孔特征",
+        "fact_key": "has_hole_feature",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在孔。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "发现明确孔轮廓、孔尺寸，或 n-φd、n×φd 等绑定到重复位置的孔数量与直径标注。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查全部视图后未发现孔。",
+        "coverage_requirement": "检查全部视图、旋转校正视图、孔引出线和重复特征标注。",
+        "evidence_requirement": "提供孔轮廓、孔尺寸或重复孔标注原文及其引出位置。",
+        "judgement_definition": "检查全部视图中的孔轮廓和孔尺寸；n-φ6、n×φ6 等标注连到重复点位时必须视为孔证据，不能因孔轮廓很小而返回未命中。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_by_verified_module",
+      "value": {
+        "branch_key": "2.3",
+        "rule_key": "welded_component_by_verified_module",
+        "description": "PDF 可观察事实命中已验证焊接部件模块时，部件制造类型确定为焊接件",
+        "decision_key": "component_kind",
+        "question": "部件由焊接还是装配主导？",
+        "option_key": "welded_by_verified_module",
+        "option_label": "焊接件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "component_kind",
+        "outcome_value": "welded",
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "in",
+            "expected_value": [
+              "ntf_hopper_component",
+              "nt_crossbeam_component"
+            ]
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 230
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "bent_plate_hole_laser_blanking",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "bent_plate_hole_laser_blanking",
+        "description": "PDF 显示折弯板件带孔时，以激光下料同时形成展开轮廓和重复孔",
+        "decision_key": "blanking_method",
+        "question": "带孔折弯板件采用哪种下料方式？",
+        "option_key": "bent_plate_hole_laser",
+        "option_label": "激光下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "blanking_laser",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "激光下料",
+          "operation_key": "blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "bent_sheet_part"
+          },
+          {
+            "fact_key": "has_hole_feature",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 110
+      }
+    }
+  ]
+}

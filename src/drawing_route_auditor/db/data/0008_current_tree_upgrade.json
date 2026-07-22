@@ -1,0 +1,464 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "is_plate_part",
+      "value": {
+        "fact_key": "is_plate_part",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "label": "板类零件",
+        "description": "当前对象是否由板材形成。",
+        "judgement_definition": "判断制造原始形态是否为板材；最终已经卷成圆筒、圆锥或壳体不改变其板材来源。存在明确均匀壁厚的薄壁壳体应按板材判断。",
+        "hit_criteria": "存在明确板厚、板材规格、展开特征，或具有均匀薄壁厚度的卷制壳体。",
+        "not_hit_criteria": "完整检查后有明确管材、棒材、铸件或锻件证据；不能仅因最终形状为壳体而返回 NOT_HIT。",
+        "coverage_requirement": "检查全部主要视图和材料形态。",
+        "evidence_requirement": "提供板厚或非板形态证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "raw_form",
+      "value": {
+        "fact_key": "raw_form",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "text",
+        "allowed_values": [
+          "plate",
+          "tube",
+          "bar",
+          "casting",
+          "forging",
+          "other"
+        ],
+        "label": "原始形态",
+        "description": "板、管、棒、铸件、锻件或其他原始形态。",
+        "judgement_definition": "判断制造前原材料形态，而不是最终成品几何；均匀薄壁的卷制圆筒、圆锥和壳体归一化为 plate。",
+        "hit_criteria": "存在材料规格、板厚、管棒截面或铸锻说明等足够原始形态证据。",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查材料规格和全部主要视图。",
+        "evidence_requirement": "提供支持归类的尺寸或材料证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "surface_stage_owner",
+      "value": {
+        "fact_key": "surface_stage_owner",
+        "source_kind": "derived",
+        "reader_key": null,
+        "subject_scope": "current_object",
+        "value_type": "text",
+        "allowed_values": [
+          "current_level",
+          "parent_level"
+        ],
+        "label": "表面工序承载层级",
+        "description": "由当前层级、表面要求和父级制造类型规则派生的表面工序承载层级。",
+        "judgement_definition": "当卷制子件要求外表面抛光且上级为焊接结构件时,外表面最终抛光由父级焊后阶段承担；其他情况保持无法确定。",
+        "hit_criteria": "外部上下文明确定义当前层级或父级层级。",
+        "not_hit_criteria": null,
+        "coverage_requirement": null,
+        "evidence_requirement": "提供 PLM/BOM 或人工确认来源。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "component_base_route_unavailable",
+      "value": {
+        "branch_key": "3.3",
+        "rule_key": "component_base_route_unavailable",
+        "description": "当前决策树尚未定义部件的完整基础工艺路线",
+        "decision_key": "route_completeness",
+        "question": "部件基础工艺路线是否完整？",
+        "option_key": "component_route_unavailable",
+        "option_label": "基础路线不完整",
+        "result_kind": "error",
+        "outcome_type": "error",
+        "outcome_key": "component_base_route_missing",
+        "outcome_value": null,
+        "missing_behavior": "not_match",
+        "priority": 100,
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "hopper_calibration_rolling",
+      "value": {
+        "branch_key": "3.2",
+        "rule_key": "hopper_calibration_rolling",
+        "description": "斗体接缝焊后再次卷圆校正几何",
+        "decision_key": "hopper_rolled_module_calibration",
+        "question": "斗体焊后是否需要校圆？",
+        "option_key": "calibration_rolling",
+        "option_label": "卷圆",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "hopper_calibration_rolling",
+        "outcome_value": {
+          "operation_key": "hopper_calibration_rolling",
+          "process_name": "卷圆",
+          "order_rank": 50
+        },
+        "missing_behavior": "not_match",
+        "priority": 100,
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "in",
+            "expected_value": [
+              "斗体",
+              "锥体"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "hopper_seam_welding",
+      "value": {
+        "branch_key": "3.3",
+        "rule_key": "hopper_seam_welding",
+        "description": "斗体初次卷圆后完成纵缝焊接和校正",
+        "decision_key": "hopper_rolled_module_seam",
+        "question": "斗体初卷后是否需要接缝焊？",
+        "option_key": "seam_welding",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "hopper_seam_welding",
+        "outcome_value": {
+          "operation_key": "hopper_seam_welding",
+          "process_name": "焊接(校正)",
+          "order_rank": 40
+        },
+        "missing_behavior": "not_match",
+        "priority": 100,
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "in",
+            "expected_value": [
+              "斗体",
+              "锥体"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "hopper_segment_prejoin",
+      "value": {
+        "branch_key": "3.3",
+        "rule_key": "hopper_segment_prejoin",
+        "description": "斗体卷制模块先将分段下料件拼焊",
+        "decision_key": "hopper_rolled_module_prejoin",
+        "question": "斗体卷制前是否需要拼焊？",
+        "option_key": "prejoin",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "hopper_prejoin",
+        "outcome_value": {
+          "operation_key": "hopper_prejoin",
+          "process_name": "焊接(校正)",
+          "order_rank": 20
+        },
+        "missing_behavior": "not_match",
+        "priority": 100,
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "in",
+            "expected_value": [
+              "斗体",
+              "锥体"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "laser_blanking_candidate",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "laser_blanking_candidate",
+        "description": "板类路线保留激光下料候选",
+        "decision_key": "blanking_method",
+        "question": "板类零件采用哪种下料方式？",
+        "option_key": "laser",
+        "option_label": "激光下料",
+        "result_kind": "candidate",
+        "outcome_type": "process",
+        "outcome_key": "blanking_laser",
+        "outcome_value": {
+          "operation_key": "blanking",
+          "process_name": "激光下料",
+          "order_rank": 10
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "in",
+            "expected_value": [
+              "flat_cut_plate_part",
+              "bent_sheet_part",
+              "welded_sheet_part"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "polish_operation",
+      "value": {
+        "branch_key": "3.4",
+        "rule_key": "polish_operation",
+        "description": "明确外表面抛光要求且当前层级承担时生成抛光工序",
+        "decision_key": "surface_operation",
+        "question": "是否形成独立表面工序？",
+        "option_key": "polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "surface_polish",
+        "outcome_value": {
+          "operation_key": "surface",
+          "process_name": "抛光",
+          "order_rank": 70
+        },
+        "clauses": [
+          {
+            "fact_key": "outer_surface_polish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_stage_owner",
+            "operator": "eq",
+            "expected_value": "current_level"
+          }
+        ],
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_child_outer_polish_owned_by_parent",
+      "value": {
+        "branch_key": "3.4",
+        "rule_key": "rolled_child_outer_polish_owned_by_parent",
+        "description": "卷制子件的外表面最终抛光由焊接父件焊后阶段承担",
+        "decision_key": "surface_stage_ownership",
+        "question": "卷制子件外表面抛光由哪个层级承担？",
+        "option_key": "parent_surface_stage",
+        "option_label": "父级阶段",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "surface_stage_owner",
+        "outcome_value": "parent_level",
+        "missing_behavior": "not_match",
+        "priority": 100,
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "outer_surface_polish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "parent_part_type",
+            "operator": "eq",
+            "expected_value": "welded"
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_sheet_laser_blanking",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "rolled_sheet_laser_blanking",
+        "description": "历史卷制板件路线均以激光下料开始",
+        "decision_key": "blanking_method",
+        "question": "卷制板件采用哪种下料方式？",
+        "option_key": "rolled_laser",
+        "option_label": "激光下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "blanking_laser",
+        "outcome_value": {
+          "operation_key": "blanking",
+          "process_name": "激光下料",
+          "order_rank": 10
+        },
+        "missing_behavior": "not_match",
+        "priority": 100,
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_sheet_process_module_unavailable",
+      "value": {
+        "branch_key": "3.3",
+        "rule_key": "rolled_sheet_process_module_unavailable",
+        "description": "卷制板件仅在图名命中已验证斗体/锥体产品族模块后才可判为完整",
+        "decision_key": "route_completeness",
+        "question": "卷制板件完整工艺模块是否已验证？",
+        "option_key": "rolled_module_unavailable",
+        "option_label": "完整模块未定义",
+        "evaluation_mode": "all",
+        "result_kind": "error",
+        "outcome_type": "error",
+        "outcome_key": "rolled_sheet_process_module_missing",
+        "outcome_value": null,
+        "missing_behavior": "error",
+        "priority": 110,
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "neq",
+            "expected_value": "斗体"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "neq",
+            "expected_value": "锥体"
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "shear_blanking_candidate",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "shear_blanking_candidate",
+        "description": "板类路线保留剪板下料候选",
+        "decision_key": "blanking_method",
+        "question": "板类零件采用哪种下料方式？",
+        "option_key": "shear",
+        "option_label": "剪板下料",
+        "result_kind": "candidate",
+        "outcome_type": "process",
+        "outcome_key": "blanking_shear",
+        "outcome_value": {
+          "operation_key": "blanking",
+          "process_name": "剪板下料",
+          "order_rank": 10
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "in",
+            "expected_value": [
+              "flat_cut_plate_part",
+              "bent_sheet_part",
+              "welded_sheet_part"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "surface_stage_required",
+      "value": {
+        "branch_key": "3.4",
+        "rule_key": "surface_stage_required",
+        "description": "存在外表面抛光要求时必须确定表面工序承载层级",
+        "decision_key": "surface_stage_completeness",
+        "question": "外表面要求由哪个制造层级承担？",
+        "option_key": "surface_stage_ready",
+        "option_label": "表面承载层级已确定",
+        "evaluation_mode": "all",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "surface_stage_ready",
+        "outcome_value": true,
+        "missing_behavior": "error",
+        "priority": 100,
+        "clauses": [
+          {
+            "fact_key": "outer_surface_polish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_stage_owner",
+            "operator": "in",
+            "expected_value": [
+              "current_level",
+              "parent_level"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "name": "基础工艺决策树",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。"
+}

@@ -1,181 +1,157 @@
 {
-  "schema_version": 2,
-  "tree_key": "drawing-process-tree",
   "name": "基础工艺决策树",
-  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
-  "readers": [
+  "edges": [
     {
-      "reader_key": "document_structure_reader",
-      "label": "文档结构读取器",
-      "capability_definition": "读取标题栏、图号、名称、材料、数量以及 BOM 是否存在和 BOM 结构。",
-      "sequence": 1
+      "edge_kind": "root",
+      "to_node_key": "1",
+      "from_node_key": null,
+      "from_branch_key": null,
+      "predecessor_ref": "0",
+      "resolution_status": "resolved"
     },
     {
-      "reader_key": "geometry_dimension_reader",
-      "label": "几何尺寸读取器",
-      "capability_definition": "读取几何形态、尺寸、板厚、孔槽、圆柱平面、折弯线、圆弧和加工特征。",
-      "sequence": 2
+      "reason": "由 object_kind=component 条件决定",
+      "edge_kind": "node",
+      "to_node_key": "2",
+      "from_node_key": "1",
+      "from_branch_key": null,
+      "predecessor_ref": "1-component",
+      "resolution_status": "ambiguous"
     },
     {
-      "reader_key": "symbol_relation_reader",
-      "label": "符号关系读取器",
-      "capability_definition": "读取焊接符号、焊缝标注、装配连接关系以及对象和出现位置绑定。",
-      "sequence": 3
+      "reason": "由 object_kind=part 条件决定",
+      "edge_kind": "node",
+      "to_node_key": "5",
+      "from_node_key": "1",
+      "from_branch_key": null,
+      "predecessor_ref": "1-part",
+      "resolution_status": "ambiguous"
     },
     {
-      "reader_key": "requirement_annotation_reader",
-      "label": "技术要求读取器",
-      "capability_definition": "读取技术要求、粗糙度、公差、表面、清洁、检验和文字标注。",
-      "sequence": 4
+      "edge_kind": "node",
+      "to_node_key": "3",
+      "from_node_key": "2",
+      "from_branch_key": null,
+      "predecessor_ref": "2",
+      "resolution_status": "ambiguous"
+    },
+    {
+      "edge_kind": "node",
+      "to_node_key": "3",
+      "from_node_key": "5",
+      "from_branch_key": null,
+      "predecessor_ref": "5",
+      "resolution_status": "ambiguous"
     }
   ],
   "facts": [
     {
-      "fact_key": "drawing_number",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "text",
       "label": "图号",
-      "description": "标题栏中的完整图号。",
-      "judgement_definition": "逐字读取标题栏图号。",
+      "fact_key": "drawing_number",
+      "reader_key": "document_structure_reader",
+      "value_type": "text",
+      "description": "当前图纸主标题栏中的图号，仅作为运行元数据和证据展示，禁止参与任何工艺决策。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "标题栏图号清晰可辨。",
+      "subject_scope": "current_object",
       "not_hit_criteria": null,
-      "coverage_requirement": "检查全部标题栏。",
-      "evidence_requirement": "提供标题栏原文及区域。"
+      "coverage_requirement": "检查每页主标题栏及其旋转校正视图；不得读取 BOM 子件图号。",
+      "evidence_requirement": "提供主标题栏图号原文、区域和文字正立方向。",
+      "judgement_definition": "逐字读取主标题栏图号；不得据此选择路线族、模板、工序、顺序或重复次数。"
     },
     {
-      "fact_key": "drawing_number_numeric_prefix",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "text",
-      "label": "图号数字前缀",
-      "description": "图号主要数字段的起始数字。",
-      "judgement_definition": "从完整图号中提取主要数字段，例如 8016 的前缀为 80。",
-      "hit_criteria": "完整图号和主要数字段均可辨。",
-      "not_hit_criteria": null,
-      "coverage_requirement": "检查全部标题栏。",
-      "evidence_requirement": "提供完整图号原文。"
-    },
-    {
-      "fact_key": "part_name",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "text",
       "label": "名称",
-      "description": "标题栏中的零部件名称。",
-      "judgement_definition": "逐字读取标题栏名称。",
+      "fact_key": "part_name",
+      "reader_key": "document_structure_reader",
+      "value_type": "text",
+      "description": "当前图纸主标题栏中的名称，仅作为运行元数据和证据展示，禁止参与任何工艺决策。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "名称清晰可辨。",
+      "subject_scope": "current_object",
       "not_hit_criteria": null,
-      "coverage_requirement": "检查全部标题栏。",
-      "evidence_requirement": "提供标题栏名称原文。"
+      "coverage_requirement": "检查每页主标题栏及其旋转校正视图；不得读取 BOM 子件名称。",
+      "evidence_requirement": "提供主标题栏名称原文、区域和文字正立方向。",
+      "judgement_definition": "逐字读取主标题栏名称；不得据此选择路线族、模板、工序、顺序或重复次数。"
     },
     {
-      "fact_key": "material_grade",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "text",
       "label": "材料牌号",
+      "fact_key": "material_grade",
+      "reader_key": "document_structure_reader",
+      "value_type": "text",
       "description": "标题栏或材料栏中的材料牌号。",
-      "judgement_definition": "只读取材料栏，不把粗糙度或尺寸当作材料。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "材料牌号清晰可辨。",
+      "subject_scope": "current_object",
       "not_hit_criteria": "完整检查材料栏后明确为空。",
       "coverage_requirement": "检查标题栏及材料栏。",
-      "evidence_requirement": "提供材料原文及区域。"
+      "evidence_requirement": "提供材料原文及区域。",
+      "judgement_definition": "只读取材料栏，不把粗糙度或尺寸当作材料。"
     },
     {
-      "fact_key": "drawing_quantity",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "number",
       "label": "图纸数量",
+      "fact_key": "drawing_quantity",
+      "reader_key": "document_structure_reader",
+      "value_type": "number",
       "description": "标题栏数量。",
-      "judgement_definition": "读取标题栏数量数值。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "数量清晰可辨。",
+      "subject_scope": "current_object",
       "not_hit_criteria": null,
       "coverage_requirement": "检查标题栏数量格。",
-      "evidence_requirement": "提供数量原文。"
+      "evidence_requirement": "提供数量原文。",
+      "judgement_definition": "读取标题栏数量数值。"
     },
     {
-      "fact_key": "object_has_bom",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "存在明细栏",
+      "fact_key": "object_has_bom",
+      "reader_key": "document_structure_reader",
+      "value_type": "boolean",
       "description": "当前图纸是否存在 BOM 或明细栏。",
-      "judgement_definition": "检查全部页面是否存在带项目号的明细表。",
-      "hit_criteria": "发现 BOM 或明细栏。",
-      "not_hit_criteria": "完整检查全部页面后未发现 BOM 或明细栏。",
-      "coverage_requirement": "检查全部页面。",
-      "evidence_requirement": "命中时提供 BOM 区域；未命中时记录全部页面覆盖。"
+      "source_kind": "observed_drawing",
+      "hit_criteria": "发现至少一条已填写的 BOM/明细项目行，且同一行可辨项目号、零部件名称或代号以及数量。",
+      "subject_scope": "current_object",
+      "not_hit_criteria": "完整检查全部页面后，没有任何已填写的 BOM/明细项目行；空白表格、标题栏、设计/校对/审核签字栏和标记处数/更改文件号修订表不算 BOM。",
+      "coverage_requirement": "检查全部页面的明细区域，并区分已填写项目行、空白表格、主标题栏和修订栏。",
+      "evidence_requirement": "命中时引用至少一条已填写项目行的项目号、名称/代号和数量；未命中时说明检查过标题栏及修订栏且未见已填写项目行。",
+      "judgement_definition": "只有至少一条已填写的物料项目行才算存在 BOM。仅看到表格线、项目号栏标题、空白格、标记处数/更改文件号修订表或设计校对审核栏必须返回 NOT_HIT。"
     },
     {
-      "fact_key": "title_contains_welding",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
-      "label": "名称包含焊接",
-      "description": "标题栏名称是否明确包含焊接。",
-      "judgement_definition": "仅检查标题栏名称文字。",
-      "hit_criteria": "名称明确包含焊接或焊接部件。",
-      "not_hit_criteria": "名称完整可读且不包含焊接。",
-      "coverage_requirement": "检查标题栏名称。",
-      "evidence_requirement": "提供名称原文。"
-    },
-    {
-      "fact_key": "title_contains_assembly",
-      "source_kind": "observed_drawing",
-      "reader_key": "document_structure_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
-      "label": "名称包含装配",
-      "description": "标题栏名称是否明确包含装配或部装。",
-      "judgement_definition": "仅检查标题栏名称文字。",
-      "hit_criteria": "名称明确包含装配、部装或总装。",
-      "not_hit_criteria": "名称完整可读且不包含相关文字。",
-      "coverage_requirement": "检查标题栏名称。",
-      "evidence_requirement": "提供名称原文。"
-    },
-    {
-      "fact_key": "sheet_thickness_mm",
-      "source_kind": "observed_drawing",
-      "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
-      "value_type": "number",
       "label": "板厚",
-      "description": "当前对象板厚，单位毫米。",
-      "judgement_definition": "从厚度尺寸或材料规格读取；粗糙度符号旁的 12.5、6.3 不是板厚。",
-      "hit_criteria": "存在明确厚度尺寸或材料厚度规格。",
-      "not_hit_criteria": "完整检查全部尺寸和材料厚度区域后未发现。",
-      "coverage_requirement": "检查全部视图、尺寸和厚度标注区域。",
-      "evidence_requirement": "提供厚度尺寸原文和区域。"
+      "fact_key": "sheet_thickness_mm",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "number",
+      "description": "当前对象由板材制造时的板料厚度，单位毫米；标准管材的壁厚不是板厚。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "存在明确板材厚度标注T/t、板料规格，或展开/卷制图与材料信息共同证明该尺寸是板料厚度。",
+      "subject_scope": "current_object",
+      "not_hit_criteria": "材料规格或闭合空心截面明确为方管、矩形管、圆管或其他标准管材，且所见厚度仅为管壁厚度；此时返回NOT_HIT。",
+      "coverage_requirement": "检查材料规格、展开图、卷制/接缝证据和全部截面；区分板料厚度与标准管材壁厚。",
+      "evidence_requirement": "提供板材规格或展开/卷制来源证据；若为管材，提供管材规格及闭合空心截面。",
+      "judgement_definition": "只判断制造前板料厚度。80×50×5、φ80×5等标准管材规格中的5是管壁厚度，不得作为sheet_thickness_mm命中依据。"
     },
     {
-      "fact_key": "is_plate_part",
-      "source_kind": "observed_drawing",
-      "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "板类零件",
-      "description": "当前对象是否由板材形成。",
-      "judgement_definition": "判断制造原始形态是否为板材；最终已经卷成圆筒、圆锥或壳体不改变其板材来源。存在明确均匀壁厚的薄壁壳体应按板材判断。",
-      "hit_criteria": "存在明确板厚、板材规格、展开特征，或具有均匀薄壁厚度的卷制壳体。",
-      "not_hit_criteria": "完整检查后有明确管材、棒材、铸件或锻件证据；不能仅因最终形状为壳体而返回 NOT_HIT。",
-      "coverage_requirement": "检查全部主要视图和材料形态。",
-      "evidence_requirement": "提供板厚或非板形态证据。"
+      "fact_key": "is_plate_part",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否由板料下料后成形；标准方管、矩形管、圆管等管材即使壁厚均匀也不是板类零件。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "存在明确板材规格、T/t板厚、展开轮廓，或圆筒/圆锥壳体同时具有板料来源、卷制接缝或展开/下料证据。仅有均匀壁厚不得命中。",
+      "subject_scope": "current_object",
+      "not_hit_criteria": "材料栏明确方管、矩形管、圆管、无缝管等管材，或主要视图显示沿长度连续的闭合空心截面且没有展开、卷制接缝或板料来源证据；棒材、铸件和锻件同样不得命中。",
+      "coverage_requirement": "检查材料栏、全部主要视图、闭合截面、展开图、接缝及板料规格；管材证据优先于“均匀薄壁”外观。",
+      "evidence_requirement": "命中时提供板材规格、展开或卷制接缝证据；未命中时提供管材规格或连续闭合空心截面。",
+      "judgement_definition": "判断制造原始形态，不按薄壁外观猜测。304方管80×50×5等明确管材必须返回NOT_HIT；只有可观察的板料来源、展开或卷制证据才能判为板类。"
     },
     {
+      "label": "原始形态",
       "fact_key": "raw_form",
-      "source_kind": "observed_drawing",
       "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
       "value_type": "text",
+      "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局截面共同决定，局部后加工特征不得改变原材料形态。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局截面复核。明确管材规格或沿长度连续的闭合空心截面归一化为tube；明确板料规格、展开或卷制板壳证据归一化为plate。若材料栏只给牌号或形态文字缺失，但整件具有同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单/阶梯实体外轮廓且无连续管腔，则归一化为bar。必须检查全部阶梯段：最大段以M外螺纹标注时，较小段的外径φ/Ø仍可证明实体圆棒；不得只检查最大横向标注。",
+      "subject_scope": "current_object",
       "allowed_values": [
         "plate",
         "tube",
@@ -184,615 +160,455 @@
         "forging",
         "other"
       ],
-      "label": "原始形态",
-      "description": "板、管、棒、铸件、锻件或其他原始形态。",
-      "judgement_definition": "判断制造前原材料形态，而不是最终成品几何；均匀薄壁的卷制圆筒、圆锥和壳体归一化为 plate。",
-      "hit_criteria": "存在材料规格、板厚、管棒截面或铸锻说明等足够原始形态证据。",
       "not_hit_criteria": null,
-      "coverage_requirement": "检查材料规格和全部主要视图。",
-      "evidence_requirement": "提供支持归类的尺寸或材料证据。"
+      "coverage_requirement": "检查材料规格、全部主要视图、整个阶梯外轮廓、中心线、每个绑定外部轮廓的φ/Ø外径和外螺纹、轴向长度、闭合截面、内外尺寸、壁厚、展开图和卷制接缝；不得只检查最大横向尺寸，也不得忽略材料中的方管/矩形管/圆管字样。",
+      "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定bar，必须提供中心线、至少一个绑定外部主体的φ/Ø外径或外螺纹、阶梯实体外轮廓以及无连续管腔证据。最大段为M外螺纹时，应继续引用其他外径段；若材料与几何冲突则返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "判断制造前原材料形态。304方管80×50×5等标准方管、矩形管和圆管归一化为tube；板料展开或卷制壳体归一化为plate。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形/平行直边；当同一中心轴、绑定外部主体的φ/Ø外径或外螺纹以及无连续管腔共同证明实体外圆时归一化为bar，即使材料栏只给牌号。外螺纹M标注不等于内孔：最大阶梯段只标M螺纹时，必须继续检查其余外径段，不得因此返回UNABLE_TO_JUDGE。局部后加工孔不改变该判断。"
     },
     {
-      "fact_key": "has_bend_feature",
-      "source_kind": "observed_drawing",
-      "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "存在折弯特征",
+      "fact_key": "has_bend_feature",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
       "description": "是否存在明确折弯线、折角、折弯半径或钣金展开图中的折线。",
-      "judgement_definition": "板类展开轮廓内部、与轮廓边平行且两端终止于轮廓内的长虚线、点划线或成对内线，默认是折弯线；即使没有折弯文字或半径也应判为命中。只有线型被明确证明为轴线、孔槽中心线或可见投影的隐藏边时才排除。连续圆锥或圆弧曲面的剖面斜线不算折弯。",
-      "hit_criteria": "发现明确折角/折弯半径，或板类展开轮廓内部存在一条以上平行长虚线、点划线、成对内线；后者无需额外折弯文字即可命中。",
-      "not_hit_criteria": "完整检查全部视图和展开图内部线型后，既无折角/半径，也无位于轮廓内部的可信折线。",
-      "coverage_requirement": "检查全部主要视图、板类展开轮廓内部虚线/点划线和折弯标注。",
-      "evidence_requirement": "提供折角、半径或展开图内部折线的位置、方向及邻近尺寸证据。"
+      "source_kind": "observed_drawing",
+      "hit_criteria": "发现板材展开轮廓内部折弯线、钣金折角、明确折弯半径，或局部剖面/详图显示连续板厚的短翻边相对主体存在非零夹角；2°等小角度仍是折弯。必须排除由 φ/Ø 直径、中心线和圆锥母线共同定义的回转壳体轴向剖面。",
+      "subject_scope": "current_object",
+      "not_hit_criteria": "完整检查展开图和全部局部剖面/详图后，没有折弯线、钣金折角、折弯半径或带非零夹角的连续板厚短翻边；仅见直板、倒角，或由 φ/Ø 直径和中心线定义的圆筒/圆锥母线。",
+      "coverage_requirement": "检查全部主要视图、展开图内部线型、局部剖面/详图、短边角度、中心线、φ/Ø直径和折弯标注。",
+      "evidence_requirement": "命中时提供展开折弯线、钣金折角，或局部短翻边的连续板厚、长度和角度；未命中时若为回转壳体，引用其中心线、φ/Ø直径和母线证据。",
+      "judgement_definition": "折弯包括小角度短翻边：局部详图中短边与主体板保持连续板厚并标注2°等非零夹角时应命中，即使整件主视图近似平板。单纯材料边缘倒角不保持两段连续板面，不算折弯。圆锥/圆筒轴向剖面的母线、锥角和过渡R仍归连续回转而非折弯。"
     },
     {
-      "fact_key": "continuous_revolved_surface",
-      "source_kind": "observed_drawing",
-      "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "连续回转曲面",
-      "description": "当前对象是否包含需要卷制的连续圆筒、圆锥或圆弧壳面。",
-      "judgement_definition": "根据内外径、母线和连续曲面判断。",
-      "hit_criteria": "存在明确连续圆筒、圆锥或圆弧壳面。",
-      "not_hit_criteria": "完整检查后明确不存在连续回转曲面。",
-      "coverage_requirement": "检查全部主要视图和回转尺寸。",
-      "evidence_requirement": "提供直径、母线或曲面证据。"
+      "fact_key": "continuous_revolved_surface",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否包含围绕中心轴形成的连续圆形空心管壁、圆筒、圆锥或圆弧壳面；实体轴、销、盘的外圆，矩形/方形管及折弯端部圆弧不属于此事实。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "主要视图或剖视图显示围绕中心轴的连续圆形空心壁或薄壁壳面，并有成对内外轮廓、壁厚/板厚、圆形空心截面或卷制板料证据；φ/Ø直径、圆锥母线和中心轴必须绑定该空心管壁或壳面。仅有实体零件外径、中心线或外圆轮廓不得命中。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后仅见矩形、方形或其他非圆闭合管截面、直边板展开或局部折弯圆角；或者仅见实体轴、销、盘、套的外圆/阶梯外圆而没有连续空心壁、板厚或成对内外壳面证据。方块中的圆孔和实体件局部圆柱也不得命中。",
+      "coverage_requirement": "检查全部主要视图、剖视图、截面形状、中心线、φ/Ø尺寸、内外轮廓、板厚/壁厚、材料形态和旋转校正视图；明确区分圆形空心管壁/薄壁壳面、非圆管截面与实体车削外圆。",
+      "evidence_requirement": "命中时同时提供连续圆形空心壁或薄壁/板厚证据，以及φ/Ø直径、圆锥母线或圆形空心截面；未命中时提供非圆闭合截面，或实体件外径、局部孔和无连续空心壁的证据。",
+      "judgement_definition": "连续回转曲面在此指圆形空心管壁或薄壁卷制壳面，不泛指所有数学上的回转表面。圆管可命中且raw_form独立为tube；矩形方管必须返回NOT_HIT。围绕中心线的实体外圆属于单轴外圆实体轮廓，不得命中本事实。"
     },
     {
-      "fact_key": "has_hole_feature",
-      "source_kind": "observed_drawing",
-      "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "存在孔特征",
+      "fact_key": "has_hole_feature",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
       "description": "当前对象是否存在孔。",
-      "judgement_definition": "检查全部视图中的孔轮廓和孔尺寸。",
-      "hit_criteria": "发现明确孔轮廓或孔尺寸。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "发现明确孔轮廓、孔尺寸，或 n-φd、n×φd 等绑定到重复位置的孔数量与直径标注。",
+      "subject_scope": "current_object",
       "not_hit_criteria": "完整检查全部视图后未发现孔。",
-      "coverage_requirement": "检查全部视图。",
-      "evidence_requirement": "提供孔轮廓或尺寸。"
+      "coverage_requirement": "检查全部视图、旋转校正视图、孔引出线和重复特征标注。",
+      "evidence_requirement": "提供孔轮廓、孔尺寸或重复孔标注原文及其引出位置。",
+      "judgement_definition": "检查全部视图中的孔轮廓和孔尺寸；n-φ6、n×φ6 等标注连到重复点位时必须视为孔证据，不能因孔轮廓很小而返回未命中。"
     },
     {
-      "fact_key": "has_slot_feature",
-      "source_kind": "observed_drawing",
-      "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "存在槽特征",
+      "fact_key": "has_slot_feature",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
       "description": "当前对象是否存在槽或缺口加工特征。",
-      "judgement_definition": "检查全部视图中的槽轮廓和槽尺寸。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "发现明确槽或缺口。",
+      "subject_scope": "current_object",
       "not_hit_criteria": "完整检查全部视图后未发现。",
       "coverage_requirement": "检查全部视图。",
-      "evidence_requirement": "提供槽轮廓或尺寸。"
+      "evidence_requirement": "提供槽轮廓或尺寸。",
+      "judgement_definition": "检查全部视图中的槽轮廓和槽尺寸。"
     },
     {
-      "fact_key": "precision_tolerance_present",
-      "source_kind": "observed_drawing",
-      "reader_key": "geometry_dimension_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "存在精密公差",
+      "fact_key": "precision_tolerance_present",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
       "description": "几何尺寸是否带需要精加工保证的明确公差。",
-      "judgement_definition": "普通未注公差不单独视为精密公差。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "关键尺寸存在明确尺寸公差、形位公差或精密配合。",
+      "subject_scope": "current_object",
       "not_hit_criteria": "完整检查后仅有普通尺寸或未注公差。",
       "coverage_requirement": "检查全部尺寸和形位公差。",
-      "evidence_requirement": "提供公差原文和作用尺寸。"
+      "evidence_requirement": "提供公差原文和作用尺寸。",
+      "judgement_definition": "普通未注公差不单独视为精密公差。"
     },
     {
-      "fact_key": "weld_symbol_present",
-      "source_kind": "observed_drawing",
-      "reader_key": "symbol_relation_reader",
-      "subject_scope": "occurrence",
-      "value_type": "boolean",
       "label": "存在焊接符号",
+      "fact_key": "weld_symbol_present",
+      "reader_key": "symbol_relation_reader",
+      "value_type": "boolean",
       "description": "指定对象或出现位置是否存在标准焊接符号。",
-      "judgement_definition": "将符号绑定到具体连接或出现位置。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "发现标准焊接符号并能绑定对象。",
+      "subject_scope": "occurrence",
       "not_hit_criteria": "完整检查全部适用视图后未发现。",
       "coverage_requirement": "检查全部视图和连接位置。",
-      "evidence_requirement": "提供符号区域和绑定对象。"
+      "evidence_requirement": "提供符号区域和绑定对象。",
+      "judgement_definition": "将符号绑定到具体连接或出现位置。"
     },
     {
-      "fact_key": "weld_annotation_present",
-      "source_kind": "observed_drawing",
-      "reader_key": "symbol_relation_reader",
-      "subject_scope": "occurrence",
-      "value_type": "boolean",
       "label": "存在焊缝标注",
+      "fact_key": "weld_annotation_present",
+      "reader_key": "symbol_relation_reader",
+      "value_type": "boolean",
       "description": "指定连接是否存在焊缝文字或尺寸标注。",
-      "judgement_definition": "将焊缝标注绑定到具体连接。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "发现明确焊缝标注。",
+      "subject_scope": "occurrence",
       "not_hit_criteria": "完整检查全部连接位置后未发现。",
       "coverage_requirement": "检查全部连接和符号。",
-      "evidence_requirement": "提供标注原文及连接对象。"
+      "evidence_requirement": "提供标注原文及连接对象。",
+      "judgement_definition": "将焊缝标注绑定到具体连接。"
     },
     {
-      "fact_key": "assembly_relation_present",
-      "source_kind": "observed_drawing",
-      "reader_key": "symbol_relation_reader",
-      "subject_scope": "bom_link",
-      "value_type": "boolean",
       "label": "存在装配关系",
+      "fact_key": "assembly_relation_present",
+      "reader_key": "symbol_relation_reader",
+      "value_type": "boolean",
       "description": "对象之间是否存在装配或实配关系。",
-      "judgement_definition": "根据 BOM、关系标注和装配文字绑定对象。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "发现明确装配、实配或定位关系。",
+      "subject_scope": "bom_link",
       "not_hit_criteria": "完整检查适用对象关系后未发现。",
       "coverage_requirement": "检查全部对象关系和装配标注。",
-      "evidence_requirement": "提供关系标注及对象。"
+      "evidence_requirement": "提供关系标注及对象。",
+      "judgement_definition": "根据 BOM、关系标注和装配文字绑定对象。"
     },
     {
-      "fact_key": "technical_requirement_mentions_welding",
-      "source_kind": "observed_drawing",
-      "reader_key": "requirement_annotation_reader",
-      "subject_scope": "drawing_text",
-      "value_type": "boolean",
       "label": "技术要求提及焊接",
+      "fact_key": "technical_requirement_mentions_welding",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
       "description": "技术要求文字是否明确提及焊接或焊缝。",
-      "judgement_definition": "只读取技术要求和文字标注。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "文字明确提及焊接、焊缝或焊后处理。",
-      "not_hit_criteria": "完整检查全部技术要求后未提及。",
-      "coverage_requirement": "检查全部页面技术要求。",
-      "evidence_requirement": "提供技术要求原文。"
-    },
-    {
-      "fact_key": "technical_requirement_mentions_assembly",
-      "source_kind": "observed_drawing",
-      "reader_key": "requirement_annotation_reader",
       "subject_scope": "drawing_text",
-      "value_type": "boolean",
-      "label": "技术要求提及装配",
-      "description": "技术要求是否明确提及装配、部装或实配。",
-      "judgement_definition": "只读取技术要求和文字标注。",
-      "hit_criteria": "文字明确提及装配、部装或实配。",
       "not_hit_criteria": "完整检查全部技术要求后未提及。",
       "coverage_requirement": "检查全部页面技术要求。",
-      "evidence_requirement": "提供技术要求原文。"
+      "evidence_requirement": "提供技术要求原文。",
+      "judgement_definition": "只读取技术要求和文字标注。"
     },
     {
-      "fact_key": "outer_surface_polish_required",
-      "source_kind": "observed_drawing",
+      "label": "技术要求提及装配",
+      "fact_key": "technical_requirement_mentions_assembly",
       "reader_key": "requirement_annotation_reader",
-      "subject_scope": "current_object",
       "value_type": "boolean",
+      "description": "技术要求是否明确提及装配、部装或实配。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "文字明确提及装配、部装或实配。",
+      "subject_scope": "drawing_text",
+      "not_hit_criteria": "完整检查全部技术要求后未提及。",
+      "coverage_requirement": "检查全部页面技术要求。",
+      "evidence_requirement": "提供技术要求原文。",
+      "judgement_definition": "只读取技术要求和文字标注。"
+    },
+    {
       "label": "要求外表面抛光",
+      "fact_key": "outer_surface_polish_required",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
       "description": "图纸是否明确要求当前对象外表面抛光。",
-      "judgement_definition": "读取技术要求和表面文字，不判断工艺承担层级。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "明确写有外表面抛光。",
+      "subject_scope": "current_object",
       "not_hit_criteria": "完整检查全部要求后未发现。",
       "coverage_requirement": "检查全部技术要求和表面标注。",
-      "evidence_requirement": "提供要求原文。"
+      "evidence_requirement": "提供要求原文。",
+      "judgement_definition": "读取技术要求和表面文字，不判断工艺承担层级。"
     },
     {
-      "fact_key": "edge_deburring_required",
-      "source_kind": "observed_drawing",
-      "reader_key": "requirement_annotation_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "要求锐边倒钝",
+      "fact_key": "edge_deburring_required",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
       "description": "图纸是否明确要求去毛刺或锐边倒钝。",
-      "judgement_definition": "读取技术要求和边缘标注。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "明确写有锐边倒钝、去毛刺或类似要求。",
+      "subject_scope": "current_object",
       "not_hit_criteria": "完整检查全部要求后未发现。",
       "coverage_requirement": "检查全部技术要求。",
-      "evidence_requirement": "提供要求原文。"
+      "evidence_requirement": "提供要求原文。",
+      "judgement_definition": "读取技术要求和边缘标注。"
     },
     {
-      "fact_key": "formal_cleaning_required",
-      "source_kind": "observed_drawing",
-      "reader_key": "requirement_annotation_reader",
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "要求独立清洗",
+      "fact_key": "formal_cleaning_required",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
       "description": "图纸是否明确要求形成独立清洗工序。",
-      "judgement_definition": "普通清洁文字不自动等于路线级清洗。",
+      "source_kind": "observed_drawing",
       "hit_criteria": "明确要求独立清洗或给出清洗方法。",
+      "subject_scope": "current_object",
       "not_hit_criteria": "完整检查全部要求后未发现清洗要求。",
       "coverage_requirement": "检查全部技术要求。",
-      "evidence_requirement": "提供清洗要求原文。"
+      "evidence_requirement": "提供清洗要求原文。",
+      "judgement_definition": "普通清洁文字不自动等于路线级清洗。"
     },
     {
+      "label": "对象类型",
       "fact_key": "object_kind",
-      "source_kind": "derived",
       "reader_key": null,
-      "subject_scope": "current_object",
       "value_type": "text",
+      "description": "当前对象是零件还是包含已填写BOM项目的部件。",
+      "source_kind": "derived",
+      "subject_scope": "current_object",
       "allowed_values": [
         "part",
         "component"
       ],
-      "label": "对象类型",
-      "description": "当前对象是零件还是部件。",
-      "judgement_definition": "由图号数字前缀和 BOM 事实派生。"
+      "judgement_definition": "仅由当前PDF是否存在至少一条已填写BOM/明细项目行派生；图号和名称禁止参与。"
     },
     {
+      "label": "部件制造类型",
       "fact_key": "component_kind",
-      "source_kind": "derived",
       "reader_key": null,
-      "subject_scope": "current_object",
       "value_type": "text",
+      "description": "部件由焊接连接还是明确装配关系主导。",
+      "source_kind": "derived",
+      "subject_scope": "current_object",
       "allowed_values": [
         "welded",
         "assembly",
         "other"
       ],
-      "label": "部件制造类型",
-      "description": "部件以焊接还是装配为主。",
-      "judgement_definition": "由名称、符号关系和技术要求派生。"
+      "judgement_definition": "仅由当前PDF中的焊接符号、焊缝标注、装配关系和技术要求派生；名称禁止参与。"
     },
     {
-      "fact_key": "has_welding_feature",
-      "source_kind": "derived",
-      "reader_key": null,
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "存在焊接特征",
+      "fact_key": "has_welding_feature",
+      "reader_key": null,
+      "value_type": "boolean",
       "description": "当前对象存在焊接符号、焊缝标注或焊接要求。",
+      "source_kind": "derived",
+      "subject_scope": "current_object",
       "judgement_definition": "由符号和技术要求事实派生。"
     },
     {
-      "fact_key": "requires_precision_machining",
-      "source_kind": "derived",
-      "reader_key": null,
-      "subject_scope": "current_object",
-      "value_type": "boolean",
       "label": "需要精加工",
+      "fact_key": "requires_precision_machining",
+      "reader_key": null,
+      "value_type": "boolean",
       "description": "孔槽等特征需要通过精加工保证。",
+      "source_kind": "derived",
+      "subject_scope": "current_object",
       "judgement_definition": "由几何特征和精密公差派生。"
     },
     {
+      "label": "路线族",
       "fact_key": "route_family",
-      "source_kind": "derived",
       "reader_key": null,
-      "subject_scope": "current_object",
       "value_type": "text",
+      "description": "当前对象的基础工艺路线族。",
+      "source_kind": "derived",
+      "subject_scope": "current_object",
       "allowed_values": [
         "flat_cut_plate_part",
         "bent_sheet_part",
         "rolled_sheet_part",
         "welded_sheet_part",
         "machined_plate_part",
-        "non_sheet_machined_part"
+        "non_sheet_machined_part",
+        "tube_cut_part"
       ],
-      "label": "路线族",
-      "description": "当前对象的基础工艺路线族。",
-      "judgement_definition": "由对象、材料形态和几何特征派生。"
+      "judgement_definition": "由对象、材料原始形态和几何/加工特征派生；标准管材定长下料使用tube_cut_part。"
     },
     {
-      "fact_key": "parent_part_type",
-      "source_kind": "external",
-      "reader_key": null,
-      "subject_scope": "current_object",
-      "value_type": "text",
-      "allowed_values": [
-        "final_assembly",
-        "sub_assembly",
-        "welded"
-      ],
-      "label": "上级制造类型",
-      "description": "来自未来 PLM Adapter 的上级制造类型。",
-      "judgement_definition": "当前仅有图纸输入时通常不可获得。"
-    },
-    {
+      "label": "表面工序承载层级",
       "fact_key": "surface_stage_owner",
-      "source_kind": "derived",
       "reader_key": null,
-      "subject_scope": "current_object",
       "value_type": "text",
+      "description": "仅由当前 PDF 可观察事实推导表面要求是在当前独立工序还是已验证制造工序中集成承担。",
+      "source_kind": "derived",
+      "hit_criteria": "当前 PDF 的对象类型、路线族和表面要求共同命中已审查的本级或工序集成规则。",
+      "subject_scope": "current_object",
       "allowed_values": [
         "current_level",
-        "parent_level"
+        "process_integrated"
       ],
-      "label": "表面工序承载层级",
-      "description": "由当前层级、表面要求和父级制造类型规则派生的表面工序承载层级。",
-      "judgement_definition": "当卷制子件要求外表面抛光且上级为焊接结构件时,外表面最终抛光由父级焊后阶段承担；其他情况保持无法确定。",
-      "hit_criteria": "外部上下文明确定义当前层级或父级层级。",
       "not_hit_criteria": null,
       "coverage_requirement": null,
-      "evidence_requirement": "提供 PLM/BOM 或人工确认来源。"
+      "evidence_requirement": "引用当前 PDF 中触发路线族和表面要求的图纸证据。",
+      "judgement_definition": "不得依赖上级图号、PLM、索引或历史答案；无法从当前 PDF 确定时保持无法判断。"
+    },
+    {
+      "label": "焊缝修平要求",
+      "fact_key": "weld_seam_finishing_required",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
+      "description": "技术要求是否明确要求焊后磨平、修平、去除焊接痕迹或对焊缝进行表面整饰。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "技术要求明确出现磨平焊缝、修平焊缝、无明显焊接痕迹或等价表述。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整技术要求可读且不存在焊缝修平/整饰要求。",
+      "coverage_requirement": "检查全部技术要求和焊缝旁注。",
+      "evidence_requirement": "提供要求原文及所在条款。",
+      "judgement_definition": "技术要求是否明确要求焊后磨平、修平、去除焊接痕迹或对焊缝进行表面整饰。"
+    },
+    {
+      "label": "相对本体的小孔特征",
+      "fact_key": "small_hole_relative_to_body_present",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否有孔径或螺纹公称直径显著小于本体最大外径的小型轴向、横向、通孔、盲孔或螺纹底孔。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "孔径/螺纹规格明确，且公称直径不超过本体最大外径的三分之一；M螺纹、通孔和盲孔均可命中。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后没有孔，或所有孔均为接近本体外径的大型配合孔/内圆面。",
+      "coverage_requirement": "检查全部孔径、螺纹规格、通孔/盲孔文字及本体最大外径；比较相对尺度。",
+      "evidence_requirement": "提供孔径或螺纹规格、本体最大外径和孔轴方向。",
+      "judgement_definition": "当前对象是否有孔径或螺纹公称直径显著小于本体最大外径的小型轴向、横向、通孔、盲孔或螺纹底孔。"
+    },
+    {
+      "label": "大型精密内圆柱面",
+      "fact_key": "large_precision_internal_cylindrical_surface_present",
+      "reader_key": "symbol_relation_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否有相对局部结构截面较大的内圆柱面，并由直径公差、配合、粗糙度或明确检验尺寸控制。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "内圆柱直径明确且不小于其所在局部结构高度/外径的三分之一；只要该内圆柱自身具有直径公差、配合、粗糙度或“检”尺寸中的任意一项就必须命中，不要求跨越多个BOM构件。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后没有内圆柱面，或只有相对本体很小的普通孔且无精密控制。",
+      "coverage_requirement": "在几何裁剪和整页总览中检查全部内圆轮廓、直径、局部外部尺度、公差、粗糙度和检验标注，并结合焊接/BOM关系；不得只检查单一剖视。",
+      "evidence_requirement": "提供内圆直径、局部结构尺度，以及该内圆自身的公差/粗糙度/检验标注之一。",
+      "judgement_definition": "这是几何与精度事实，不是镗削答案。满足“大内圆相对尺度 + 任一明确精度控制”即返回HIT；不得因缺少第二种精度标注或跨BOM边界证据返回UNABLE_TO_JUDGE。"
+    },
+    {
+      "label": "长大整体轴对称棒料轮廓",
+      "fact_key": "large_axisymmetric_bar_profile",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否为沿单一主轴延伸的整体棒料/轴类轮廓，且轴向总长不小于500毫米、最大外径不小于50毫米。局部小孔不否定整体轴类；局部套筒或板壳上的圆柱特征不得把非轴类对象误判为整体轴类。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "主要视图和剖视图显示整件围绕单一轴线形成连续外圆或阶梯外圆轮廓，并有总长≥500mm和最大外径≥50mm的明确尺寸，且没有连续管壁或贯穿大型内腔定义整件为空心管材。M螺纹孔、盲孔、横孔及其他显著小于本体的局部后加工孔不影响命中。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "全部主要视图明确显示不是整体轴类棒料，或总长<500mm，或最大外径<50mm，或连续管壁/贯穿大型内腔明确表明整件为管材。不得仅因存在局部小螺纹孔、盲孔或横孔返回NOT_HIT或UNABLE_TO_JUDGE。",
+      "coverage_requirement": "检查全部主要视图、剖视图、中心线、整件总长、最大外径，以及内腔是否连续贯穿并定义原材料截面；区分局部后加工孔。",
+      "evidence_requirement": "提供整件轴线、连续外圆/阶梯外圆、总长、最大外径和连续管壁/大型贯穿内腔是否存在的证据；局部孔存在时提供孔径或螺纹规格。",
+      "judgement_definition": "判定整件的全局轴类棒料轮廓，而不是要求最终零件绝对无孔。满足单一主轴、连续整体外圆、总长和最大外径阈值，且没有连续管壁或贯穿大型内腔时返回HIT；M10等局部后加工孔不否定整体棒料。局部套筒、局部圆柱或板壳上的孔也不得反向把非轴类整件判为HIT。"
+    },
+    {
+      "label": "外表面机械整饰要求",
+      "fact_key": "external_mechanical_surface_finish_required",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
+      "description": "技术要求是否明确要求当前对象外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "明确出现外表面拉丝、亚光、抛光、磨光、抛丸或等价机械整饰要求。若初次转写为工艺上无意义且字形接近的“盐处理”等，必须回看原图辨认“拉丝/亚光/抛丸”，不得直接按无要求处理。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整技术要求清晰可读，且没有外表面拉丝、亚光、抛光、磨光、抛丸等机械整饰要求。出现“外表面…处理”但关键字模糊、转写无工艺意义或相互矛盾时不得返回NOT_HIT，必须返回UNABLE_TO_JUDGE。",
+      "coverage_requirement": "检查全部表面技术要求，区分内/外表面及机械整饰与化学处理；对“外表面…处理”的关键字逐字目视复核。",
+      "evidence_requirement": "提供要求原文、对象范围和表面效果。",
+      "judgement_definition": "这是外表面要求事实。有效机械整饰词命中；仅内表面酸洗/钝化不命中；外表面处理关键字模糊或转写成无意义词时返回UNABLE_TO_JUDGE。"
+    },
+    {
+      "label": "单轴外圆实体轮廓",
+      "fact_key": "single_axis_external_cylindrical_profile",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "整件外部主体轮廓是否由单一中心轴上的一个或多个简单外圆、阶梯外圆、圆锥段或外螺纹段组成；局部轴向孔、横孔、倒角或小平面不否定主体外圆。不得把方块内孔、板壳局部圆柱或管材内外壁判为此事实。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "主要视图或剖视图显示整件外部轮廓围绕同一中心轴形成简单或阶梯圆柱/圆锥实体，并且至少一个φ/Ø外径、外螺纹公称直径或圆形端视图明确绑定外部轮廓。圆柱在轴向投影中通常呈两条平行直边或矩形，不能因此否定；关键是外部横向尺寸带φ/Ø或外螺纹并绑定主体。局部倒角、轴向孔、横孔、键槽或小平面不影响命中，但必须能证明它们不是整件主要外形。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "外部主体横向尺寸明确为不带φ/Ø的方形、矩形、板形、壳体、管材或其他非单轴回转外形；或者只存在内孔、套筒、凸台等局部圆柱特征而外部主体为棱柱。只有孔径φ/Ø而没有绑定外部主体的外径/外螺纹或圆形端视证据时必须返回NOT_HIT，不得以标题栏名称判定。",
+      "coverage_requirement": "检查全部主要视图、剖视图和端视图，区分轴向投影的圆柱平行直边、外部主体轮廓与内孔/局部圆柱；核对中心线、绑定外轮廓的φ/Ø外径、外螺纹、总长、外部方形或矩形尺寸以及连续管壁。",
+      "evidence_requirement": "命中时提供同一中心轴、外部轮廓以及明确绑定外轮廓的φ/Ø外径、外螺纹或圆形端视证据；若轴向投影为矩形，须说明横向尺寸为何是外径。未命中时引用不带φ/Ø的外部方/矩形尺寸、板壳/管壁或仅有内孔圆柱的证据。",
+      "judgement_definition": "这是几何事实，不是‘需要车削’的工艺答案。简单圆柱在轴向主视图中显示为矩形或两条平行直边；只要中心线和绑定外部主体的φ/Ø外径或外螺纹证明其为圆柱实体，就应命中。阶梯轴、销和带局部孔的外圆实体同样可命中。外方内圆块的外部尺寸不带φ/Ø，只有内部孔径，不得命中；板壳、管材和局部套筒也不得命中。图号、名称和历史路线不得参与判断。"
     }
   ],
   "nodes": [
     {
-      "node_key": "1",
       "title": "判断零件或部件",
-      "node_kind": "classification",
-      "maintenance_status": "complete",
+      "node_key": "1",
       "sequence": 1,
-      "route_required": true
+      "node_kind": "classification",
+      "route_required": true,
+      "maintenance_status": "complete"
     },
     {
-      "node_key": "2",
       "title": "判断部件制造类型",
-      "node_kind": "classification",
-      "maintenance_status": "complete",
+      "node_key": "2",
       "sequence": 2,
-      "route_required": false
-    },
-    {
-      "node_key": "5",
-      "title": "判断零件路线族",
       "node_kind": "classification",
-      "maintenance_status": "needs_review",
+      "route_required": false,
+      "maintenance_status": "complete"
+    },
+    {
+      "title": "判断零件路线族",
+      "node_key": "5",
       "sequence": 3,
-      "route_required": false
+      "node_kind": "classification",
+      "route_required": false,
+      "maintenance_status": "needs_review"
     },
     {
-      "node_key": "3",
       "title": "生成基础工艺路线",
-      "node_kind": "route_generation",
-      "maintenance_status": "needs_review",
+      "node_key": "3",
       "sequence": 4,
-      "route_required": false
-    }
-  ],
-  "branches": [
-    {
-      "branch_key": "1.1",
-      "node_key": "1",
-      "title": "按图号判断",
-      "rule_text": "数字前缀 50 为部件，80 为零件",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 20
-    },
-    {
-      "branch_key": "1.2",
-      "node_key": "1",
-      "title": "按明细栏判断",
-      "rule_text": "存在 BOM 为部件，不存在为零件",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 10
-    },
-    {
-      "branch_key": "2.1",
-      "node_key": "2",
-      "title": "按名称判断部件",
-      "rule_text": "名称中的焊接或装配文字参与判断",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 20
-    },
-    {
-      "branch_key": "2.2",
-      "node_key": "2",
-      "title": "按符号判断部件",
-      "rule_text": "焊接符号及焊缝标注支持焊接件判断",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 20
-    },
-    {
-      "branch_key": "2.3",
-      "node_key": "2",
-      "title": "按技术要求判断部件",
-      "rule_text": "技术要求只能形成候选",
-      "maintenance_status": "executable",
-      "confidence_mode": "candidate",
-      "priority": 10
-    },
-    {
-      "branch_key": "5.1",
-      "node_key": "5",
-      "title": "平板下料件",
-      "rule_text": "选择平板下料路线族",
-      "maintenance_status": "executable",
-      "confidence_mode": "candidate",
-      "priority": 10
-    },
-    {
-      "branch_key": "5.2",
-      "node_key": "5",
-      "title": "折弯板件",
-      "rule_text": "选择折弯路线族",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 30
-    },
-    {
-      "branch_key": "5.3",
-      "node_key": "5",
-      "title": "卷制板件",
-      "rule_text": "选择卷制路线族",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 40
-    },
-    {
-      "branch_key": "5.4",
-      "node_key": "5",
-      "title": "焊接板件",
-      "rule_text": "选择焊接板件路线族",
-      "maintenance_status": "executable",
-      "confidence_mode": "candidate",
-      "priority": 20
-    },
-    {
-      "branch_key": "5.5",
-      "node_key": "5",
-      "title": "精加工板件",
-      "rule_text": "选择精加工板件路线族",
-      "maintenance_status": "executable",
-      "confidence_mode": "candidate",
-      "priority": 20
-    },
-    {
-      "branch_key": "5.6",
-      "node_key": "5",
-      "title": "非板精加工件",
-      "rule_text": "选择非板精加工路线族",
-      "maintenance_status": "executable",
-      "confidence_mode": "candidate",
-      "priority": 20
-    },
-    {
-      "branch_key": "3.1",
-      "node_key": "3",
-      "title": "下料方式",
-      "rule_text": "激光下料或剪板下料",
-      "maintenance_status": "executable",
-      "confidence_mode": "candidate",
-      "priority": 20
-    },
-    {
-      "branch_key": "3.2",
-      "node_key": "3",
-      "title": "成形工序",
-      "rule_text": "路线族决定成形工序",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 30
-    },
-    {
-      "branch_key": "3.3",
-      "node_key": "3",
-      "title": "连接工序",
-      "rule_text": "当前对象明确承担焊接时生成焊接",
-      "maintenance_status": "needs_review",
-      "confidence_mode": "candidate",
-      "priority": 20
-    },
-    {
-      "branch_key": "3.4",
-      "node_key": "3",
-      "title": "表面与清洁",
-      "rule_text": "明确要求产生对应工序",
-      "maintenance_status": "needs_review",
-      "confidence_mode": "candidate",
-      "priority": 10
-    },
-    {
-      "branch_key": "3.5",
-      "node_key": "3",
-      "title": "下游转序",
-      "rule_text": "当前只有图纸时可能缺少上级事实",
-      "maintenance_status": "executable",
-      "confidence_mode": "certain",
-      "priority": 5
+      "node_kind": "route_generation",
+      "route_required": false,
+      "maintenance_status": "needs_review"
     }
   ],
   "rules": [
     {
-      "branch_key": "1.1",
-      "rule_key": "object_component_by_number",
-      "description": "图号数字前缀 50 判为部件",
-      "decision_key": "object_kind",
-      "question": "当前对象是零件还是部件？",
-      "option_key": "component_by_number",
-      "option_label": "部件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "object_kind",
-      "outcome_value": "component",
-      "priority": 10,
-      "clauses": [
-        {
-          "fact_key": "drawing_number_numeric_prefix",
-          "operator": "starts_with",
-          "expected_value": "50"
-        }
-      ]
-    },
-    {
-      "branch_key": "1.1",
-      "rule_key": "object_part_by_number",
-      "description": "图号数字前缀 80 判为零件",
-      "decision_key": "object_kind",
-      "question": "当前对象是零件还是部件？",
-      "option_key": "part_by_number",
-      "option_label": "零件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "object_kind",
-      "outcome_value": "part",
-      "priority": 10,
-      "clauses": [
-        {
-          "fact_key": "drawing_number_numeric_prefix",
-          "operator": "starts_with",
-          "expected_value": "80"
-        }
-      ]
-    },
-    {
-      "branch_key": "1.2",
-      "rule_key": "object_component_by_bom",
-      "description": "存在 BOM 判为部件",
-      "decision_key": "object_kind",
-      "question": "当前对象是零件还是部件？",
-      "option_key": "component_by_bom",
-      "option_label": "部件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "object_kind",
-      "outcome_value": "component",
-      "priority": 100,
       "clauses": [
         {
           "fact_key": "object_has_bom",
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "priority": 100,
+      "question": "当前对象是零件还是部件？",
+      "rule_key": "object_component_by_bom",
+      "branch_key": "1.2",
+      "option_key": "component_by_bom",
+      "description": "存在 BOM 判为部件",
+      "outcome_key": "object_kind",
+      "result_kind": "resolved",
+      "decision_key": "object_kind",
+      "option_label": "部件",
+      "outcome_type": "fact",
+      "outcome_value": "component"
     },
     {
-      "branch_key": "1.2",
-      "rule_key": "object_part_without_bom",
-      "description": "不存在 BOM 判为零件",
-      "decision_key": "object_kind",
-      "question": "当前对象是零件还是部件？",
-      "option_key": "part_without_bom",
-      "option_label": "零件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "object_kind",
-      "outcome_value": "part",
-      "priority": 100,
       "clauses": [
         {
           "fact_key": "object_has_bom",
           "operator": "eq",
           "expected_value": false
         }
-      ]
+      ],
+      "priority": 100,
+      "question": "当前对象是零件还是部件？",
+      "rule_key": "object_part_without_bom",
+      "branch_key": "1.2",
+      "option_key": "part_without_bom",
+      "description": "不存在 BOM 判为零件",
+      "outcome_key": "object_kind",
+      "result_kind": "resolved",
+      "decision_key": "object_kind",
+      "option_label": "零件",
+      "outcome_type": "fact",
+      "outcome_value": "part"
     },
     {
-      "branch_key": "2.1",
-      "rule_key": "welded_component_by_title",
-      "description": "名称包含焊接判为焊接件",
-      "decision_key": "component_kind",
-      "question": "部件由焊接还是装配主导？",
-      "option_key": "welded_by_title",
-      "option_label": "焊接件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "component_kind",
-      "outcome_value": "welded",
       "clauses": [
         {
-          "fact_key": "title_contains_welding",
+          "fact_key": "object_kind",
           "operator": "eq",
-          "expected_value": true
-        }
-      ]
-    },
-    {
-      "branch_key": "2.1",
-      "rule_key": "assembly_component_by_title",
-      "description": "名称包含装配判为装配件",
-      "decision_key": "component_kind",
-      "question": "部件由焊接还是装配主导？",
-      "option_key": "assembly_by_title",
-      "option_label": "装配件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "component_kind",
-      "outcome_value": "assembly",
-      "clauses": [
-        {
-          "fact_key": "title_contains_assembly",
-          "operator": "eq",
-          "expected_value": true
-        }
-      ]
-    },
-    {
-      "branch_key": "2.2",
-      "rule_key": "welded_component_by_symbol",
-      "description": "焊接符号和焊缝标注支持焊接件判断",
-      "decision_key": "component_kind",
-      "question": "部件由焊接还是装配主导？",
-      "option_key": "welded_by_symbol",
-      "option_label": "焊接件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "component_kind",
-      "outcome_value": "welded",
-      "clauses": [
+          "expected_value": "component"
+        },
         {
           "fact_key": "weld_symbol_present",
           "operator": "eq",
@@ -803,100 +619,115 @@
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "question": "部件由焊接还是装配主导？",
+      "rule_key": "welded_component_by_symbol",
+      "branch_key": "2.2",
+      "option_key": "welded_by_symbol",
+      "description": "焊接符号和焊缝标注支持焊接件判断",
+      "outcome_key": "component_kind",
+      "result_kind": "resolved",
+      "decision_key": "component_kind",
+      "option_label": "焊接件",
+      "outcome_type": "fact",
+      "outcome_value": "welded",
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "2.3",
-      "rule_key": "welded_component_requirement_candidate",
-      "description": "技术要求提及焊接时保留焊接件候选",
-      "decision_key": "component_kind",
-      "question": "部件由焊接还是装配主导？",
-      "option_key": "welded_by_requirement",
-      "option_label": "焊接件候选",
-      "result_kind": "candidate",
-      "outcome_type": "fact",
-      "outcome_key": "component_kind",
-      "outcome_value": "welded",
       "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
         {
           "fact_key": "technical_requirement_mentions_welding",
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "question": "部件由焊接还是装配主导？",
+      "rule_key": "welded_component_requirement_candidate",
+      "branch_key": "2.3",
+      "option_key": "welded_by_requirement",
+      "description": "技术要求提及焊接时保留焊接件候选",
+      "outcome_key": "component_kind",
+      "result_kind": "candidate",
+      "decision_key": "component_kind",
+      "option_label": "焊接件候选",
+      "outcome_type": "fact",
+      "outcome_value": "welded",
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "2.3",
-      "rule_key": "assembly_component_requirement_candidate",
-      "description": "技术要求提及装配时保留装配件候选",
-      "decision_key": "component_kind",
-      "question": "部件由焊接还是装配主导？",
-      "option_key": "assembly_by_requirement",
-      "option_label": "装配件候选",
-      "result_kind": "candidate",
-      "outcome_type": "fact",
-      "outcome_key": "component_kind",
-      "outcome_value": "assembly",
       "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
         {
           "fact_key": "technical_requirement_mentions_assembly",
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "question": "部件由焊接还是装配主导？",
+      "rule_key": "assembly_component_requirement_candidate",
+      "branch_key": "2.3",
+      "option_key": "assembly_by_requirement",
+      "description": "技术要求提及装配时保留装配件候选",
+      "outcome_key": "component_kind",
+      "result_kind": "candidate",
+      "decision_key": "component_kind",
+      "option_label": "装配件候选",
+      "outcome_type": "fact",
+      "outcome_value": "assembly",
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "5.4",
-      "rule_key": "welding_feature_by_symbol",
-      "description": "焊接符号派生焊接特征",
-      "decision_key": "welding_feature",
-      "question": "是否存在焊接特征？",
-      "option_key": "symbol_hit",
-      "option_label": "存在",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "has_welding_feature",
-      "outcome_value": true,
       "clauses": [
         {
           "fact_key": "weld_symbol_present",
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "question": "是否存在焊接特征？",
+      "rule_key": "welding_feature_by_symbol",
+      "branch_key": "5.4",
+      "option_key": "symbol_hit",
+      "description": "焊接符号派生焊接特征",
+      "outcome_key": "has_welding_feature",
+      "result_kind": "resolved",
+      "decision_key": "welding_feature",
+      "option_label": "存在",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "5.4",
-      "rule_key": "welding_feature_by_requirement",
-      "description": "焊接技术要求派生焊接特征",
-      "decision_key": "welding_feature",
-      "question": "是否存在焊接特征？",
-      "option_key": "requirement_hit",
-      "option_label": "存在",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "has_welding_feature",
-      "outcome_value": true,
       "clauses": [
         {
           "fact_key": "technical_requirement_mentions_welding",
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "question": "是否存在焊接特征？",
+      "rule_key": "welding_feature_by_requirement",
+      "branch_key": "5.4",
+      "option_key": "requirement_hit",
+      "description": "焊接技术要求派生焊接特征",
+      "outcome_key": "has_welding_feature",
+      "result_kind": "resolved",
+      "decision_key": "welding_feature",
+      "option_label": "存在",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "5.5",
-      "rule_key": "precision_by_hole_tolerance",
-      "description": "孔和精密公差派生精加工需求",
-      "decision_key": "precision_need",
-      "question": "是否需要精加工？",
-      "option_key": "hole_tolerance",
-      "option_label": "需要",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "requires_precision_machining",
-      "outcome_value": true,
       "clauses": [
         {
           "fact_key": "has_hole_feature",
@@ -908,20 +739,21 @@
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "question": "是否需要精加工？",
+      "rule_key": "precision_by_hole_tolerance",
+      "branch_key": "5.5",
+      "option_key": "hole_tolerance",
+      "description": "孔和精密公差派生精加工需求",
+      "outcome_key": "requires_precision_machining",
+      "result_kind": "resolved",
+      "decision_key": "precision_need",
+      "option_label": "需要",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "5.5",
-      "rule_key": "precision_by_slot_tolerance",
-      "description": "槽和精密公差派生精加工需求",
-      "decision_key": "precision_need",
-      "question": "是否需要精加工？",
-      "option_key": "slot_tolerance",
-      "option_label": "需要",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "requires_precision_machining",
-      "outcome_value": true,
       "clauses": [
         {
           "fact_key": "has_slot_feature",
@@ -933,21 +765,57 @@
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "question": "是否需要精加工？",
+      "rule_key": "precision_by_slot_tolerance",
+      "branch_key": "5.5",
+      "option_key": "slot_tolerance",
+      "description": "槽和精密公差派生精加工需求",
+      "outcome_key": "requires_precision_machining",
+      "result_kind": "resolved",
+      "decision_key": "precision_need",
+      "option_label": "需要",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "5.3",
-      "rule_key": "rolled_sheet_family",
-      "description": "板件连续回转曲面选择卷制路线族",
-      "decision_key": "route_family",
-      "question": "选择哪个基础路线族？",
-      "option_key": "rolled_sheet",
-      "option_label": "卷制板件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "route_family",
-      "outcome_value": "rolled_sheet_part",
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "is_plate_part",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "continuous_revolved_surface",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "has_bend_feature",
+          "operator": "eq",
+          "expected_value": false
+        }
+      ],
       "priority": 50,
+      "question": "选择哪个基础路线族？",
+      "rule_key": "rolled_sheet_family",
+      "branch_key": "5.3",
+      "option_key": "rolled_sheet",
+      "description": "板件具有连续回转曲面且不存在折弯特征时选择卷制路线族",
+      "outcome_key": "route_family",
+      "result_kind": "resolved",
+      "decision_key": "route_family",
+      "option_label": "卷制板件",
+      "outcome_type": "fact",
+      "outcome_value": "rolled_sheet_part"
+    },
+    {
       "clauses": [
         {
           "fact_key": "object_kind",
@@ -960,61 +828,30 @@
           "expected_value": true
         },
         {
-          "fact_key": "continuous_revolved_surface",
+          "fact_key": "has_bend_feature",
           "operator": "eq",
           "expected_value": true
+        },
+        {
+          "fact_key": "continuous_revolved_surface",
+          "operator": "eq",
+          "expected_value": false
         }
-      ]
-    },
-    {
-      "branch_key": "5.2",
-      "rule_key": "bent_sheet_family",
-      "description": "板件存在折弯特征选择折弯路线族",
-      "decision_key": "route_family",
-      "question": "选择哪个基础路线族？",
-      "option_key": "bent_sheet",
-      "option_label": "折弯板件",
-      "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "route_family",
-      "outcome_value": "bent_sheet_part",
+      ],
       "priority": 40,
-      "clauses": [
-        {
-          "fact_key": "object_kind",
-          "operator": "eq",
-          "expected_value": "part"
-        },
-        {
-          "fact_key": "is_plate_part",
-          "operator": "eq",
-          "expected_value": true
-        },
-        {
-          "fact_key": "has_bend_feature",
-          "operator": "eq",
-          "expected_value": true
-        },
-        {
-          "fact_key": "continuous_revolved_surface",
-          "operator": "eq",
-          "expected_value": false
-        }
-      ]
-    },
-    {
-      "branch_key": "5.1",
-      "rule_key": "flat_sheet_family",
-      "description": "无成形和精加工特征选择平板路线族",
-      "decision_key": "route_family",
       "question": "选择哪个基础路线族？",
-      "option_key": "flat_sheet",
-      "option_label": "平板件",
+      "rule_key": "bent_sheet_family",
+      "branch_key": "5.2",
+      "option_key": "bent_sheet",
+      "description": "板件存在折弯特征选择折弯路线族",
+      "outcome_key": "route_family",
       "result_kind": "resolved",
+      "decision_key": "route_family",
+      "option_label": "折弯板件",
       "outcome_type": "fact",
-      "outcome_key": "route_family",
-      "outcome_value": "flat_cut_plate_part",
-      "priority": 10,
+      "outcome_value": "bent_sheet_part"
+    },
+    {
       "clauses": [
         {
           "fact_key": "object_kind",
@@ -1036,22 +873,21 @@
           "operator": "eq",
           "expected_value": false
         }
-      ]
+      ],
+      "priority": 10,
+      "question": "选择哪个基础路线族？",
+      "rule_key": "flat_sheet_family",
+      "branch_key": "5.1",
+      "option_key": "flat_sheet",
+      "description": "无成形和精加工特征选择平板路线族",
+      "outcome_key": "route_family",
+      "result_kind": "resolved",
+      "decision_key": "route_family",
+      "option_label": "平板件",
+      "outcome_type": "fact",
+      "outcome_value": "flat_cut_plate_part"
     },
     {
-      "branch_key": "5.4",
-      "rule_key": "welded_sheet_family",
-      "description": "板件存在焊接特征保留焊接板件路线族",
-      "decision_key": "route_family",
-      "question": "选择哪个基础路线族？",
-      "option_key": "welded_sheet",
-      "option_label": "焊接板件",
-      "result_kind": "candidate",
-      "outcome_type": "fact",
-      "outcome_key": "route_family",
-      "outcome_value": "welded_sheet_part",
-      "missing_behavior": "not_match",
-      "priority": 30,
       "clauses": [
         {
           "fact_key": "object_kind",
@@ -1068,22 +904,22 @@
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "priority": 30,
+      "question": "选择哪个基础路线族？",
+      "rule_key": "welded_sheet_family",
+      "branch_key": "5.4",
+      "option_key": "welded_sheet",
+      "description": "板件存在焊接特征保留焊接板件路线族",
+      "outcome_key": "route_family",
+      "result_kind": "candidate",
+      "decision_key": "route_family",
+      "option_label": "焊接板件",
+      "outcome_type": "fact",
+      "outcome_value": "welded_sheet_part",
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "5.5",
-      "rule_key": "machined_plate_family",
-      "description": "板件需要精加工保留精加工板件路线族",
-      "decision_key": "route_family",
-      "question": "选择哪个基础路线族？",
-      "option_key": "machined_plate",
-      "option_label": "精加工板件",
-      "result_kind": "candidate",
-      "outcome_type": "fact",
-      "outcome_key": "route_family",
-      "outcome_value": "machined_plate_part",
-      "missing_behavior": "not_match",
-      "priority": 30,
       "clauses": [
         {
           "fact_key": "object_kind",
@@ -1100,22 +936,22 @@
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "priority": 30,
+      "question": "选择哪个基础路线族？",
+      "rule_key": "machined_plate_family",
+      "branch_key": "5.5",
+      "option_key": "machined_plate",
+      "description": "板件需要精加工保留精加工板件路线族",
+      "outcome_key": "route_family",
+      "result_kind": "candidate",
+      "decision_key": "route_family",
+      "option_label": "精加工板件",
+      "outcome_type": "fact",
+      "outcome_value": "machined_plate_part",
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "5.6",
-      "rule_key": "non_sheet_machined_family",
-      "description": "管棒铸锻件需要精加工保留非板精加工路线族",
-      "decision_key": "route_family",
-      "question": "选择哪个基础路线族？",
-      "option_key": "non_sheet_machined",
-      "option_label": "非板精加工件",
-      "result_kind": "candidate",
-      "outcome_type": "fact",
-      "outcome_key": "route_family",
-      "outcome_value": "non_sheet_machined_part",
-      "missing_behavior": "not_match",
-      "priority": 20,
       "clauses": [
         {
           "fact_key": "object_kind",
@@ -1137,52 +973,50 @@
           "operator": "eq",
           "expected_value": true
         }
-      ]
+      ],
+      "priority": 20,
+      "question": "选择哪个基础路线族？",
+      "rule_key": "non_sheet_machined_family",
+      "branch_key": "5.6",
+      "option_key": "non_sheet_machined",
+      "description": "管棒铸锻件需要精加工保留非板精加工路线族",
+      "outcome_key": "route_family",
+      "result_kind": "candidate",
+      "decision_key": "route_family",
+      "option_label": "非板精加工件",
+      "outcome_type": "fact",
+      "outcome_value": "non_sheet_machined_part",
+      "missing_behavior": "not_match"
     },
     {
-      "branch_key": "3.1",
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "in",
+          "expected_value": [
+            "flat_cut_plate_part",
+            "bent_sheet_part",
+            "welded_sheet_part"
+          ]
+        }
+      ],
+      "question": "板类零件采用哪种下料方式？",
       "rule_key": "laser_blanking_candidate",
-      "description": "板类路线保留激光下料候选",
-      "decision_key": "blanking_method",
-      "question": "板类零件采用哪种下料方式？",
-      "option_key": "laser",
-      "option_label": "激光下料",
-      "result_kind": "candidate",
-      "outcome_type": "process",
-      "outcome_key": "blanking_laser",
-      "outcome_value": {
-        "operation_key": "blanking",
-        "process_name": "激光下料",
-        "order_rank": 10
-      },
-      "clauses": [
-        {
-          "fact_key": "route_family",
-          "operator": "in",
-          "expected_value": [
-            "flat_cut_plate_part",
-            "bent_sheet_part",
-            "welded_sheet_part"
-          ]
-        }
-      ]
-    },
-    {
       "branch_key": "3.1",
-      "rule_key": "shear_blanking_candidate",
-      "description": "板类路线保留剪板下料候选",
-      "decision_key": "blanking_method",
-      "question": "板类零件采用哪种下料方式？",
-      "option_key": "shear",
-      "option_label": "剪板下料",
+      "option_key": "laser",
+      "description": "板类路线保留激光下料候选",
+      "outcome_key": "blanking_laser",
       "result_kind": "candidate",
+      "decision_key": "blanking_method",
+      "option_label": "激光下料",
       "outcome_type": "process",
-      "outcome_key": "blanking_shear",
       "outcome_value": {
-        "operation_key": "blanking",
-        "process_name": "剪板下料",
-        "order_rank": 10
-      },
+        "order_rank": 10,
+        "process_name": "激光下料",
+        "operation_key": "blanking"
+      }
+    },
+    {
       "clauses": [
         {
           "fact_key": "route_family",
@@ -1193,96 +1027,96 @@
             "welded_sheet_part"
           ]
         }
-      ]
+      ],
+      "question": "板类零件采用哪种下料方式？",
+      "rule_key": "shear_blanking_candidate",
+      "branch_key": "3.1",
+      "option_key": "shear",
+      "description": "板类路线保留剪板下料候选",
+      "outcome_key": "blanking_shear",
+      "result_kind": "candidate",
+      "decision_key": "blanking_method",
+      "option_label": "剪板下料",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "剪板下料",
+        "operation_key": "blanking"
+      }
     },
     {
-      "branch_key": "3.2",
-      "rule_key": "bend_operation",
-      "description": "折弯路线族生成折弯工序",
-      "decision_key": "forming_operation",
-      "question": "需要哪种成形工序？",
-      "option_key": "bend",
-      "option_label": "折弯",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "forming_bend",
-      "outcome_value": {
-        "operation_key": "forming",
-        "process_name": "折弯",
-        "order_rank": 30
-      },
       "clauses": [
         {
           "fact_key": "route_family",
           "operator": "eq",
           "expected_value": "bent_sheet_part"
         }
-      ]
+      ],
+      "question": "需要哪种成形工序？",
+      "rule_key": "bend_operation",
+      "branch_key": "3.2",
+      "option_key": "bend",
+      "description": "折弯路线族生成折弯工序",
+      "outcome_key": "forming_bend",
+      "result_kind": "resolved",
+      "decision_key": "forming_operation",
+      "option_label": "折弯",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 30,
+        "process_name": "折弯",
+        "operation_key": "forming"
+      }
     },
     {
-      "branch_key": "3.2",
-      "rule_key": "rolling_operation",
-      "description": "卷制路线族生成卷圆工序",
-      "decision_key": "forming_operation",
-      "question": "需要哪种成形工序？",
-      "option_key": "rolling",
-      "option_label": "卷圆",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "forming_rolling",
-      "outcome_value": {
-        "operation_key": "forming",
-        "process_name": "卷圆",
-        "order_rank": 30
-      },
       "clauses": [
         {
           "fact_key": "route_family",
           "operator": "eq",
           "expected_value": "rolled_sheet_part"
         }
-      ]
+      ],
+      "question": "需要哪种成形工序？",
+      "rule_key": "rolling_operation",
+      "branch_key": "3.2",
+      "option_key": "rolling",
+      "description": "卷制路线族生成初次卷圆工序",
+      "outcome_key": "forming_rolling",
+      "result_kind": "resolved",
+      "decision_key": "forming_operation",
+      "option_label": "卷圆",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 30,
+        "process_name": "卷圆",
+        "operation_key": "forming"
+      }
     },
     {
-      "branch_key": "3.3",
-      "rule_key": "welding_operation",
-      "description": "焊接板件路线族生成焊接工序",
-      "decision_key": "connection_operation",
-      "question": "当前层级是否形成焊接工序？",
-      "option_key": "welding",
-      "option_label": "焊接(校正)",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "connection_welding",
-      "outcome_value": {
-        "operation_key": "connection",
-        "process_name": "焊接(校正)",
-        "order_rank": 40
-      },
       "clauses": [
         {
           "fact_key": "route_family",
           "operator": "eq",
           "expected_value": "welded_sheet_part"
         }
-      ]
+      ],
+      "question": "当前层级是否形成焊接工序？",
+      "rule_key": "welding_operation",
+      "branch_key": "3.3",
+      "option_key": "welding",
+      "description": "焊接板件路线族生成焊接工序",
+      "outcome_key": "connection_welding",
+      "result_kind": "resolved",
+      "decision_key": "connection_operation",
+      "option_label": "焊接(校正)",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 40,
+        "process_name": "焊接(校正)",
+        "operation_key": "connection"
+      }
     },
     {
-      "branch_key": "3.4",
-      "rule_key": "polish_operation",
-      "description": "明确外表面抛光要求且当前层级承担时生成抛光工序",
-      "decision_key": "surface_operation",
-      "question": "是否形成独立表面工序？",
-      "option_key": "polish",
-      "option_label": "抛光",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "surface_polish",
-      "outcome_value": {
-        "operation_key": "surface",
-        "process_name": "抛光",
-        "order_rank": 70
-      },
       "clauses": [
         {
           "fact_key": "outer_surface_polish_required",
@@ -1295,121 +1129,48 @@
           "expected_value": "current_level"
         }
       ],
+      "question": "是否形成独立表面工序？",
+      "rule_key": "polish_operation",
+      "branch_key": "3.4",
+      "option_key": "polish",
+      "description": "明确外表面抛光要求且当前层级承担时生成抛光工序",
+      "outcome_key": "surface_polish",
+      "result_kind": "resolved",
+      "decision_key": "surface_operation",
+      "option_label": "抛光",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 70,
+        "process_name": "抛光",
+        "operation_key": "surface"
+      },
       "missing_behavior": "not_match"
     },
     {
-      "branch_key": "3.4",
-      "rule_key": "cleaning_operation",
-      "description": "明确独立清洗要求生成清洗工序",
-      "decision_key": "cleaning_operation",
-      "question": "是否形成独立清洗工序？",
-      "option_key": "clean",
-      "option_label": "清洗",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "cleaning",
-      "outcome_value": {
-        "operation_key": "cleaning",
-        "process_name": "清洗",
-        "order_rank": 80
-      },
       "clauses": [
         {
           "fact_key": "formal_cleaning_required",
           "operator": "eq",
           "expected_value": true
         }
-      ]
-    },
-    {
-      "branch_key": "3.5",
-      "rule_key": "transfer_to_assembly",
-      "description": "上级为总装件时转装配",
-      "decision_key": "downstream_transfer",
-      "question": "本级完成后转向哪里？",
-      "option_key": "to_assembly",
-      "option_label": "转装配",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "transfer_assembly",
-      "outcome_value": {
-        "operation_key": "transfer",
-        "process_name": "转装配",
-        "order_rank": 100
-      },
-      "clauses": [
-        {
-          "fact_key": "parent_part_type",
-          "operator": "eq",
-          "expected_value": "final_assembly"
-        }
       ],
-      "missing_behavior": "candidate"
-    },
-    {
-      "branch_key": "3.5",
-      "rule_key": "transfer_to_subassembly",
-      "description": "上级为部装件时转部装",
-      "decision_key": "downstream_transfer",
-      "question": "本级完成后转向哪里？",
-      "option_key": "to_subassembly",
-      "option_label": "转部装",
+      "question": "是否形成独立清洗工序？",
+      "rule_key": "cleaning_operation",
+      "branch_key": "3.4",
+      "option_key": "clean",
+      "description": "明确独立清洗要求生成清洗工序",
+      "outcome_key": "cleaning",
       "result_kind": "resolved",
+      "decision_key": "cleaning_operation",
+      "option_label": "清洗",
       "outcome_type": "process",
-      "outcome_key": "transfer_subassembly",
       "outcome_value": {
-        "operation_key": "transfer",
-        "process_name": "转部装",
-        "order_rank": 100
-      },
-      "clauses": [
-        {
-          "fact_key": "parent_part_type",
-          "operator": "eq",
-          "expected_value": "sub_assembly"
-        }
-      ],
-      "missing_behavior": "candidate"
+        "order_rank": 80,
+        "process_name": "清洗",
+        "operation_key": "cleaning"
+      }
     },
     {
-      "branch_key": "3.5",
-      "rule_key": "transfer_to_welding",
-      "description": "上级为焊接件时转焊接",
-      "decision_key": "downstream_transfer",
-      "question": "本级完成后转向哪里？",
-      "option_key": "to_welding",
-      "option_label": "转焊接",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "transfer_welding",
-      "outcome_value": {
-        "operation_key": "transfer",
-        "process_name": "转焊接",
-        "order_rank": 100
-      },
-      "clauses": [
-        {
-          "fact_key": "parent_part_type",
-          "operator": "eq",
-          "expected_value": "welded"
-        }
-      ],
-      "missing_behavior": "candidate"
-    },
-    {
-      "branch_key": "3.1",
-      "rule_key": "part_base_route_required",
-      "description": "零件必须先确定基础路线族，才能形成完整工艺路线",
-      "decision_key": "route_completeness",
-      "question": "零件基础路线族是否已确定？",
-      "option_key": "base_route_ready",
-      "option_label": "基础路线族已确定",
-      "result_kind": "resolved",
-      "outcome_type": "stage",
-      "outcome_key": "base_route_ready",
-      "outcome_value": true,
-      "missing_behavior": "error",
-      "priority": 100,
       "clauses": [
         {
           "fact_key": "object_kind",
@@ -1425,48 +1186,26 @@
             "rolled_sheet_part",
             "welded_sheet_part",
             "machined_plate_part",
-            "non_sheet_machined_part"
+            "non_sheet_machined_part",
+            "tube_cut_part"
           ]
         }
-      ]
-    },
-    {
-      "branch_key": "3.3",
-      "rule_key": "component_base_route_unavailable",
-      "description": "当前决策树尚未定义部件的完整基础工艺路线",
-      "decision_key": "route_completeness",
-      "question": "部件基础工艺路线是否完整？",
-      "option_key": "component_route_unavailable",
-      "option_label": "基础路线不完整",
-      "result_kind": "error",
-      "outcome_type": "error",
-      "outcome_key": "component_base_route_missing",
-      "outcome_value": null,
-      "missing_behavior": "not_match",
+      ],
       "priority": 100,
-      "clauses": [
-        {
-          "fact_key": "object_kind",
-          "operator": "eq",
-          "expected_value": "component"
-        }
-      ]
-    },
-    {
-      "branch_key": "3.4",
-      "rule_key": "surface_stage_required",
-      "description": "存在外表面抛光要求时必须确定表面工序承载层级",
-      "decision_key": "surface_stage_completeness",
-      "question": "外表面要求由哪个制造层级承担？",
-      "option_key": "surface_stage_ready",
-      "option_label": "表面承载层级已确定",
-      "evaluation_mode": "all",
+      "question": "零件基础路线族是否已确定？",
+      "rule_key": "part_base_route_required",
+      "branch_key": "3.1",
+      "option_key": "base_route_ready",
+      "description": "零件必须先确定基础路线族，才能形成完整工艺路线",
+      "outcome_key": "base_route_ready",
       "result_kind": "resolved",
+      "decision_key": "route_completeness",
+      "option_label": "基础路线族已确定",
       "outcome_type": "stage",
-      "outcome_key": "surface_stage_ready",
       "outcome_value": true,
-      "missing_behavior": "error",
-      "priority": 100,
+      "missing_behavior": "error"
+    },
+    {
       "clauses": [
         {
           "fact_key": "outer_surface_polish_required",
@@ -1478,247 +1217,848 @@
           "operator": "in",
           "expected_value": [
             "current_level",
-            "parent_level"
+            "process_integrated"
           ]
         }
-      ]
-    },
-    {
-      "branch_key": "3.3",
-      "rule_key": "rolled_sheet_process_module_unavailable",
-      "description": "卷制板件仅在图名命中已验证斗体/锥体产品族模块后才可判为完整",
-      "decision_key": "route_completeness",
-      "question": "卷制板件完整工艺模块是否已验证？",
-      "option_key": "rolled_module_unavailable",
-      "option_label": "完整模块未定义",
-      "evaluation_mode": "all",
-      "result_kind": "error",
-      "outcome_type": "error",
-      "outcome_key": "rolled_sheet_process_module_missing",
-      "outcome_value": null,
-      "missing_behavior": "error",
-      "priority": 110,
-      "clauses": [
-        {
-          "fact_key": "route_family",
-          "operator": "eq",
-          "expected_value": "rolled_sheet_part"
-        },
-        {
-          "fact_key": "part_name",
-          "operator": "neq",
-          "expected_value": "斗体"
-        },
-        {
-          "fact_key": "part_name",
-          "operator": "neq",
-          "expected_value": "锥体"
-        }
-      ]
-    },
-    {
-      "branch_key": "3.1",
-      "rule_key": "rolled_sheet_laser_blanking",
-      "description": "历史卷制板件路线均以激光下料开始",
-      "decision_key": "blanking_method",
-      "question": "卷制板件采用哪种下料方式？",
-      "option_key": "rolled_laser",
-      "option_label": "激光下料",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "blanking_laser",
-      "outcome_value": {
-        "operation_key": "blanking",
-        "process_name": "激光下料",
-        "order_rank": 10
-      },
-      "missing_behavior": "not_match",
+      ],
       "priority": 100,
-      "clauses": [
-        {
-          "fact_key": "route_family",
-          "operator": "eq",
-          "expected_value": "rolled_sheet_part"
-        }
-      ]
-    },
-    {
-      "branch_key": "3.3",
-      "rule_key": "hopper_segment_prejoin",
-      "description": "斗体卷制模块先将分段下料件拼焊",
-      "decision_key": "hopper_rolled_module_prejoin",
-      "question": "斗体卷制前是否需要拼焊？",
-      "option_key": "prejoin",
-      "option_label": "焊接(校正)",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "hopper_prejoin",
-      "outcome_value": {
-        "operation_key": "hopper_prejoin",
-        "process_name": "焊接(校正)",
-        "order_rank": 20
-      },
-      "missing_behavior": "not_match",
-      "priority": 100,
-      "clauses": [
-        {
-          "fact_key": "route_family",
-          "operator": "eq",
-          "expected_value": "rolled_sheet_part"
-        },
-        {
-          "fact_key": "part_name",
-          "operator": "in",
-          "expected_value": [
-            "斗体",
-            "锥体"
-          ]
-        }
-      ]
-    },
-    {
-      "branch_key": "3.3",
-      "rule_key": "hopper_seam_welding",
-      "description": "斗体初次卷圆后完成纵缝焊接和校正",
-      "decision_key": "hopper_rolled_module_seam",
-      "question": "斗体初卷后是否需要接缝焊？",
-      "option_key": "seam_welding",
-      "option_label": "焊接(校正)",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "hopper_seam_welding",
-      "outcome_value": {
-        "operation_key": "hopper_seam_welding",
-        "process_name": "焊接(校正)",
-        "order_rank": 40
-      },
-      "missing_behavior": "not_match",
-      "priority": 100,
-      "clauses": [
-        {
-          "fact_key": "route_family",
-          "operator": "eq",
-          "expected_value": "rolled_sheet_part"
-        },
-        {
-          "fact_key": "part_name",
-          "operator": "in",
-          "expected_value": [
-            "斗体",
-            "锥体"
-          ]
-        }
-      ]
-    },
-    {
-      "branch_key": "3.2",
-      "rule_key": "hopper_calibration_rolling",
-      "description": "斗体接缝焊后再次卷圆校正几何",
-      "decision_key": "hopper_rolled_module_calibration",
-      "question": "斗体焊后是否需要校圆？",
-      "option_key": "calibration_rolling",
-      "option_label": "卷圆",
-      "result_kind": "resolved",
-      "outcome_type": "process",
-      "outcome_key": "hopper_calibration_rolling",
-      "outcome_value": {
-        "operation_key": "hopper_calibration_rolling",
-        "process_name": "卷圆",
-        "order_rank": 50
-      },
-      "missing_behavior": "not_match",
-      "priority": 100,
-      "clauses": [
-        {
-          "fact_key": "route_family",
-          "operator": "eq",
-          "expected_value": "rolled_sheet_part"
-        },
-        {
-          "fact_key": "part_name",
-          "operator": "in",
-          "expected_value": [
-            "斗体",
-            "锥体"
-          ]
-        }
-      ]
-    },
-    {
+      "question": "外表面要求由哪个制造层级承担？",
+      "rule_key": "surface_stage_required",
       "branch_key": "3.4",
-      "rule_key": "rolled_child_outer_polish_owned_by_parent",
-      "description": "卷制子件的外表面最终抛光由焊接父件焊后阶段承担",
-      "decision_key": "surface_stage_ownership",
-      "question": "卷制子件外表面抛光由哪个层级承担？",
-      "option_key": "parent_surface_stage",
-      "option_label": "父级阶段",
+      "option_key": "surface_stage_ready",
+      "description": "存在外表面抛光要求时，必须仅凭当前 PDF 可观察规则确定本级承载方式",
+      "outcome_key": "surface_stage_ready",
       "result_kind": "resolved",
-      "outcome_type": "fact",
-      "outcome_key": "surface_stage_owner",
-      "outcome_value": "parent_level",
-      "missing_behavior": "not_match",
-      "priority": 100,
+      "decision_key": "surface_stage_completeness",
+      "option_label": "表面承载层级已确定",
+      "outcome_type": "stage",
+      "outcome_value": true,
+      "evaluation_mode": "all",
+      "missing_behavior": "error"
+    },
+    {
       "clauses": [
         {
           "fact_key": "route_family",
           "operator": "eq",
           "expected_value": "rolled_sheet_part"
+        }
+      ],
+      "priority": 100,
+      "question": "卷制板件采用哪种下料方式？",
+      "rule_key": "rolled_sheet_laser_blanking",
+      "branch_key": "3.1",
+      "option_key": "rolled_laser",
+      "description": "历史卷制板件路线均以激光下料开始",
+      "outcome_key": "blanking_laser",
+      "result_kind": "resolved",
+      "decision_key": "blanking_method",
+      "option_label": "激光下料",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "激光下料",
+        "operation_key": "blanking"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "bent_sheet_part"
         },
         {
-          "fact_key": "outer_surface_polish_required",
+          "fact_key": "has_hole_feature",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 110,
+      "question": "带孔折弯板件采用哪种下料方式？",
+      "rule_key": "bent_plate_hole_laser_blanking",
+      "branch_key": "3.1",
+      "option_key": "bent_plate_hole_laser",
+      "description": "PDF 显示折弯板件带孔时，以激光下料同时形成展开轮廓和重复孔",
+      "outcome_key": "blanking_laser",
+      "result_kind": "resolved",
+      "decision_key": "blanking_method",
+      "option_label": "激光下料",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "激光下料",
+        "operation_key": "blanking"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "bar"
+        },
+        {
+          "fact_key": "single_axis_external_cylindrical_profile",
           "operator": "eq",
           "expected_value": true
         },
         {
-          "fact_key": "parent_part_type",
+          "fact_key": "requires_precision_machining",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 220,
+      "question": "单轴外圆精密棒料属于哪类制造路线？",
+      "rule_key": "axisymmetric_bar_machined_family",
+      "branch_key": "5.6",
+      "option_key": "axisymmetric_bar_machined_family",
+      "description": "棒料、单轴外圆实体轮廓和精密要求共同确定非板精加工路线；不使用名称或图号。",
+      "outcome_key": "route_family",
+      "result_kind": "resolved",
+      "decision_key": "route_family",
+      "option_label": "非板精加工件",
+      "outcome_type": "fact",
+      "outcome_value": "non_sheet_machined_part",
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "bar"
+        }
+      ],
+      "priority": 150,
+      "question": "棒料如何形成毛坯？",
+      "rule_key": "bar_saw_blanking",
+      "branch_key": "3.1",
+      "option_key": "bar_saw_blanking",
+      "description": "棒料以锯切形成单件毛坯。",
+      "outcome_key": "bar_saw_blanking",
+      "result_kind": "resolved",
+      "decision_key": "bar_blanking",
+      "option_label": "锯床下料",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "锯床下料",
+        "operation_key": "bar_saw_blanking"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "bar"
+        },
+        {
+          "fact_key": "large_axisymmetric_bar_profile",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "requires_precision_machining",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 150,
+      "question": "长大精密轴类棒料是否需要粗加工余量？",
+      "rule_key": "long_axisymmetric_rough_turn",
+      "branch_key": "3.6",
+      "option_key": "long_axisymmetric_rough_turn",
+      "description": "长大精密轴类棒料先粗车形成热处理和精加工余量。",
+      "outcome_key": "long_axisymmetric_rough_turn",
+      "result_kind": "resolved",
+      "decision_key": "rough_turning",
+      "option_label": "粗车",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 20,
+        "process_name": "粗车",
+        "operation_key": "long_axisymmetric_rough_turn"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "bar"
+        },
+        {
+          "fact_key": "large_axisymmetric_bar_profile",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "requires_precision_machining",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "material_grade",
+          "operator": "eq",
+          "expected_value": "2Cr13"
+        }
+      ],
+      "priority": 150,
+      "question": "2Cr13长大精密轴在精加工前是否需要调质？",
+      "rule_key": "martensitic_long_shaft_temper",
+      "branch_key": "3.6",
+      "option_key": "martensitic_long_shaft_temper",
+      "description": "2Cr13长大精密轴在粗加工后、精加工前调质；材料牌号仅与全局几何和精度特征共同使用。",
+      "outcome_key": "martensitic_long_shaft_temper",
+      "result_kind": "resolved",
+      "decision_key": "heat_treatment",
+      "option_label": "调质",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 30,
+        "process_name": "调质",
+        "operation_key": "martensitic_long_shaft_temper"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "bar"
+        },
+        {
+          "fact_key": "large_axisymmetric_bar_profile",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "requires_precision_machining",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "material_grade",
+          "operator": "eq",
+          "expected_value": "2Cr13"
+        }
+      ],
+      "priority": 150,
+      "question": "调质后的长大精密轴如何达到尺寸与表面要求？",
+      "rule_key": "post_temper_finish_turn",
+      "branch_key": "3.6",
+      "option_key": "post_temper_finish_turn",
+      "description": "调质后的长大2Cr13轴以精车达到图示尺寸和公差。",
+      "outcome_key": "post_temper_finish_turn",
+      "result_kind": "resolved",
+      "decision_key": "finish_turning",
+      "option_label": "精车",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 40,
+        "process_name": "精车",
+        "operation_key": "post_temper_finish_turn"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
+        {
+          "fact_key": "component_kind",
           "operator": "eq",
           "expected_value": "welded"
+        },
+        {
+          "fact_key": "weld_symbol_present",
+          "operator": "eq",
+          "expected_value": true
         }
-      ]
+      ],
+      "priority": 150,
+      "question": "可观察焊接接头组首先如何连接？",
+      "rule_key": "welded_component_initial_weld",
+      "branch_key": "3.6",
+      "option_key": "welded_component_initial_weld",
+      "description": "BOM结构、焊接符号和焊缝标注共同确定焊接部件的首道焊接校正；不以主观接头组计数作为门槛。",
+      "outcome_key": "welded_component_initial_weld",
+      "result_kind": "resolved",
+      "decision_key": "initial_weld_stage",
+      "option_label": "焊接(校正)",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "焊接(校正)",
+        "operation_key": "welded_component_initial_weld"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
+        {
+          "fact_key": "component_kind",
+          "operator": "eq",
+          "expected_value": "welded"
+        },
+        {
+          "fact_key": "weld_symbol_present",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "weld_seam_finishing_required",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 150,
+      "question": "明确要求修平的首道焊缝如何整饰？",
+      "rule_key": "weld_seam_finish_polish",
+      "branch_key": "3.6",
+      "option_key": "weld_seam_finish_polish",
+      "description": "技术要求明确焊缝磨平、修平或去除焊接痕迹，且图中存在焊接符号时，生成焊后抛光。",
+      "outcome_key": "weld_seam_finish_polish",
+      "result_kind": "resolved",
+      "decision_key": "weld_finish_stage",
+      "option_label": "抛光",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 20,
+        "process_name": "抛光",
+        "operation_key": "weld_seam_finish_polish"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "rolled_sheet_part"
+        }
+      ],
+      "priority": 240,
+      "question": "卷制板件的连接与校圆特征是否已完整建立？",
+      "rule_key": "rolled_sheet_feature_sequence_incomplete",
+      "branch_key": "3.6",
+      "option_key": "rolled_sequence_incomplete",
+      "description": "当前特征规则只确定板材下料和卷制；纵缝连接、校圆及阶段表面处理尚无足够通用PDF特征规则，因此不得报告完整路线。",
+      "outcome_key": "rolled_sheet_feature_sequence_missing",
+      "result_kind": "error",
+      "decision_key": "route_completeness",
+      "option_label": "卷制后续特征不足",
+      "outcome_type": "error",
+      "outcome_value": null,
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "bar"
+        },
+        {
+          "fact_key": "large_axisymmetric_bar_profile",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "small_hole_relative_to_body_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 150,
+      "question": "轴类零件上相对本体的小孔如何形成？",
+      "rule_key": "small_hole_drilling",
+      "branch_key": "3.6",
+      "option_key": "small_hole_drilling",
+      "description": "长大轴类棒料上显著小于本体外径的通孔、盲孔或螺纹底孔映射为钻孔；大型同轴配合孔不得命中。",
+      "outcome_key": "small_hole_drilling",
+      "result_kind": "resolved",
+      "decision_key": "hole_machining",
+      "option_label": "钻孔",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 50,
+        "process_name": "钻孔",
+        "operation_key": "small_hole_drilling"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
+        {
+          "fact_key": "component_kind",
+          "operator": "eq",
+          "expected_value": "welded"
+        },
+        {
+          "fact_key": "large_precision_internal_cylindrical_surface_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 150,
+      "question": "焊接部件上的大型精密内圆柱面如何统一形成？",
+      "rule_key": "weldment_large_precision_boring",
+      "branch_key": "3.6",
+      "option_key": "weldment_large_precision_boring",
+      "description": "焊接部件上相对结构截面较大并受公差、粗糙度或检验尺寸控制的内圆柱面，在连接后统一镗削。",
+      "outcome_key": "weldment_large_precision_boring",
+      "result_kind": "resolved",
+      "decision_key": "precision_internal_cylinder_stage",
+      "option_label": "镗",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 40,
+        "process_name": "镗",
+        "operation_key": "weldment_large_precision_boring"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_has_bom",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "external_mechanical_surface_finish_required",
+          "operator": "in",
+          "expected_value": [
+            true,
+            false
+          ]
+        }
+      ],
+      "priority": 230,
+      "question": "部件的外表面机械整饰要求是否已可靠判断？",
+      "rule_key": "component_external_finish_judgement_required",
+      "branch_key": "3.4",
+      "option_key": "external_finish_judged",
+      "description": "部件PDF中的外表面机械整饰要求必须完成真/假判断；关键处理词模糊时保持部分结果，不得按无要求放行。",
+      "outcome_key": "external_finish_judged",
+      "result_kind": "resolved",
+      "decision_key": "surface_stage_completeness",
+      "option_label": "外表面机械整饰要求已判断",
+      "outcome_type": "stage",
+      "outcome_value": true,
+      "missing_behavior": "error"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_has_bom",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "large_precision_internal_cylindrical_surface_present",
+          "operator": "in",
+          "expected_value": [
+            true,
+            false
+          ]
+        }
+      ],
+      "priority": 231,
+      "question": "部件的大型精密内圆柱面是否已可靠判断？",
+      "rule_key": "component_large_bore_judgement_required",
+      "branch_key": "3.6",
+      "option_key": "large_bore_judged",
+      "description": "部件中的大型精密内圆柱面事实必须完成真/假判断；尺寸后缀或检验含义模糊时保持部分结果，不得按无大型内圆放行。",
+      "outcome_key": "large_bore_judged",
+      "result_kind": "resolved",
+      "decision_key": "route_completeness",
+      "option_label": "大型精密内圆柱面已判断",
+      "outcome_type": "stage",
+      "outcome_value": true,
+      "missing_behavior": "error"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
+        {
+          "fact_key": "external_mechanical_surface_finish_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "surface_stage_owner",
+          "operator": "in",
+          "expected_value": [
+            "current_level",
+            "process_integrated"
+          ]
+        }
+      ],
+      "priority": 232,
+      "question": "部件外表面机械整饰由哪个可验证制造阶段承担？",
+      "rule_key": "component_surface_stage_required",
+      "branch_key": "3.4",
+      "option_key": "component_surface_stage_ready",
+      "description": "部件PDF明确外表面机械整饰要求时，还必须由PDF可观察事实确定该要求由独立工序还是已验证工序集成承担；仅有最终表面质量要求不得生成独立抛光。",
+      "outcome_key": "component_surface_stage_ready",
+      "result_kind": "resolved",
+      "decision_key": "surface_stage_completeness",
+      "option_label": "表面承担阶段已确定",
+      "outcome_type": "stage",
+      "outcome_value": true,
+      "missing_behavior": "error"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "tube"
+        },
+        {
+          "fact_key": "is_plate_part",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "has_bend_feature",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "has_hole_feature",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "has_slot_feature",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "precision_tolerance_present",
+          "operator": "eq",
+          "expected_value": false
+        }
+      ],
+      "priority": 225,
+      "question": "标准管材是否只需定长下料？",
+      "rule_key": "plain_tube_cut_family",
+      "branch_key": "5.6",
+      "option_key": "plain_tube_cut",
+      "description": "无孔槽、无精密公差且无折弯的标准管材零件属于定长锯切路线族；只按PDF材料规格和几何事实判断。",
+      "outcome_key": "route_family",
+      "result_kind": "resolved",
+      "decision_key": "route_family",
+      "option_label": "管材定长下料件",
+      "outcome_type": "fact",
+      "outcome_value": "tube_cut_part",
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "tube"
+        }
+      ],
+      "priority": 150,
+      "question": "管材如何形成定长毛坯？",
+      "rule_key": "tube_saw_blanking",
+      "branch_key": "3.1",
+      "option_key": "tube_saw_blanking",
+      "description": "标准管材按图示轴向长度锯切形成单件毛坯；不使用名称、图号或历史路线。",
+      "outcome_key": "tube_saw_blanking",
+      "result_kind": "resolved",
+      "decision_key": "tube_blanking",
+      "option_label": "锯床下料",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "锯床下料",
+        "operation_key": "tube_saw_blanking"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "bar"
+        },
+        {
+          "fact_key": "single_axis_external_cylindrical_profile",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "large_axisymmetric_bar_profile",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "requires_precision_machining",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 150,
+      "question": "短小单轴外圆精密棒料的尺寸轮廓如何形成？",
+      "rule_key": "compact_axisymmetric_bar_turning",
+      "branch_key": "3.6",
+      "option_key": "compact_axisymmetric_bar_turning",
+      "description": "短小棒料具有单轴简单或阶梯外圆、螺纹及精密要求时，以车削形成外圆、端面和螺纹；长大轴继续使用粗车/调质/精车专门规则。",
+      "outcome_key": "compact_axisymmetric_bar_turning",
+      "result_kind": "resolved",
+      "decision_key": "compact_turning",
+      "option_label": "车",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 20,
+        "process_name": "车",
+        "operation_key": "compact_axisymmetric_bar_turning"
+      },
+      "missing_behavior": "not_match"
     }
   ],
-  "edges": [
+  "readers": [
     {
-      "from_node_key": null,
-      "from_branch_key": null,
-      "to_node_key": "1",
-      "edge_kind": "root",
-      "predecessor_ref": "0",
-      "resolution_status": "resolved"
+      "label": "文档结构读取器",
+      "sequence": 1,
+      "reader_key": "document_structure_reader",
+      "capability_definition": "读取主标题栏图号、名称、材料和数量及BOM结构；图号和名称只作非决策元数据，Reader不得由身份推断路线。"
     },
     {
-      "from_node_key": "1",
-      "from_branch_key": null,
-      "to_node_key": "2",
-      "edge_kind": "node",
-      "predecessor_ref": "1-component",
-      "resolution_status": "ambiguous",
-      "reason": "由 object_kind=component 条件决定"
+      "label": "几何尺寸读取器",
+      "sequence": 2,
+      "reader_key": "geometry_dimension_reader",
+      "capability_definition": "读取全局材料形态、整体轴类轮廓、总长/最大外径、孔槽拓扑、内部轮廓、尺寸公差和粗糙度；必须读取材料栏中的方管/矩形管/圆管规格，严格区分标准管材壁厚、板料厚度、真正轴对称回转曲面和非圆闭合管截面。"
     },
     {
-      "from_node_key": "1",
-      "from_branch_key": null,
-      "to_node_key": "5",
-      "edge_kind": "node",
-      "predecessor_ref": "1-part",
-      "resolution_status": "ambiguous",
-      "reason": "由 object_kind=part 条件决定"
+      "label": "符号关系读取器",
+      "sequence": 3,
+      "reader_key": "symbol_relation_reader",
+      "capability_definition": "读取焊接符号、焊缝标注和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
     },
     {
-      "from_node_key": "2",
-      "from_branch_key": null,
-      "to_node_key": "3",
-      "edge_kind": "node",
-      "predecessor_ref": "2",
-      "resolution_status": "ambiguous"
-    },
-    {
-      "from_node_key": "5",
-      "from_branch_key": null,
-      "to_node_key": "3",
-      "edge_kind": "node",
-      "predecessor_ref": "5",
-      "resolution_status": "ambiguous"
+      "label": "技术要求读取器",
+      "sequence": 4,
+      "reader_key": "requirement_annotation_reader",
+      "capability_definition": "读取技术要求、公差、表面、清洁、检验、焊缝修平和定向拉丝要求；逐字提供原文，不将要求直接改写成路线。"
     }
-  ]
+  ],
+  "branches": [
+    {
+      "title": "按明细栏判断",
+      "node_key": "1",
+      "priority": 10,
+      "rule_text": "存在 BOM 为部件，不存在为零件",
+      "branch_key": "1.2",
+      "confidence_mode": "certain",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "按符号判断部件",
+      "node_key": "2",
+      "priority": 20,
+      "rule_text": "焊接符号及焊缝标注支持焊接件判断",
+      "branch_key": "2.2",
+      "confidence_mode": "certain",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "按技术要求判断部件",
+      "node_key": "2",
+      "priority": 10,
+      "rule_text": "技术要求只能形成候选",
+      "branch_key": "2.3",
+      "confidence_mode": "candidate",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "平板下料件",
+      "node_key": "5",
+      "priority": 10,
+      "rule_text": "选择平板下料路线族",
+      "branch_key": "5.1",
+      "confidence_mode": "candidate",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "折弯板件",
+      "node_key": "5",
+      "priority": 30,
+      "rule_text": "选择折弯路线族",
+      "branch_key": "5.2",
+      "confidence_mode": "certain",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "卷制板件",
+      "node_key": "5",
+      "priority": 40,
+      "rule_text": "选择卷制路线族",
+      "branch_key": "5.3",
+      "confidence_mode": "certain",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "焊接板件",
+      "node_key": "5",
+      "priority": 20,
+      "rule_text": "选择焊接板件路线族",
+      "branch_key": "5.4",
+      "confidence_mode": "candidate",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "精加工板件",
+      "node_key": "5",
+      "priority": 20,
+      "rule_text": "选择精加工板件路线族",
+      "branch_key": "5.5",
+      "confidence_mode": "candidate",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "非板精加工件",
+      "node_key": "5",
+      "priority": 20,
+      "rule_text": "选择非板精加工路线族",
+      "branch_key": "5.6",
+      "confidence_mode": "candidate",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "下料方式",
+      "node_key": "3",
+      "priority": 20,
+      "rule_text": "激光下料或剪板下料",
+      "branch_key": "3.1",
+      "confidence_mode": "candidate",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "成形工序",
+      "node_key": "3",
+      "priority": 30,
+      "rule_text": "路线族决定成形工序",
+      "branch_key": "3.2",
+      "confidence_mode": "certain",
+      "maintenance_status": "executable"
+    },
+    {
+      "title": "连接工序",
+      "node_key": "3",
+      "priority": 20,
+      "rule_text": "当前对象明确承担焊接时生成焊接",
+      "branch_key": "3.3",
+      "confidence_mode": "candidate",
+      "maintenance_status": "needs_review"
+    },
+    {
+      "title": "表面与清洁",
+      "node_key": "3",
+      "priority": 10,
+      "rule_text": "外表面质量要求先判断可验证承担阶段；仅明确独立承担时生成表面工序，承担不明时保持部分结果",
+      "branch_key": "3.4",
+      "confidence_mode": "candidate",
+      "maintenance_status": "needs_review"
+    },
+    {
+      "title": "下游转序",
+      "node_key": "3",
+      "priority": 5,
+      "rule_text": "PDF-only 当前范围不读取上级图号或上级类型，也不生成最终转序",
+      "branch_key": "3.5",
+      "confidence_mode": "unknown",
+      "maintenance_status": "needs_review"
+    },
+    {
+      "title": "可观察制造特征序列",
+      "node_key": "3",
+      "priority": 60,
+      "rule_text": "仅按PDF可观察的材料形态、全局几何、尺寸公差、孔槽拓扑、焊接接头关系、加工可达性和明确表面要求生成工序及顺序",
+      "branch_key": "3.6",
+      "confidence_mode": "certain",
+      "maintenance_status": "executable"
+    }
+  ],
+  "tree_key": "drawing-process-tree",
+  "description": "在阶梯棒料守卫后保留标准方管材料规格示例，使管材识别和后续迁移幂等合同不回退。",
+  "schema_version": 2
 }

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "bend_revolution_conflict_guard"
+    }
+  ]
+}

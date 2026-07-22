@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "合并长大轴类尺寸事实并删除无法从当前PDF稳定建立的线切割特征，减少Reader负载且拒绝答案补全。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "internal_profile_wire_cut"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "global_axisymmetric_bar_profile"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "axial_length_mm"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "max_outer_diameter_mm"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "tight_tolerance_internal_profile_present"
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "large_axisymmetric_bar_profile",
+      "value": {
+        "fact_key": "large_axisymmetric_bar_profile",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "长大整体轴对称棒料轮廓",
+        "description": "当前对象是否为沿单一主轴延伸的整体实心棒料/轴类轮廓，且轴向总长不小于500毫米、最大外径不小于50毫米；局部套筒、局部圆孔或板壳上的圆柱特征不得命中。",
+        "judgement_definition": "当前对象是否为沿单一主轴延伸的整体实心棒料/轴类轮廓，且轴向总长不小于500毫米、最大外径不小于50毫米；局部套筒、局部圆孔或板壳上的圆柱特征不得命中。",
+        "hit_criteria": "主要视图和剖视图共同显示整件围绕单一轴线形成连续实心外圆或阶梯轴轮廓，并有总长≥500mm和最大外径≥50mm的明确尺寸。",
+        "not_hit_criteria": "全部主要视图明确显示不是整体实心轴类棒料，或总长<500mm，或最大外径<50mm。",
+        "coverage_requirement": "检查全部主要视图、剖视图、中心线、整件总长、最大外径和实心/空心表达。",
+        "evidence_requirement": "提供整件轴线、连续外圆/阶梯外圆、实心截面、总长和最大外径证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "axisymmetric_bar_machined_family",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "large_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 220,
+        "question": "整体轴对称精密棒料属于哪类制造路线？",
+        "rule_key": "axisymmetric_bar_machined_family",
+        "branch_key": "5.6",
+        "option_key": "axisymmetric_bar_machined_family",
+        "description": "整体实心棒料、长大轴对称轮廓和精密要求共同确定非板精加工路线；不使用名称或图号。",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "非板精加工件",
+        "outcome_type": "fact",
+        "outcome_value": "non_sheet_machined_part",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "long_axisymmetric_rough_turn",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "large_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 150,
+        "question": "长大精密轴类棒料是否需要粗加工余量？",
+        "rule_key": "long_axisymmetric_rough_turn",
+        "branch_key": "3.6",
+        "option_key": "long_axisymmetric_rough_turn",
+        "description": "长大精密轴类棒料先粗车形成热处理和精加工余量。",
+        "outcome_key": "long_axisymmetric_rough_turn",
+        "result_kind": "resolved",
+        "decision_key": "rough_turning",
+        "option_label": "粗车",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "粗车",
+          "operation_key": "long_axisymmetric_rough_turn"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "martensitic_long_shaft_temper",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "large_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "material_grade",
+            "operator": "eq",
+            "expected_value": "2Cr13"
+          }
+        ],
+        "priority": 150,
+        "question": "2Cr13长大精密轴在精加工前是否需要调质？",
+        "rule_key": "martensitic_long_shaft_temper",
+        "branch_key": "3.6",
+        "option_key": "martensitic_long_shaft_temper",
+        "description": "2Cr13长大精密轴在粗加工后、精加工前调质；材料牌号仅与全局几何和精度特征共同使用。",
+        "outcome_key": "martensitic_long_shaft_temper",
+        "result_kind": "resolved",
+        "decision_key": "heat_treatment",
+        "option_label": "调质",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 30,
+          "process_name": "调质",
+          "operation_key": "martensitic_long_shaft_temper"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "post_temper_finish_turn",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "large_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "material_grade",
+            "operator": "eq",
+            "expected_value": "2Cr13"
+          }
+        ],
+        "priority": 150,
+        "question": "调质后的长大精密轴如何达到尺寸与表面要求？",
+        "rule_key": "post_temper_finish_turn",
+        "branch_key": "3.6",
+        "option_key": "post_temper_finish_turn",
+        "description": "调质后的长大2Cr13轴以精车达到图示尺寸和公差。",
+        "outcome_key": "post_temper_finish_turn",
+        "result_kind": "resolved",
+        "decision_key": "finish_turning",
+        "option_label": "精车",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "精车",
+          "operation_key": "post_temper_finish_turn"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "small_hole_drilling",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "large_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "small_hole_relative_to_body_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 150,
+        "question": "轴类零件上相对本体的小孔如何形成？",
+        "rule_key": "small_hole_drilling",
+        "branch_key": "3.6",
+        "option_key": "small_hole_drilling",
+        "description": "长大轴类棒料上显著小于本体外径的通孔、盲孔或螺纹底孔映射为钻孔；大型同轴配合孔不得命中。",
+        "outcome_key": "small_hole_drilling",
+        "result_kind": "resolved",
+        "decision_key": "hole_machining",
+        "option_label": "钻孔",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "钻孔",
+          "operation_key": "small_hole_drilling"
+        },
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

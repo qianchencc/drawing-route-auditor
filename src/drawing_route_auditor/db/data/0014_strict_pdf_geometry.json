@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "object_has_bom",
+      "value": {
+        "label": "存在明细栏",
+        "fact_key": "object_has_bom",
+        "reader_key": "document_structure_reader",
+        "value_type": "boolean",
+        "description": "当前图纸是否存在 BOM 或明细栏。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "发现至少一条已填写的 BOM/明细项目行，且同一行可辨项目号、零部件名称或代号以及数量。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查全部页面后，没有任何已填写的 BOM/明细项目行；空白表格、标题栏、设计/校对/审核签字栏和标记处数/更改文件号修订表不算 BOM。",
+        "coverage_requirement": "检查全部页面的明细区域，并区分已填写项目行、空白表格、主标题栏和修订栏。",
+        "evidence_requirement": "命中时引用至少一条已填写项目行的项目号、名称/代号和数量；未命中时说明检查过标题栏及修订栏且未见已填写项目行。",
+        "judgement_definition": "只有至少一条已填写的物料项目行才算存在 BOM。仅看到表格线、项目号栏标题、空白格、标记处数/更改文件号修订表或设计校对审核栏必须返回 NOT_HIT。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "continuous_revolved_surface",
+      "value": {
+        "label": "连续回转曲面",
+        "fact_key": "continuous_revolved_surface",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否包含需要卷制的连续圆筒、圆锥或连续圆弧壳面；折弯板展开图和折弯端部圆弧不属于此事实。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "主要视图或剖视图存在闭合圆、同心圆弧、圆锥母线，或两个及以上直径尺寸明确绑定圆筒/圆锥各截面；仅有轴向剖面也可凭 φ/Ø 直径、中心线和连续母线命中。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查后仅见直边板展开轮廓、内部平行折弯线或局部折弯端部圆弧，没有连续回转壳面。",
+        "coverage_requirement": "检查全部主要视图、剖视图、中心线、φ/Ø直径尺寸、圆锥母线和旋转校正视图。",
+        "evidence_requirement": "提供闭合圆/圆弧截面，或引用至少一个明确 φ/Ø 直径尺寸及其绑定的圆筒/圆锥母线。",
+        "judgement_definition": "连续回转曲面可由轴向剖面证明：围绕中心线对称的圆筒/圆锥母线并带 φ/Ø 截面直径即为回转壳体，不要求另有圆视图。圆锥大小端直径、锥面母线和过渡圆角属于卷制连续壳面，不是折弯展开线。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "has_bend_feature",
+      "value": {
+        "label": "存在折弯特征",
+        "fact_key": "has_bend_feature",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "是否存在明确折弯线、折角、折弯半径或钣金展开图中的折线。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "发现板材展开轮廓内部的折弯线、钣金折角或明确折弯半径；必须排除由 φ/Ø 直径、中心线和圆锥母线共同定义的回转壳体轴向剖面。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查后没有展开折弯线或钣金折角；仅见由 φ/Ø 直径和中心线定义的圆筒/圆锥母线、锥角、过渡圆角或轴向剖面。",
+        "coverage_requirement": "检查全部主要视图、展开图内部线型、中心线、φ/Ø直径和折弯标注。",
+        "evidence_requirement": "命中时提供展开折弯线或钣金折角；未命中时若为回转壳体，引用其中心线、φ/Ø直径和母线证据。",
+        "judgement_definition": "折弯要求板材展开或离散钣金折角。圆锥/圆筒轴向剖面中的斜母线、大小端连接角、锥角和过渡 R 不算折弯；出现 φ/Ø 截面直径并围绕中心线形成连续母线时应判连续回转而非折弯。"
+      }
+    }
+  ]
+}

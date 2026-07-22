@@ -25,7 +25,7 @@ def create_run(
     drawing_sha256: str,
     runtime: RuntimeTree,
     model: str,
-) -> tuple[str, int, int | None]:
+) -> tuple[str, int]:
     task_keys = [
         ("render", "pdf_render"),
         *((f"reader:{plan.reader_key}", "vision_reader") for plan in runtime.plans),
@@ -72,34 +72,11 @@ def create_run(
                 run_id,
                 str(drawing_input.pdf_path),
                 drawing_sha256,
-                Json({"material_code": drawing_input.material_code}),
+                Json({}),
             ),
         ).fetchone()
         if input_row is None:
             raise RuntimeError("创建运行输入记录失败")
-        context_input_id: int | None = None
-        if drawing_input.external_facts:
-            context_row = connection.execute(
-                """
-                INSERT INTO run_inputs (
-                    run_id, input_kind, source_path, metadata
-                )
-                VALUES (%s, 'context', 'cli:external-facts', %s)
-                RETURNING id
-                """,
-                (
-                    run_id,
-                    Json(
-                        {
-                            key: value.model_dump(mode="json")
-                            for key, value in drawing_input.external_facts.items()
-                        }
-                    ),
-                ),
-            ).fetchone()
-            if context_row is None:
-                raise RuntimeError("创建外部事实输入记录失败")
-            context_input_id = context_row["id"]
         for task_key, task_type in task_keys:
             connection.execute(
                 """
@@ -139,70 +116,7 @@ def create_run(
                     model,
                 ),
             )
-    return run_id, input_row["id"], context_input_id
-
-
-def persist_external_facts(
-    connection: Connection,
-    *,
-    run_id: str,
-    input_id: int | None,
-    runtime: RuntimeTree,
-    drawing_input: DrawingInput,
-) -> None:
-    if not drawing_input.external_facts:
-        return
-    fact_rows = connection.execute(
-        """
-        SELECT id, fact_key, subject_scope
-        FROM fact_definitions
-        WHERE version_id = %s AND source_kind = 'external'
-        """,
-        (runtime.revision_id,),
-    ).fetchall()
-    definitions = {row["fact_key"]: row for row in fact_rows}
-    unknown = set(drawing_input.external_facts) - set(definitions)
-    if unknown:
-        raise ValueError(f"当前决策树未声明外部事实：{sorted(unknown)}")
-    default_subject = drawing_input.material_code or drawing_input.pdf_path.stem
-    with connection.transaction():
-        for fact_key, external in drawing_input.external_facts.items():
-            definition = definitions[fact_key]
-            row = connection.execute(
-                """
-                INSERT INTO fact_observations (
-                    run_id, fact_definition_id, status, scope,
-                    subject_ref, value, observation_coverage, coverage_complete
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, true)
-                RETURNING id
-                """,
-                (
-                    run_id,
-                    definition["id"],
-                    external.status,
-                    definition["subject_scope"],
-                    Json({"ref": external.subject_ref or default_subject}),
-                    Json(external.value) if external.value is not None else None,
-                    Json(
-                        {
-                            "source_ref": external.source_ref,
-                            "is_complete_for_subject": True,
-                        }
-                    ),
-                ),
-            ).fetchone()
-            if row is None:
-                raise RuntimeError("保存外部事实失败")
-            connection.execute(
-                """
-                INSERT INTO evidence (
-                    fact_observation_id, input_id, source_type, original_text
-                )
-                VALUES (%s, %s, 'plm', %s)
-                """,
-                (row["id"], input_id, external.source_ref),
-            )
+    return run_id, input_row["id"]
 
 
 def start_tasks(

@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "派生前置事实尚未闭包时不产生临时错误；只在特征确实命中后生成部件决策。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_by_symbol",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_annotation_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "welded_component_by_symbol",
+        "branch_key": "2.2",
+        "option_key": "welded_by_symbol",
+        "description": "焊接符号和焊缝标注支持焊接件判断",
+        "outcome_key": "component_kind",
+        "result_kind": "resolved",
+        "decision_key": "component_kind",
+        "option_label": "焊接件",
+        "outcome_type": "fact",
+        "outcome_value": "welded",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_requirement_candidate",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "technical_requirement_mentions_welding",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "welded_component_requirement_candidate",
+        "branch_key": "2.3",
+        "option_key": "welded_by_requirement",
+        "description": "技术要求提及焊接时保留焊接件候选",
+        "outcome_key": "component_kind",
+        "result_kind": "candidate",
+        "decision_key": "component_kind",
+        "option_label": "焊接件候选",
+        "outcome_type": "fact",
+        "outcome_value": "welded",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "assembly_component_requirement_candidate",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "technical_requirement_mentions_assembly",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "assembly_component_requirement_candidate",
+        "branch_key": "2.3",
+        "option_key": "assembly_by_requirement",
+        "description": "技术要求提及装配时保留装配件候选",
+        "outcome_key": "component_kind",
+        "result_kind": "candidate",
+        "decision_key": "component_kind",
+        "option_label": "装配件候选",
+        "outcome_type": "fact",
+        "outcome_value": "assembly",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_feature_route_required",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 1
+          }
+        ],
+        "priority": 250,
+        "question": "焊接部件的基础连接特征是否足够？",
+        "rule_key": "welded_component_feature_route_required",
+        "branch_key": "3.6",
+        "option_key": "welded_component_features_ready",
+        "description": "焊接部件必须从PDF建立至少一组独立焊接接头，才能声称基础连接路线可执行。",
+        "outcome_key": "component_feature_route_ready",
+        "result_kind": "resolved",
+        "decision_key": "route_completeness",
+        "option_label": "焊接接头特征已建立",
+        "outcome_type": "stage",
+        "outcome_value": true,
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

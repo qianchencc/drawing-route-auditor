@@ -9,6 +9,8 @@ from PIL import Image
 
 from drawing_route_auditor.workflow.models import RenderedDrawing
 
+READER_VIEW_VERSION = "v3"
+
 
 class DrawingRenderError(RuntimeError):
     pass
@@ -72,20 +74,25 @@ def prepare_reader_views(pages: tuple[Path, ...]) -> tuple[Path, ...]:
         "requirements": (0.0, 0.62, 0.58, 1.0),
     }
     for page in pages:
-        detail_paths = {
-            role: page.with_name(f"{page.stem}-{role}.png")
-            for role in relative_regions
-        }
-        if not all(path.exists() for path in detail_paths.values()):
-            with Image.open(page) as source:
-                bounds = _drawing_frame_bounds(page)
-                frame = source.crop(bounds) if bounds is not None else source.copy()
-                width, height = frame.size
+        detail_paths: list[Path] = []
+        with Image.open(page) as source:
+            bounds = _drawing_frame_bounds(page)
+            frame = source.crop(bounds) if bounds is not None else source.copy()
+            orientations = [("", frame)]
+            if frame.height > frame.width:
+                orientations.append(("-rotated", frame.rotate(-90, expand=True)))
+
+            for suffix, oriented in orientations:
+                width, height = oriented.size
                 for role, relative in relative_regions.items():
-                    if detail_paths[role].exists():
+                    detail_path = page.with_name(
+                        f"{page.stem}-{role}-{READER_VIEW_VERSION}{suffix}.png"
+                    )
+                    detail_paths.append(detail_path)
+                    if detail_path.exists():
                         continue
                     left, top, right, bottom = relative
-                    detail = frame.crop(
+                    detail = oriented.crop(
                         (
                             round(width * left),
                             round(height * top),
@@ -93,10 +100,21 @@ def prepare_reader_views(pages: tuple[Path, ...]) -> tuple[Path, ...]:
                             round(height * bottom),
                         )
                     )
-                    detail.thumbnail((2600, 2000), Image.Resampling.LANCZOS)
-                    detail.save(detail_paths[role], format="PNG", optimize=True)
+                    if role == "title":
+                        scale = min(2600 / detail.width, 2000 / detail.height)
+                        if scale != 1:
+                            detail = detail.resize(
+                                (
+                                    max(1, round(detail.width * scale)),
+                                    max(1, round(detail.height * scale)),
+                                ),
+                                Image.Resampling.LANCZOS,
+                            )
+                    else:
+                        detail.thumbnail((2600, 2000), Image.Resampling.LANCZOS)
+                    detail.save(detail_path, format="PNG", optimize=True)
         views.append(page)
-        views.extend(detail_paths.values())
+        views.extend(detail_paths)
     return tuple(views)
 
 

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "明确大型内圆精度事实的充分条件，避免Reader追加未定义的跨构件门槛。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "large_precision_internal_cylindrical_surface_present",
+      "value": {
+        "label": "大型精密内圆柱面",
+        "fact_key": "large_precision_internal_cylindrical_surface_present",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否有相对局部结构截面较大的内圆柱面，并由直径公差、配合、粗糙度或明确检验尺寸控制。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "内圆柱直径明确且不小于其所在局部结构高度/外径的三分之一；只要该内圆柱自身具有直径公差、配合、粗糙度或“检”尺寸中的任意一项就必须命中，不要求跨越多个BOM构件。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "完整检查后没有内圆柱面，或只有相对本体很小的普通孔且无精密控制。",
+        "coverage_requirement": "检查全部内圆轮廓、局部剖视、直径、局部外部尺度、公差、粗糙度和检验标注；不得额外要求跨构件证据。",
+        "evidence_requirement": "提供内圆直径、局部结构尺度，以及该内圆自身的公差/粗糙度/检验标注之一。",
+        "judgement_definition": "这是几何与精度事实，不是镗削答案。满足“大内圆相对尺度 + 任一明确精度控制”即返回HIT；不得因缺少第二种精度标注或跨BOM边界证据返回UNABLE_TO_JUDGE。"
+      }
+    }
+  ]
+}

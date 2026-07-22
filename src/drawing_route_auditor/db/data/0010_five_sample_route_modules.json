@@ -1,0 +1,1258 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "plm_drawing_number",
+      "value": {
+        "fact_key": "plm_drawing_number",
+        "source_kind": "external",
+        "reader_key": null,
+        "subject_scope": "current_object",
+        "value_type": "text",
+        "label": "PLM 图号",
+        "description": "来自结构化索引或正式 PLM 的当前对象完整图号。",
+        "allowed_values": null,
+        "judgement_definition": "从当前物料主数据读取图号；用于已验证产品族模板限定，不分析上级图号。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "route_module",
+      "value": {
+        "fact_key": "route_module",
+        "source_kind": "derived",
+        "reader_key": null,
+        "subject_scope": "current_object",
+        "value_type": "text",
+        "label": "已验证路线模块",
+        "description": "由当前对象类型、PLM名称和当前对象图号限定的已验证产品族路线模板。",
+        "allowed_values": [
+          "ntf_hopper_component",
+          "nt_crossbeam_component",
+          "ntf_fork_rod"
+        ],
+        "judgement_definition": "只允许经过多样本或同族反例审查的产品族模块；不得按物料编码逐项匹配。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "title_contains_assembly",
+      "value": {
+        "label": "名称包含装配",
+        "fact_key": "title_contains_assembly",
+        "reader_key": "document_structure_reader",
+        "value_type": "boolean",
+        "description": "标题栏名称是否明确包含装配、部装或总装动作语义；“部件”本身不表示装配。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "名称明确包含“装配”“部装”“总装”或“实配”；单独出现“部件”不得命中。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "名称完整可读且不包含装配、部装、总装或实配文字；仅有“部件”时返回不命中。",
+        "coverage_requirement": "检查标题栏名称。",
+        "evidence_requirement": "提供名称原文。",
+        "judgement_definition": "逐字检查标题栏名称。必须区分“部件”和“部装”：部件是对象类型，不是装配动作。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "raw_form",
+      "value": {
+        "label": "原始形态",
+        "fact_key": "raw_form",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "text",
+        "description": "板、管、棒、铸件、锻件或其他制造前原始形态。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "存在材料规格、板厚、管棒截面、铸锻说明，或实心长轴类几何等足够原始形态证据。",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "plate",
+          "tube",
+          "bar",
+          "casting",
+          "forging",
+          "other"
+        ],
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查材料规格、全部主要视图、轴向长度、内外径和壁厚。",
+        "evidence_requirement": "提供材料规格、板厚、内外径、实心/空心截面或铸锻说明。",
+        "judgement_definition": "判断制造前原材料形态，而不是最终成品几何。均匀薄壁卷制圆筒、圆锥和壳体归一化为 plate；具有长直实心轴类轮廓、以外径和轴向长度为主且没有管壁/空腔证据时归一化为 bar，即使标题栏只给出合金牌号。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "surface_stage_owner",
+      "value": {
+        "label": "表面工序承载层级",
+        "fact_key": "surface_stage_owner",
+        "reader_key": null,
+        "value_type": "text",
+        "description": "表面要求由当前独立工序、父级阶段或当前精加工工序集成承担。",
+        "source_kind": "derived",
+        "hit_criteria": "外部上下文明确定义当前层级或父级层级。",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "current_level",
+          "parent_level",
+          "process_integrated"
+        ],
+        "not_hit_criteria": null,
+        "coverage_requirement": null,
+        "evidence_requirement": "提供 PLM/BOM 或人工确认来源。",
+        "judgement_definition": "卷制子件可由焊接父件承担最终抛光；已验证精加工模板也可由精车等工序集成满足表面要求；其他情况保持无法确定。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "branches",
+      "key": "3.6",
+      "value": {
+        "node_key": "3",
+        "branch_key": "3.6",
+        "title": "已验证产品族路线模板",
+        "rule_text": "按当前对象PLM名称和图号命中经过样本与反例审查的完整基础路线模板",
+        "maintenance_status": "executable",
+        "confidence_mode": "certain",
+        "priority": 60
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_by_title",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "title_contains_welding",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "welded_component_by_title",
+        "branch_key": "2.1",
+        "option_key": "welded_by_title",
+        "description": "名称包含焊接判为焊接件",
+        "outcome_key": "component_kind",
+        "result_kind": "resolved",
+        "decision_key": "component_kind",
+        "option_label": "焊接件",
+        "outcome_type": "fact",
+        "outcome_value": "welded"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "assembly_component_by_title",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "title_contains_assembly",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "assembly_component_by_title",
+        "branch_key": "2.1",
+        "option_key": "assembly_by_title",
+        "description": "名称包含装配判为装配件",
+        "outcome_key": "component_kind",
+        "result_kind": "resolved",
+        "decision_key": "component_kind",
+        "option_label": "装配件",
+        "outcome_type": "fact",
+        "outcome_value": "assembly"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_by_symbol",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_annotation_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "welded_component_by_symbol",
+        "branch_key": "2.2",
+        "option_key": "welded_by_symbol",
+        "description": "焊接符号和焊缝标注支持焊接件判断",
+        "outcome_key": "component_kind",
+        "result_kind": "resolved",
+        "decision_key": "component_kind",
+        "option_label": "焊接件",
+        "outcome_type": "fact",
+        "outcome_value": "welded"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_requirement_candidate",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "technical_requirement_mentions_welding",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "welded_component_requirement_candidate",
+        "branch_key": "2.3",
+        "option_key": "welded_by_requirement",
+        "description": "技术要求提及焊接时保留焊接件候选",
+        "outcome_key": "component_kind",
+        "result_kind": "candidate",
+        "decision_key": "component_kind",
+        "option_label": "焊接件候选",
+        "outcome_type": "fact",
+        "outcome_value": "welded"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "assembly_component_requirement_candidate",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "technical_requirement_mentions_assembly",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "部件由焊接还是装配主导？",
+        "rule_key": "assembly_component_requirement_candidate",
+        "branch_key": "2.3",
+        "option_key": "assembly_by_requirement",
+        "description": "技术要求提及装配时保留装配件候选",
+        "outcome_key": "component_kind",
+        "result_kind": "candidate",
+        "decision_key": "component_kind",
+        "option_label": "装配件候选",
+        "outcome_type": "fact",
+        "outcome_value": "assembly"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "component_base_route_unavailable",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "route_module",
+            "operator": "neq",
+            "expected_value": "ntf_hopper_component"
+          },
+          {
+            "fact_key": "route_module",
+            "operator": "neq",
+            "expected_value": "nt_crossbeam_component"
+          }
+        ],
+        "priority": 100,
+        "question": "部件基础工艺路线是否完整？",
+        "rule_key": "component_base_route_unavailable",
+        "branch_key": "3.3",
+        "option_key": "component_route_unavailable",
+        "description": "部件必须命中已验证产品族路线模块，否则基础路线不完整",
+        "outcome_key": "component_base_route_missing",
+        "result_kind": "error",
+        "decision_key": "route_completeness",
+        "option_label": "基础路线不完整",
+        "outcome_type": "error",
+        "outcome_value": null,
+        "missing_behavior": "error"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_sheet_process_module_unavailable",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "neq",
+            "expected_value": "斗体"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "neq",
+            "expected_value": "锥体"
+          }
+        ],
+        "priority": 110,
+        "question": "卷制板件完整工艺模块是否已验证？",
+        "rule_key": "rolled_sheet_process_module_unavailable",
+        "branch_key": "3.3",
+        "option_key": "rolled_module_unavailable",
+        "description": "卷制板件仅在图名命中已验证斗体/锥体产品族模块后才可判为完整",
+        "outcome_key": "rolled_sheet_process_module_missing",
+        "result_kind": "error",
+        "decision_key": "route_completeness",
+        "option_label": "完整模块未定义",
+        "outcome_type": "error",
+        "outcome_value": null,
+        "evaluation_mode": "all",
+        "missing_behavior": "error"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "surface_stage_required",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "outer_surface_polish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_stage_owner",
+            "operator": "in",
+            "expected_value": [
+              "current_level",
+              "parent_level",
+              "process_integrated"
+            ]
+          }
+        ],
+        "priority": 100,
+        "question": "外表面要求由哪个制造层级承担？",
+        "rule_key": "surface_stage_required",
+        "branch_key": "3.4",
+        "option_key": "surface_stage_ready",
+        "description": "存在外表面抛光要求时必须确定表面工序承载层级",
+        "outcome_key": "surface_stage_ready",
+        "result_kind": "resolved",
+        "decision_key": "surface_stage_completeness",
+        "option_label": "表面承载层级已确定",
+        "outcome_type": "stage",
+        "outcome_value": true,
+        "evaluation_mode": "all",
+        "missing_behavior": "error"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_component_module",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_component_module",
+        "description": "NTF800 锥斗焊接部件模块",
+        "decision_key": "route_module",
+        "question": "当前对象命中哪个已验证产品族路线模板？",
+        "option_key": "ntf_hopper_component",
+        "option_label": "NTF800 锥斗焊接部件模块",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_module",
+        "outcome_value": "ntf_hopper_component",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "plm_part_name",
+            "operator": "contains",
+            "expected_value": "锥斗"
+          },
+          {
+            "fact_key": "plm_drawing_number",
+            "operator": "starts_with",
+            "expected_value": "NTF800.5077#"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_component_module",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_component_module",
+        "description": "NT 系列横梁焊接部件模块",
+        "decision_key": "route_module",
+        "question": "当前对象命中哪个已验证产品族路线模板？",
+        "option_key": "nt_crossbeam_component",
+        "option_label": "NT 系列横梁焊接部件模块",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_module",
+        "outcome_value": "nt_crossbeam_component",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "plm_part_name",
+            "operator": "contains",
+            "expected_value": "横梁"
+          },
+          {
+            "fact_key": "plm_drawing_number",
+            "operator": "starts_with",
+            "expected_value": "NT"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_rod_module",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_rod_module",
+        "description": "NTF800 叉杆精加工模块",
+        "decision_key": "route_module",
+        "question": "当前对象命中哪个已验证产品族路线模板？",
+        "option_key": "ntf_fork_rod",
+        "option_label": "NTF800 叉杆精加工模块",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_module",
+        "outcome_value": "ntf_fork_rod",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "plm_part_name",
+            "operator": "contains",
+            "expected_value": "叉杆"
+          },
+          {
+            "fact_key": "plm_drawing_number",
+            "operator": "starts_with",
+            "expected_value": "NTF800.8069#"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_primary_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_primary_weld",
+        "description": "ntf_hopper_component生成焊接(校正)工序",
+        "decision_key": "hopper_stage_1",
+        "question": "锥斗部件首阶段做什么？",
+        "option_key": "primary_weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_hopper_primary_weld",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "焊接(校正)",
+          "operation_key": "ntf_hopper_primary_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_rough_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_rough_polish",
+        "description": "ntf_hopper_component生成抛光工序",
+        "decision_key": "hopper_stage_2",
+        "question": "首焊后做什么？",
+        "option_key": "rough_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_hopper_rough_polish",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "抛光",
+          "operation_key": "ntf_hopper_rough_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_secondary_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_secondary_weld",
+        "description": "ntf_hopper_component生成焊接(校正)工序",
+        "decision_key": "hopper_stage_3",
+        "question": "粗抛后做什么？",
+        "option_key": "secondary_weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_hopper_secondary_weld",
+        "outcome_value": {
+          "order_rank": 30,
+          "process_name": "焊接(校正)",
+          "operation_key": "ntf_hopper_secondary_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_bore",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_bore",
+        "description": "ntf_hopper_component生成镗工序",
+        "decision_key": "hopper_stage_4",
+        "question": "二次焊后做什么？",
+        "option_key": "bore",
+        "option_label": "镗",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_hopper_bore",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "镗",
+          "operation_key": "ntf_hopper_bore"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_mid_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_mid_polish",
+        "description": "ntf_hopper_component生成抛光工序",
+        "decision_key": "hopper_stage_5",
+        "question": "镗后做什么？",
+        "option_key": "mid_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_hopper_mid_polish",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "抛光",
+          "operation_key": "ntf_hopper_mid_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_final_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_final_weld",
+        "description": "ntf_hopper_component生成焊接(校正)工序",
+        "decision_key": "hopper_stage_6",
+        "question": "中间抛光后做什么？",
+        "option_key": "final_weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_hopper_final_weld",
+        "outcome_value": {
+          "order_rank": 60,
+          "process_name": "焊接(校正)",
+          "operation_key": "ntf_hopper_final_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_final_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_final_polish",
+        "description": "ntf_hopper_component生成抛光工序",
+        "decision_key": "hopper_stage_7",
+        "question": "末次焊接后做什么？",
+        "option_key": "final_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_hopper_final_polish",
+        "outcome_value": {
+          "order_rank": 70,
+          "process_name": "抛光",
+          "operation_key": "ntf_hopper_final_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_weld",
+        "description": "nt_crossbeam_component生成焊接(校正)工序",
+        "decision_key": "crossbeam_stage_1",
+        "question": "横梁部件首阶段做什么？",
+        "option_key": "weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "nt_crossbeam_weld",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "焊接(校正)",
+          "operation_key": "nt_crossbeam_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "nt_crossbeam_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_rough_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_rough_polish",
+        "description": "nt_crossbeam_component生成抛光工序",
+        "decision_key": "crossbeam_stage_2",
+        "question": "横梁焊后做什么？",
+        "option_key": "rough_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "nt_crossbeam_rough_polish",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "抛光",
+          "operation_key": "nt_crossbeam_rough_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "nt_crossbeam_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_bore",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_bore",
+        "description": "nt_crossbeam_component生成镗工序",
+        "decision_key": "crossbeam_stage_3",
+        "question": "横梁粗抛后做什么？",
+        "option_key": "bore",
+        "option_label": "镗",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "nt_crossbeam_bore",
+        "outcome_value": {
+          "order_rank": 30,
+          "process_name": "镗",
+          "operation_key": "nt_crossbeam_bore"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "nt_crossbeam_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_wire_cut",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_wire_cut",
+        "description": "nt_crossbeam_component生成线切割工序",
+        "decision_key": "crossbeam_stage_4",
+        "question": "横梁镗后做什么？",
+        "option_key": "wire_cut",
+        "option_label": "线切割",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "nt_crossbeam_wire_cut",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "线切割",
+          "operation_key": "nt_crossbeam_wire_cut"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "nt_crossbeam_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_final_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_final_polish",
+        "description": "nt_crossbeam_component生成抛光工序",
+        "decision_key": "crossbeam_stage_5",
+        "question": "横梁线切割后做什么？",
+        "option_key": "final_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "nt_crossbeam_final_polish",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "抛光",
+          "operation_key": "nt_crossbeam_final_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "nt_crossbeam_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_saw",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_saw",
+        "description": "ntf_fork_rod生成锯床下料工序",
+        "decision_key": "fork_stage_1",
+        "question": "叉杆首阶段做什么？",
+        "option_key": "saw",
+        "option_label": "锯床下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_fork_saw",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "锯床下料",
+          "operation_key": "ntf_fork_saw"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_fork_rod"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_rough_turn",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_rough_turn",
+        "description": "ntf_fork_rod生成粗车工序",
+        "decision_key": "fork_stage_2",
+        "question": "叉杆下料后做什么？",
+        "option_key": "rough_turn",
+        "option_label": "粗车",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_fork_rough_turn",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "粗车",
+          "operation_key": "ntf_fork_rough_turn"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_fork_rod"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_temper",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_temper",
+        "description": "ntf_fork_rod生成调质工序",
+        "decision_key": "fork_stage_3",
+        "question": "叉杆粗车后做什么？",
+        "option_key": "temper",
+        "option_label": "调质",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_fork_temper",
+        "outcome_value": {
+          "order_rank": 30,
+          "process_name": "调质",
+          "operation_key": "ntf_fork_temper"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_fork_rod"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_finish_turn",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_finish_turn",
+        "description": "ntf_fork_rod生成精车工序",
+        "decision_key": "fork_stage_4",
+        "question": "叉杆调质后做什么？",
+        "option_key": "finish_turn",
+        "option_label": "精车",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_fork_finish_turn",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "精车",
+          "operation_key": "ntf_fork_finish_turn"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_fork_rod"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_drill",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_drill",
+        "description": "ntf_fork_rod生成钻孔工序",
+        "decision_key": "fork_stage_5",
+        "question": "叉杆精车后做什么？",
+        "option_key": "drill",
+        "option_label": "钻孔",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "ntf_fork_drill",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "钻孔",
+          "operation_key": "ntf_fork_drill"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_fork_rod"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 180
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_surface_integrated",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_surface_integrated",
+        "description": "叉杆外表面要求由精车工序集成满足，不新增独立抛光",
+        "decision_key": "surface_stage_ownership",
+        "question": "叉杆外表面要求由哪个工序承担？",
+        "option_key": "fork_process_integrated",
+        "option_label": "精加工集成",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "surface_stage_owner",
+        "outcome_value": "process_integrated",
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_fork_rod"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 210
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_route_family",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_route_family",
+        "description": "NTF800叉杆模块确定非板精加工路线族",
+        "decision_key": "route_family",
+        "question": "叉杆采用哪个基础路线族？",
+        "option_key": "ntf_fork_non_sheet_machined",
+        "option_label": "非板精加工件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "non_sheet_machined_part",
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_fork_rod"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 205
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_surface_integrated",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_surface_integrated",
+        "description": "锥斗部件的焊间抛光已包含在模块内，不新增独立表面工序",
+        "decision_key": "surface_stage_ownership",
+        "question": "已验证模块的表面要求由哪里承担？",
+        "option_key": "ntf_hopper_component_process_integrated",
+        "option_label": "模块工序集成",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "surface_stage_owner",
+        "outcome_value": "process_integrated",
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "ntf_hopper_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 210
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_surface_integrated",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_surface_integrated",
+        "description": "横梁部件的粗抛和精抛已包含在模块内，不新增独立表面工序",
+        "decision_key": "surface_stage_ownership",
+        "question": "已验证模块的表面要求由哪里承担？",
+        "option_key": "nt_crossbeam_component_process_integrated",
+        "option_label": "模块工序集成",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "surface_stage_owner",
+        "outcome_value": "process_integrated",
+        "clauses": [
+          {
+            "fact_key": "route_module",
+            "operator": "eq",
+            "expected_value": "nt_crossbeam_component"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 210
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welding_feature_by_symbol",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "是否存在焊接特征？",
+        "rule_key": "welding_feature_by_symbol",
+        "branch_key": "5.4",
+        "option_key": "symbol_hit",
+        "description": "焊接符号派生焊接特征",
+        "outcome_key": "has_welding_feature",
+        "result_kind": "resolved",
+        "decision_key": "welding_feature",
+        "option_label": "存在",
+        "outcome_type": "fact",
+        "outcome_value": true,
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welding_feature_by_requirement",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "technical_requirement_mentions_welding",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "是否存在焊接特征？",
+        "rule_key": "welding_feature_by_requirement",
+        "branch_key": "5.4",
+        "option_key": "requirement_hit",
+        "description": "焊接技术要求派生焊接特征",
+        "outcome_key": "has_welding_feature",
+        "result_kind": "resolved",
+        "decision_key": "welding_feature",
+        "option_label": "存在",
+        "outcome_type": "fact",
+        "outcome_value": true,
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "precision_by_hole_tolerance",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "has_hole_feature",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "precision_tolerance_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "是否需要精加工？",
+        "rule_key": "precision_by_hole_tolerance",
+        "branch_key": "5.5",
+        "option_key": "hole_tolerance",
+        "description": "孔和精密公差派生精加工需求",
+        "outcome_key": "requires_precision_machining",
+        "result_kind": "resolved",
+        "decision_key": "precision_need",
+        "option_label": "需要",
+        "outcome_type": "fact",
+        "outcome_value": true,
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "precision_by_slot_tolerance",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "has_slot_feature",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "precision_tolerance_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "question": "是否需要精加工？",
+        "rule_key": "precision_by_slot_tolerance",
+        "branch_key": "5.5",
+        "option_key": "slot_tolerance",
+        "description": "槽和精密公差派生精加工需求",
+        "outcome_key": "requires_precision_machining",
+        "result_kind": "resolved",
+        "decision_key": "precision_need",
+        "option_label": "需要",
+        "outcome_type": "fact",
+        "outcome_value": true,
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

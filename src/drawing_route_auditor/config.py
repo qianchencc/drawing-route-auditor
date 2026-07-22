@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         default=None, validation_alias="OPENAI_API_KEY"
     )
     vision_model: str | None = Field(default=None, validation_alias="MODEL")
-    vision_timeout_seconds: int = Field(default=25, ge=1, le=120)
+    vision_timeout_seconds: int = Field(default=40, ge=1, le=120)
     render_dpi: int = Field(default=120, ge=72, le=300)
 
 

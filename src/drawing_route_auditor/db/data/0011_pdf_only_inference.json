@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "rolled_child_outer_polish_owned_by_parent"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "transfer_to_assembly"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "transfer_to_subassembly"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "transfer_to_welding"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "parent_part_type"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "plm_drawing_number"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "plm_part_name"
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "surface_stage_owner",
+      "value": {
+        "label": "表面工序承载层级",
+        "fact_key": "surface_stage_owner",
+        "reader_key": null,
+        "value_type": "text",
+        "description": "仅由当前 PDF 可观察事实推导表面要求是在当前独立工序还是已验证制造工序中集成承担。",
+        "source_kind": "derived",
+        "hit_criteria": "当前 PDF 的对象类型、路线族和表面要求共同命中已审查的本级或工序集成规则。",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "current_level",
+          "process_integrated"
+        ],
+        "not_hit_criteria": null,
+        "coverage_requirement": null,
+        "evidence_requirement": "引用当前 PDF 中触发路线族和表面要求的图纸证据。",
+        "judgement_definition": "不得依赖上级图号、PLM、索引或历史答案；无法从当前 PDF 确定时保持无法判断。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "route_module",
+      "value": {
+        "fact_key": "route_module",
+        "source_kind": "derived",
+        "reader_key": null,
+        "subject_scope": "current_object",
+        "value_type": "text",
+        "label": "已验证路线模块",
+        "description": "由当前 PDF 读取的对象类型、名称、图号及制造特征限定的已验证产品族路线模板。",
+        "allowed_values": [
+          "ntf_hopper_component",
+          "nt_crossbeam_component",
+          "ntf_fork_rod"
+        ],
+        "judgement_definition": "只允许使用 PDF 可观察的稳定产品族特征；不得按物料编码、文件名、案例编号或答案逐项匹配。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "surface_stage_required",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "outer_surface_polish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_stage_owner",
+            "operator": "in",
+            "expected_value": [
+              "current_level",
+              "process_integrated"
+            ]
+          }
+        ],
+        "priority": 100,
+        "question": "外表面要求由哪个制造层级承担？",
+        "rule_key": "surface_stage_required",
+        "branch_key": "3.4",
+        "option_key": "surface_stage_ready",
+        "description": "存在外表面抛光要求时，必须仅凭当前 PDF 可观察规则确定本级承载方式",
+        "outcome_key": "surface_stage_ready",
+        "result_kind": "resolved",
+        "decision_key": "surface_stage_completeness",
+        "option_label": "表面承载层级已确定",
+        "outcome_type": "stage",
+        "outcome_value": true,
+        "evaluation_mode": "all",
+        "missing_behavior": "error"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "verified_cover_shell_laser_blanking",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "bent_sheet_part"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "contains",
+            "expected_value": "罩壳"
+          }
+        ],
+        "question": "罩壳折弯件采用哪种下料方式？",
+        "rule_key": "verified_cover_shell_laser_blanking",
+        "branch_key": "3.1",
+        "option_key": "verified_cover_shell_laser",
+        "description": "PDF 标题栏名称包含罩壳且几何路线族为折弯板件时，以已审查罩壳族规则选择激光下料",
+        "outcome_key": "blanking_laser",
+        "result_kind": "resolved",
+        "decision_key": "blanking_method",
+        "option_label": "激光下料",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "激光下料",
+          "operation_key": "blanking"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_hopper_component_module",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_hopper_component_module",
+        "description": "由 PDF 图号与对象类型识别的 NTF800.5077 锥斗焊接部件族模块",
+        "decision_key": "route_module",
+        "question": "当前对象命中哪个已验证产品族路线模板？",
+        "option_key": "ntf_hopper_component",
+        "option_label": "NTF800 锥斗焊接部件模块",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_module",
+        "outcome_value": "ntf_hopper_component",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "drawing_number",
+            "operator": "starts_with",
+            "expected_value": "NTF800.5077#"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "nt_crossbeam_component_module",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "nt_crossbeam_component_module",
+        "description": "由 PDF 名称、图号族与对象类型识别的 NT 系列横梁焊接部件模块",
+        "decision_key": "route_module",
+        "question": "当前对象命中哪个已验证产品族路线模板？",
+        "option_key": "nt_crossbeam_component",
+        "option_label": "NT 系列横梁焊接部件模块",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_module",
+        "outcome_value": "nt_crossbeam_component",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "contains",
+            "expected_value": "横梁"
+          },
+          {
+            "fact_key": "drawing_number",
+            "operator": "contains",
+            "expected_value": ".5104#"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_rod_module",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_rod_module",
+        "description": "由 PDF 名称、图号族与对象类型识别的 NTF800 叉杆精加工模块",
+        "decision_key": "route_module",
+        "question": "当前对象命中哪个已验证产品族路线模板？",
+        "option_key": "ntf_fork_rod",
+        "option_label": "NTF800 叉杆精加工模块",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_module",
+        "outcome_value": "ntf_fork_rod",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "contains",
+            "expected_value": "叉杆"
+          },
+          {
+            "fact_key": "drawing_number",
+            "operator": "starts_with",
+            "expected_value": "NTF800.8069#"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    }
+  ]
+}

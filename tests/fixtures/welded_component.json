@@ -7,6 +7,5 @@
   "weld_annotation_present": {"status": "hit", "value": true},
   "technical_requirement_mentions_welding": {"status": "hit", "value": true},
   "technical_requirement_mentions_assembly": {"status": "not_hit", "value": false},
-  "component_kind": {"status": "hit", "value": "welded"},
-  "parent_part_type": {"status": "hit", "value": "final_assembly"}
+  "component_kind": {"status": "hit", "value": "welded"}
 }

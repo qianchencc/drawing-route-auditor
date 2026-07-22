@@ -30,7 +30,7 @@ jn = "drawing_route_auditor.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-drawing_route_auditor = ["db/sql/*.sql"]
+drawing_route_auditor = ["db/sql/*.sql", "db/data/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

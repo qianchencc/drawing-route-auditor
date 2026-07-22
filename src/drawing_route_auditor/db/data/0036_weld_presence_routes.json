@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "以明确焊接符号和焊缝标注决定首道焊接，删除不稳定且未用于可靠阶段推理的接头组计数。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "welded_component_feature_route_required"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "independent_weld_joint_group_count"
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_initial_weld",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 150,
+        "question": "可观察焊接接头组首先如何连接？",
+        "rule_key": "welded_component_initial_weld",
+        "branch_key": "3.6",
+        "option_key": "welded_component_initial_weld",
+        "description": "BOM结构、焊接符号和焊缝标注共同确定焊接部件的首道焊接校正；不以主观接头组计数作为门槛。",
+        "outcome_key": "welded_component_initial_weld",
+        "result_kind": "resolved",
+        "decision_key": "initial_weld_stage",
+        "option_label": "焊接(校正)",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "焊接(校正)",
+          "operation_key": "welded_component_initial_weld"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "weld_seam_finish_polish",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_seam_finishing_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 150,
+        "question": "明确要求修平的首道焊缝如何整饰？",
+        "rule_key": "weld_seam_finish_polish",
+        "branch_key": "3.6",
+        "option_key": "weld_seam_finish_polish",
+        "description": "技术要求明确焊缝磨平、修平或去除焊接痕迹，且图中存在焊接符号时，生成焊后抛光。",
+        "outcome_key": "weld_seam_finish_polish",
+        "result_kind": "resolved",
+        "decision_key": "weld_finish_stage",
+        "option_label": "抛光",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "抛光",
+          "operation_key": "weld_seam_finish_polish"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "symbol_relation_reader",
+      "value": {
+        "label": "符号关系读取器",
+        "sequence": 3,
+        "reader_key": "symbol_relation_reader",
+        "capability_definition": "读取焊接符号、焊缝标注和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
+      }
+    }
+  ]
+}

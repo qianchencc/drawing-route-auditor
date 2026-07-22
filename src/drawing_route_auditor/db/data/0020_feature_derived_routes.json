@@ -1,0 +1,1308 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "删除所有图号、名称和答案身份路线模板；仅按PDF可观察制造特征生成工序。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "object_component_by_number"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "object_part_by_number"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "component_base_route_unavailable"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "rolled_sheet_process_module_unavailable"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "hopper_segment_prejoin"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "hopper_seam_welding"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "hopper_calibration_rolling"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "verified_cover_shell_laser_blanking"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_component_module"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "nt_crossbeam_component_module"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_rod_module"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_primary_weld"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_rough_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_secondary_weld"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_bore"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_mid_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_final_weld"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_final_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "nt_crossbeam_weld"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "nt_crossbeam_rough_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "nt_crossbeam_bore"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "nt_crossbeam_wire_cut"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "nt_crossbeam_final_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_saw"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_rough_turn"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_temper"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_finish_turn"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_drill"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_surface_integrated"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_fork_route_family"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "ntf_hopper_surface_integrated"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "nt_crossbeam_surface_integrated"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "welded_component_by_verified_module"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "cover_shell_bent_family"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "hopper_rolled_family_override"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "welded_component_by_title"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "assembly_component_by_title"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "drawing_number_numeric_prefix"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "route_module"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "title_contains_welding"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "title_contains_assembly"
+    },
+    {
+      "op": "remove",
+      "collection": "branches",
+      "key": "1.1"
+    },
+    {
+      "op": "remove",
+      "collection": "branches",
+      "key": "2.1"
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "drawing_number",
+      "value": {
+        "label": "图号",
+        "fact_key": "drawing_number",
+        "reader_key": "document_structure_reader",
+        "value_type": "text",
+        "description": "当前图纸主标题栏中的图号，仅作为运行元数据和证据展示，禁止参与任何工艺决策。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "标题栏图号清晰可辨。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查每页主标题栏及其旋转校正视图；不得读取 BOM 子件图号。",
+        "evidence_requirement": "提供主标题栏图号原文、区域和文字正立方向。",
+        "judgement_definition": "逐字读取主标题栏图号；不得据此选择路线族、模板、工序、顺序或重复次数。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "part_name",
+      "value": {
+        "label": "名称",
+        "fact_key": "part_name",
+        "reader_key": "document_structure_reader",
+        "value_type": "text",
+        "description": "当前图纸主标题栏中的名称，仅作为运行元数据和证据展示，禁止参与任何工艺决策。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "名称清晰可辨。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查每页主标题栏及其旋转校正视图；不得读取 BOM 子件名称。",
+        "evidence_requirement": "提供主标题栏名称原文、区域和文字正立方向。",
+        "judgement_definition": "逐字读取主标题栏名称；不得据此选择路线族、模板、工序、顺序或重复次数。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_axisymmetric_bar_profile",
+      "value": {
+        "fact_key": "global_axisymmetric_bar_profile",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "整体轴对称棒料轮廓",
+        "description": "当前对象是否为沿单一主轴延伸的整体实心棒料/轴类轮廓；局部套筒、局部圆孔或板壳上的圆柱特征不得命中。",
+        "judgement_definition": "当前对象是否为沿单一主轴延伸的整体实心棒料/轴类轮廓；局部套筒、局部圆孔或板壳上的圆柱特征不得命中。",
+        "hit_criteria": "主要视图和剖视图共同显示整件围绕单一轴线形成连续实心外圆或阶梯轴轮廓。",
+        "not_hit_criteria": "全部主要视图清楚显示整件不是整体轴类棒料轮廓。",
+        "coverage_requirement": "检查全部主要视图、剖视图、中心线、外径和实心/空心表达。",
+        "evidence_requirement": "提供整件轴线、连续外圆/阶梯外圆和实心截面证据；不得只引用局部圆柱。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "axial_length_mm",
+      "value": {
+        "fact_key": "axial_length_mm",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "number",
+        "allowed_values": null,
+        "label": "轴向总长",
+        "description": "整体轴类或棒料对象沿主轴方向标注的最大总长度，单位毫米。",
+        "judgement_definition": "整体轴类或棒料对象沿主轴方向标注的最大总长度，单位毫米。",
+        "hit_criteria": "存在覆盖整件两端的明确轴向总长尺寸。",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查轴向最外端之间的总尺寸，不得用局部段长代替。",
+        "evidence_requirement": "提供总长尺寸原文及其两端界线。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "max_outer_diameter_mm",
+      "value": {
+        "fact_key": "max_outer_diameter_mm",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "number",
+        "allowed_values": null,
+        "label": "最大外径",
+        "description": "整体轴类或棒料对象的最大标注外径，单位毫米。",
+        "judgement_definition": "整体轴类或棒料对象的最大标注外径，单位毫米。",
+        "hit_criteria": "存在属于当前对象整体外轮廓的明确最大直径。",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查所有外径标注，排除孔径、局部装配件和 BOM 子件规格。",
+        "evidence_requirement": "提供最大外径标注及其指向的外轮廓。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "transverse_hole_feature_present",
+      "value": {
+        "fact_key": "transverse_hole_feature_present",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "横向孔特征",
+        "description": "当前对象是否有孔轴线与整体棒料/轴类主轴明显相交或近似垂直的横向孔。",
+        "judgement_definition": "当前对象是否有孔轴线与整体棒料/轴类主轴明显相交或近似垂直的横向孔。",
+        "hit_criteria": "视图、剖视或孔标注明确显示横向孔及其方向关系。",
+        "not_hit_criteria": "完整检查后只见轴向孔或没有孔。",
+        "coverage_requirement": "检查全部孔标注、中心线、剖视和端视。",
+        "evidence_requirement": "提供孔径、孔轴线及其相对主轴方向。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "coaxial_precision_bore_across_members",
+      "value": {
+        "fact_key": "coaxial_precision_bore_across_members",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "跨构件同轴精密孔",
+        "description": "焊接部件中是否存在由两个或更多 BOM 构件共同形成、并以共同轴线和尺寸/公差控制的内孔或圆柱配合面。",
+        "judgement_definition": "焊接部件中是否存在由两个或更多 BOM 构件共同形成、并以共同轴线和尺寸/公差控制的内孔或圆柱配合面。",
+        "hit_criteria": "剖视、引出序号和公差/粗糙度共同证明同一受控孔跨越多个构件或焊后整体形成。",
+        "not_hit_criteria": "完整剖视明确孔只属于单一独立零件，或不存在受控同轴孔。",
+        "coverage_requirement": "检查剖视、BOM 序号、共同中心线、孔径公差和粗糙度。",
+        "evidence_requirement": "提供共同轴线、跨构件边界及尺寸/公差证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "tight_tolerance_internal_profile_present",
+      "value": {
+        "fact_key": "tight_tolerance_internal_profile_present",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "紧公差内部异形轮廓",
+        "description": "是否存在非圆形封闭/半封闭内部轮廓、键槽、方孔或窄槽，并有明确紧公差或精密配合要求。",
+        "judgement_definition": "是否存在非圆形封闭/半封闭内部轮廓、键槽、方孔或窄槽，并有明确紧公差或精密配合要求。",
+        "hit_criteria": "内部异形轮廓同时具有几何边界和尺寸公差/精密配合证据。",
+        "not_hit_criteria": "完整检查后内部轮廓均为普通圆孔、开放外轮廓或无紧公差。",
+        "coverage_requirement": "检查局部放大图、剖视、槽宽/方孔尺寸、公差和粗糙度。",
+        "evidence_requirement": "提供内部轮廓形状、尺寸、公差及可达性证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "independent_weld_joint_group_count",
+      "value": {
+        "fact_key": "independent_weld_joint_group_count",
+        "source_kind": "observed_drawing",
+        "reader_key": "symbol_relation_reader",
+        "subject_scope": "current_object",
+        "value_type": "number",
+        "allowed_values": null,
+        "label": "独立焊接接头组数量",
+        "description": "按空间位置、连接成员和接头类型区分的独立焊接接头组数量；相邻重复同类焊缝计为一组。",
+        "judgement_definition": "按空间位置、连接成员和接头类型区分的独立焊接接头组数量；相邻重复同类焊缝计为一组。",
+        "hit_criteria": "焊接符号、BOM 引出和视图足以区分至少一组连接成员明确的焊接接头。",
+        "not_hit_criteria": null,
+        "coverage_requirement": "覆盖全部焊接符号、剖视和 BOM 引出；不得按焊缝条数机械计数。",
+        "evidence_requirement": "逐组提供连接成员、位置和焊接符号/技术要求证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "separated_weld_access_regions_present",
+      "value": {
+        "fact_key": "separated_weld_access_regions_present",
+        "source_kind": "observed_drawing",
+        "reader_key": "symbol_relation_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "分离焊接可达区域",
+        "description": "是否存在位于不同开放/封闭区域的独立焊接接头组，完成一组连接或表面处理后会改变另一组的操作可达性。",
+        "judgement_definition": "是否存在位于不同开放/封闭区域的独立焊接接头组，完成一组连接或表面处理后会改变另一组的操作可达性。",
+        "hit_criteria": "视图和连接关系明确显示至少两组接头处于不同可达区域，且成员遮挡关系可见。",
+        "not_hit_criteria": "全部焊接接头处于同一开放可达区域，彼此不形成遮挡。",
+        "coverage_requirement": "检查剖视、装配层次、接头位置和工具进入方向。",
+        "evidence_requirement": "提供两组接头及中间成员造成的空间分隔或遮挡证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "machining_access_obstructing_member_present",
+      "value": {
+        "fact_key": "machining_access_obstructing_member_present",
+        "source_kind": "observed_drawing",
+        "reader_key": "symbol_relation_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "遮挡精密特征的待连接成员",
+        "description": "部件是否包含一个焊接成员：若先连接会遮挡图中精密孔/轮廓的加工或测量通道，而其连接界面在该精密特征之外。",
+        "judgement_definition": "部件是否包含一个焊接成员：若先连接会遮挡图中精密孔/轮廓的加工或测量通道，而其连接界面在该精密特征之外。",
+        "hit_criteria": "视图明确显示成员、精密特征和工具/测量通道的几何遮挡关系。",
+        "not_hit_criteria": "所有焊接成员连接后仍不遮挡精密特征的径向或轴向通道。",
+        "coverage_requirement": "检查精密特征轴线、开放方向、相邻成员和焊接接口。",
+        "evidence_requirement": "提供成员边界、精密特征及被遮挡通道的几何证据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "long_continuous_weld_joint_present",
+      "value": {
+        "fact_key": "long_continuous_weld_joint_present",
+        "source_kind": "observed_drawing",
+        "reader_key": "symbol_relation_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "长连续焊接接头",
+        "description": "是否存在沿大型圆筒、圆锥、壳板或长直边延伸的连续焊接接头。",
+        "judgement_definition": "是否存在沿大型圆筒、圆锥、壳板或长直边延伸的连续焊接接头。",
+        "hit_criteria": "焊缝符号或技术要求与视图共同显示长连续接头。",
+        "not_hit_criteria": "所有焊缝均为短点焊、局部角焊或不存在连续接头。",
+        "coverage_requirement": "检查全部焊缝符号、圆周/纵缝和长边接头。",
+        "evidence_requirement": "提供接头起止、连接成员及连续焊接标注。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "weld_seam_finishing_required",
+      "value": {
+        "fact_key": "weld_seam_finishing_required",
+        "source_kind": "observed_drawing",
+        "reader_key": "requirement_annotation_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "焊缝修平要求",
+        "description": "技术要求是否明确要求焊后磨平、修平、去除焊接痕迹或对焊缝进行表面整饰。",
+        "judgement_definition": "技术要求是否明确要求焊后磨平、修平、去除焊接痕迹或对焊缝进行表面整饰。",
+        "hit_criteria": "技术要求明确出现磨平焊缝、修平焊缝、无明显焊接痕迹或等价表述。",
+        "not_hit_criteria": "完整技术要求可读且不存在焊缝修平/整饰要求。",
+        "coverage_requirement": "检查全部技术要求和焊缝旁注。",
+        "evidence_requirement": "提供要求原文及所在条款。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "directional_surface_finish_required",
+      "value": {
+        "fact_key": "directional_surface_finish_required",
+        "source_kind": "observed_drawing",
+        "reader_key": "requirement_annotation_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "定向表面处理要求",
+        "description": "技术要求是否明确要求外表面拉丝、纹理方向或其他定向机械表面处理。",
+        "judgement_definition": "技术要求是否明确要求外表面拉丝、纹理方向或其他定向机械表面处理。",
+        "hit_criteria": "明确出现外表面拉丝、指定纹理方向或等价要求。",
+        "not_hit_criteria": "完整技术要求可读且不存在定向表面要求。",
+        "coverage_requirement": "检查全部表面技术要求和表面符号。",
+        "evidence_requirement": "提供要求原文、对象范围和方向说明。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "branches",
+      "key": "3.6",
+      "value": {
+        "node_key": "3",
+        "branch_key": "3.6",
+        "title": "可观察制造特征序列",
+        "rule_text": "仅按PDF可观察的材料形态、全局几何、尺寸公差、孔槽拓扑、焊接接头关系、加工可达性和明确表面要求生成工序及顺序",
+        "maintenance_status": "executable",
+        "confidence_mode": "certain",
+        "priority": 60
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "document_structure_reader",
+      "value": {
+        "label": "文档结构读取器",
+        "sequence": 1,
+        "reader_key": "document_structure_reader",
+        "capability_definition": "读取主标题栏图号、名称、材料和数量及BOM结构；图号和名称只作非决策元数据，Reader不得由身份推断路线。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "geometry_dimension_reader",
+      "value": {
+        "label": "几何尺寸读取器",
+        "sequence": 2,
+        "reader_key": "geometry_dimension_reader",
+        "capability_definition": "读取全局材料形态、整体轴类轮廓、总长/最大外径、孔槽拓扑、跨构件同轴孔、内部异形轮廓、尺寸公差和粗糙度；严格区分整件特征与局部圆柱。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "symbol_relation_reader",
+      "value": {
+        "label": "符号关系读取器",
+        "sequence": 3,
+        "reader_key": "symbol_relation_reader",
+        "capability_definition": "读取焊接符号、连接成员、独立接头组、空间可达区域、成员对精密特征通道的遮挡关系和长连续接头；只报告连接几何，不输出工序答案。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "requirement_annotation_reader",
+      "value": {
+        "label": "技术要求读取器",
+        "sequence": 4,
+        "reader_key": "requirement_annotation_reader",
+        "capability_definition": "读取技术要求、公差、表面、清洁、检验、焊缝修平和定向拉丝要求；逐字提供原文，不将要求直接改写成路线。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "axisymmetric_bar_machined_family",
+      "value": {
+        "branch_key": "5.6",
+        "rule_key": "axisymmetric_bar_machined_family",
+        "description": "整体实心棒料、全局轴对称轮廓和精密要求共同确定非板精加工路线；不使用名称或图号。",
+        "decision_key": "route_family",
+        "question": "整体轴对称精密棒料属于哪类制造路线？",
+        "option_key": "axisymmetric_bar_machined_family",
+        "option_label": "非板精加工件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "non_sheet_machined_part",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "global_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "bar_saw_blanking",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "bar_saw_blanking",
+        "description": "棒料以锯切形成单件毛坯。",
+        "decision_key": "bar_blanking",
+        "question": "棒料如何形成毛坯？",
+        "option_key": "bar_saw_blanking",
+        "option_label": "锯床下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "bar_saw_blanking",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "锯床下料",
+          "operation_key": "bar_saw_blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "long_axisymmetric_rough_turn",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "long_axisymmetric_rough_turn",
+        "description": "长大精密轴类棒料先粗车形成热处理和精加工余量。",
+        "decision_key": "rough_turning",
+        "question": "长大精密轴类棒料是否需要粗加工余量？",
+        "option_key": "long_axisymmetric_rough_turn",
+        "option_label": "粗车",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "long_axisymmetric_rough_turn",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "粗车",
+          "operation_key": "long_axisymmetric_rough_turn"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "global_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "axial_length_mm",
+            "operator": "gte",
+            "expected_value": 500
+          },
+          {
+            "fact_key": "max_outer_diameter_mm",
+            "operator": "gte",
+            "expected_value": 50
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "martensitic_long_shaft_temper",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "martensitic_long_shaft_temper",
+        "description": "2Cr13长大精密轴在粗加工后、精加工前调质；材料牌号仅与尺寸、形态和精度特征共同使用。",
+        "decision_key": "heat_treatment",
+        "question": "2Cr13长大精密轴在精加工前是否需要调质？",
+        "option_key": "martensitic_long_shaft_temper",
+        "option_label": "调质",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "martensitic_long_shaft_temper",
+        "outcome_value": {
+          "order_rank": 30,
+          "process_name": "调质",
+          "operation_key": "martensitic_long_shaft_temper"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "global_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "material_grade",
+            "operator": "eq",
+            "expected_value": "2Cr13"
+          },
+          {
+            "fact_key": "axial_length_mm",
+            "operator": "gte",
+            "expected_value": 500
+          },
+          {
+            "fact_key": "max_outer_diameter_mm",
+            "operator": "gte",
+            "expected_value": 50
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "post_temper_finish_turn",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "post_temper_finish_turn",
+        "description": "调质后的长大2Cr13轴以精车达到图示尺寸和公差。",
+        "decision_key": "finish_turning",
+        "question": "调质后的长大精密轴如何达到尺寸与表面要求？",
+        "option_key": "post_temper_finish_turn",
+        "option_label": "精车",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "post_temper_finish_turn",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "精车",
+          "operation_key": "post_temper_finish_turn"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "global_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "material_grade",
+            "operator": "eq",
+            "expected_value": "2Cr13"
+          },
+          {
+            "fact_key": "axial_length_mm",
+            "operator": "gte",
+            "expected_value": 500
+          },
+          {
+            "fact_key": "max_outer_diameter_mm",
+            "operator": "gte",
+            "expected_value": 50
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "transverse_hole_drilling",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "transverse_hole_drilling",
+        "description": "横向圆孔的轴线与棒料主轴相交，映射为钻孔工序。",
+        "decision_key": "hole_machining",
+        "question": "轴类零件的横向孔如何形成？",
+        "option_key": "transverse_hole_drilling",
+        "option_label": "钻孔",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "transverse_hole_drilling",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "钻孔",
+          "operation_key": "transverse_hole_drilling"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "global_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "transverse_hole_feature_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "explicit_part_surface_current_level",
+      "value": {
+        "branch_key": "3.4",
+        "rule_key": "explicit_part_surface_current_level",
+        "description": "当前零件PDF明确要求外表面抛光时，由当前零件独立表面工序承担；不得因历史路线缺项而声称精车集成。",
+        "decision_key": "surface_stage_ownership",
+        "question": "当前零件明确要求的外表面抛光由谁承担？",
+        "option_key": "explicit_part_surface_current_level",
+        "option_label": "当前零件独立承担",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "surface_stage_owner",
+        "outcome_value": "current_level",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "outer_surface_polish_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_initial_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "welded_component_initial_weld",
+        "description": "BOM连接关系、焊接符号和至少一组独立接头共同生成首道焊接校正。",
+        "decision_key": "initial_weld_stage",
+        "question": "可观察焊接接头组首先如何连接？",
+        "option_key": "welded_component_initial_weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "welded_component_initial_weld",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "焊接(校正)",
+          "operation_key": "welded_component_initial_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 1
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "weld_seam_finish_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "weld_seam_finish_polish",
+        "description": "技术要求明确焊缝磨平、修平或去除焊接痕迹，生成焊后抛光。",
+        "decision_key": "weld_finish_stage",
+        "question": "明确要求修平的首道焊缝如何整饰？",
+        "option_key": "weld_seam_finish_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "weld_seam_finish_polish",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "抛光",
+          "operation_key": "weld_seam_finish_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 1
+          },
+          {
+            "fact_key": "weld_seam_finishing_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "separated_access_secondary_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "separated_access_secondary_weld",
+        "description": "至少两组焊接接头位于分离可达区域时，在首组焊缝整饰后完成下一组连接。",
+        "decision_key": "secondary_weld_stage",
+        "question": "分离可达区域中的第二组接头何时连接？",
+        "option_key": "separated_access_secondary_weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "separated_access_secondary_weld",
+        "outcome_value": {
+          "order_rank": 30,
+          "process_name": "焊接(校正)",
+          "operation_key": "separated_access_secondary_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 2
+          },
+          {
+            "fact_key": "separated_weld_access_regions_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "weldment_coaxial_boring",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "weldment_coaxial_boring",
+        "description": "跨多个焊接构件并受共同轴线、公差控制的内孔必须在连接后统一镗削。",
+        "decision_key": "coaxial_bore_stage",
+        "question": "跨多个已连接构件的精密同轴孔如何统一形成？",
+        "option_key": "weldment_coaxial_boring",
+        "option_label": "镗",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "weldment_coaxial_boring",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "镗",
+          "operation_key": "weldment_coaxial_boring"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "coaxial_precision_bore_across_members",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "internal_profile_wire_cut",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "internal_profile_wire_cut",
+        "description": "非圆形封闭或半封闭内部轮廓具有紧公差时，选择线切割；普通圆孔或开放轮廓不得命中。",
+        "decision_key": "internal_profile_stage",
+        "question": "紧公差内部异形轮廓如何形成？",
+        "option_key": "internal_profile_wire_cut",
+        "option_label": "线切割",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "internal_profile_wire_cut",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "线切割",
+          "operation_key": "internal_profile_wire_cut"
+        },
+        "clauses": [
+          {
+            "fact_key": "tight_tolerance_internal_profile_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "intermediate_directional_surface_finish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "intermediate_directional_surface_finish",
+        "description": "存在将遮挡精密特征通道的待连接成员时，在连接该成员前完成已开放表面的拉丝/抛光。",
+        "decision_key": "intermediate_surface_stage",
+        "question": "有遮挡成员时何时完成定向表面处理？",
+        "option_key": "intermediate_directional_surface_finish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "intermediate_directional_surface_finish",
+        "outcome_value": {
+          "order_rank": 60,
+          "process_name": "抛光",
+          "operation_key": "intermediate_directional_surface_finish"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "directional_surface_finish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "machining_access_obstructing_member_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "final_directional_surface_finish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "final_directional_surface_finish",
+        "description": "不存在需延后连接的遮挡成员时，在精密加工后完成最终拉丝/抛光。",
+        "decision_key": "final_surface_stage",
+        "question": "无后续遮挡连接时如何完成定向表面处理？",
+        "option_key": "final_directional_surface_finish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "final_directional_surface_finish",
+        "outcome_value": {
+          "order_rank": 60,
+          "process_name": "抛光",
+          "operation_key": "final_directional_surface_finish"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "directional_surface_finish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "machining_access_obstructing_member_present",
+            "operator": "eq",
+            "expected_value": false
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "deferred_continuous_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "deferred_continuous_weld",
+        "description": "会遮挡精密加工通道的成员延后连接；长连续接头在加工和中间表面处理后焊接校正。",
+        "decision_key": "deferred_weld_stage",
+        "question": "遮挡加工通道的长连续接头何时连接？",
+        "option_key": "deferred_continuous_weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "deferred_continuous_weld",
+        "outcome_value": {
+          "order_rank": 70,
+          "process_name": "焊接(校正)",
+          "operation_key": "deferred_continuous_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "machining_access_obstructing_member_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "long_continuous_weld_joint_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "deferred_weld_finish_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "deferred_weld_finish_polish",
+        "description": "延后焊接完成后，按明确焊缝修平要求进行最终抛光。",
+        "decision_key": "deferred_weld_finish_stage",
+        "question": "延后焊接且要求修平的焊缝如何收尾？",
+        "option_key": "deferred_weld_finish_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "deferred_weld_finish_polish",
+        "outcome_value": {
+          "order_rank": 80,
+          "process_name": "抛光",
+          "operation_key": "deferred_weld_finish_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "machining_access_obstructing_member_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "long_continuous_weld_joint_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_seam_finishing_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_component_feature_route_required",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "welded_component_feature_route_required",
+        "description": "焊接部件必须从PDF建立至少一组独立焊接接头，才能声称基础连接路线可执行。",
+        "decision_key": "route_completeness",
+        "question": "焊接部件的基础连接特征是否足够？",
+        "option_key": "welded_component_features_ready",
+        "option_label": "焊接接头特征已建立",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "component_feature_route_ready",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 1
+          }
+        ],
+        "missing_behavior": "error",
+        "priority": 250
+      }
+    }
+  ]
+}

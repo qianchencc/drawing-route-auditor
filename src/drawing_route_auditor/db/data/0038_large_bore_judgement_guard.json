@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "部件大型精密内圆事实无法判断时返回部分结果，防止遗漏可能的镗削。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "component_large_bore_judgement_required",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "component_large_bore_judgement_required",
+        "description": "部件中的大型精密内圆柱面事实必须完成真/假判断；尺寸后缀或检验含义模糊时保持部分结果，不得按无大型内圆放行。",
+        "decision_key": "route_completeness",
+        "question": "部件的大型精密内圆柱面是否已可靠判断？",
+        "option_key": "large_bore_judged",
+        "option_label": "大型精密内圆柱面已判断",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "large_bore_judged",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "object_has_bom",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "large_precision_internal_cylindrical_surface_present",
+            "operator": "in",
+            "expected_value": [
+              true,
+              false
+            ]
+          }
+        ],
+        "missing_behavior": "error",
+        "priority": 231
+      }
+    }
+  ]
+}

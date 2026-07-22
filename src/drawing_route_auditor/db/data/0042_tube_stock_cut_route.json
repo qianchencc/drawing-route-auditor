@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "方管、矩形管和圆管按材料规格及闭合截面识别为管材；普通定长管件生成锯床下料，不再按薄壁外观推断激光下料和卷圆。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "sheet_thickness_mm",
+      "value": {
+        "label": "板厚",
+        "fact_key": "sheet_thickness_mm",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "number",
+        "description": "当前对象由板材制造时的板料厚度，单位毫米；标准管材的壁厚不是板厚。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "存在明确板材厚度标注T/t、板料规格，或展开/卷制图与材料信息共同证明该尺寸是板料厚度。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "材料规格或闭合空心截面明确为方管、矩形管、圆管或其他标准管材，且所见厚度仅为管壁厚度；此时返回NOT_HIT。",
+        "coverage_requirement": "检查材料规格、展开图、卷制/接缝证据和全部截面；区分板料厚度与标准管材壁厚。",
+        "evidence_requirement": "提供板材规格或展开/卷制来源证据；若为管材，提供管材规格及闭合空心截面。",
+        "judgement_definition": "只判断制造前板料厚度。80×50×5、φ80×5等标准管材规格中的5是管壁厚度，不得作为sheet_thickness_mm命中依据。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "is_plate_part",
+      "value": {
+        "label": "板类零件",
+        "fact_key": "is_plate_part",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否由板料下料后成形；标准方管、矩形管、圆管等管材即使壁厚均匀也不是板类零件。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "存在明确板材规格、T/t板厚、展开轮廓，或圆筒/圆锥壳体同时具有板料来源、卷制接缝或展开/下料证据。仅有均匀壁厚不得命中。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "材料栏明确方管、矩形管、圆管、无缝管等管材，或主要视图显示沿长度连续的闭合空心截面且没有展开、卷制接缝或板料来源证据；棒材、铸件和锻件同样不得命中。",
+        "coverage_requirement": "检查材料栏、全部主要视图、闭合截面、展开图、接缝及板料规格；管材证据优先于“均匀薄壁”外观。",
+        "evidence_requirement": "命中时提供板材规格、展开或卷制接缝证据；未命中时提供管材规格或连续闭合空心截面。",
+        "judgement_definition": "判断制造原始形态，不按薄壁外观猜测。304方管80×50×5等明确管材必须返回NOT_HIT；只有可观察的板料来源、展开或卷制证据才能判为板类。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "raw_form",
+      "value": {
+        "label": "原始形态",
+        "fact_key": "raw_form",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "text",
+        "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局截面共同决定，局部后加工特征不得改变原材料形态。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局截面复核。明确方管、矩形管、圆管等管材规格，或沿长度连续的闭合空心截面，应归一化为tube；明确板料规格、展开或卷制板壳证据归一化为plate。",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "plate",
+          "tube",
+          "bar",
+          "casting",
+          "forging",
+          "other"
+        ],
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查材料规格、全部主要视图、轴向长度、闭合截面、内外尺寸、壁厚、展开图和卷制接缝；材料中的方管/矩形管/圆管字样不得忽略。",
+        "evidence_requirement": "提供材料规格原文和对应全局截面；若材料与几何冲突则返回UNABLE_TO_JUDGE并逐项列出冲突。",
+        "judgement_definition": "判断制造前原材料形态。304方管80×50×5必须归一化为tube，不能因壁厚5或薄壁外观判为plate。均匀薄壁卷制圆筒/圆锥只有在存在板料来源、展开或卷制证据时归一化为plate。长直整体实心阶梯外圆且无连续管腔时归一化为bar；局部后加工孔不改变该判断。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "continuous_revolved_surface",
+      "value": {
+        "label": "连续回转曲面",
+        "fact_key": "continuous_revolved_surface",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否包含围绕中心轴旋转形成的连续圆筒、圆锥或圆弧壳面；矩形、方形及其他非圆闭合管截面不属于回转曲面。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "主要视图或剖视图存在闭合圆/同心圆弧、φ/Ø直径和中心轴，或圆锥母线及两个以上截面直径，足以证明围绕中心轴旋转形成连续曲面。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查后仅见矩形、方形或其他非圆闭合空心截面，或仅见直边板展开、平行折弯线和局部折弯圆角；80×50×5等矩形管截面必须返回NOT_HIT。",
+        "coverage_requirement": "检查全部主要视图、剖视图、截面形状、中心轴、φ/Ø直径、圆锥母线和旋转校正视图；不得把普通中心线或长直平行轮廓当作圆柱证据。",
+        "evidence_requirement": "命中时提供圆/同心圆弧、φ/Ø直径或圆锥母线证据；未命中时提供非圆闭合截面或展开轮廓。",
+        "judgement_definition": "只判断真正的轴对称回转曲面。矩形方管虽有中心线、均匀壁厚和长直轮廓，截面不是圆，必须返回NOT_HIT；圆管可命中几何回转事实，但其raw_form仍可独立为tube，不等于板材卷圆。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "route_family",
+      "value": {
+        "label": "路线族",
+        "fact_key": "route_family",
+        "reader_key": null,
+        "value_type": "text",
+        "description": "当前对象的基础工艺路线族。",
+        "source_kind": "derived",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "flat_cut_plate_part",
+          "bent_sheet_part",
+          "rolled_sheet_part",
+          "welded_sheet_part",
+          "machined_plate_part",
+          "non_sheet_machined_part",
+          "tube_cut_part"
+        ],
+        "judgement_definition": "由对象、材料原始形态和几何/加工特征派生；标准管材定长下料使用tube_cut_part。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "geometry_dimension_reader",
+      "value": {
+        "label": "几何尺寸读取器",
+        "sequence": 2,
+        "reader_key": "geometry_dimension_reader",
+        "capability_definition": "读取全局材料形态、整体轴类轮廓、总长/最大外径、孔槽拓扑、内部轮廓、尺寸公差和粗糙度；必须读取材料栏中的方管/矩形管/圆管规格，严格区分标准管材壁厚、板料厚度、真正轴对称回转曲面和非圆闭合管截面。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "part_base_route_required",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "route_family",
+            "operator": "in",
+            "expected_value": [
+              "flat_cut_plate_part",
+              "bent_sheet_part",
+              "rolled_sheet_part",
+              "welded_sheet_part",
+              "machined_plate_part",
+              "non_sheet_machined_part",
+              "tube_cut_part"
+            ]
+          }
+        ],
+        "priority": 100,
+        "question": "零件基础路线族是否已确定？",
+        "rule_key": "part_base_route_required",
+        "branch_key": "3.1",
+        "option_key": "base_route_ready",
+        "description": "零件必须先确定基础路线族，才能形成完整工艺路线",
+        "outcome_key": "base_route_ready",
+        "result_kind": "resolved",
+        "decision_key": "route_completeness",
+        "option_label": "基础路线族已确定",
+        "outcome_type": "stage",
+        "outcome_value": true,
+        "missing_behavior": "error"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "plain_tube_cut_family",
+      "value": {
+        "branch_key": "5.6",
+        "rule_key": "plain_tube_cut_family",
+        "description": "无孔槽、无精密公差且无折弯的标准管材零件属于定长锯切路线族；只按PDF材料规格和几何事实判断。",
+        "decision_key": "route_family",
+        "question": "标准管材是否只需定长下料？",
+        "option_key": "plain_tube_cut",
+        "option_label": "管材定长下料件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "tube_cut_part",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "tube"
+          },
+          {
+            "fact_key": "is_plate_part",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "has_bend_feature",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "has_hole_feature",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "has_slot_feature",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "precision_tolerance_present",
+            "operator": "eq",
+            "expected_value": false
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 225
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "tube_saw_blanking",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "tube_saw_blanking",
+        "description": "标准管材按图示轴向长度锯切形成单件毛坯；不使用名称、图号或历史路线。",
+        "decision_key": "tube_blanking",
+        "question": "管材如何形成定长毛坯？",
+        "option_key": "tube_saw_blanking",
+        "option_label": "锯床下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "tube_saw_blanking",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "锯床下料",
+          "operation_key": "tube_saw_blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "tube"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    }
+  ]
+}

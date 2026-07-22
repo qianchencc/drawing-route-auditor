@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "明确圆柱轴向投影与棱柱外形的区别，使简单短圆柱可由外径和中心线判为实体棒料，同时保持外方内圆反例不命中。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "raw_form",
+      "value": {
+        "label": "原始形态",
+        "fact_key": "raw_form",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "text",
+        "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局截面共同决定，局部后加工特征不得改变原材料形态。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局截面复核。明确方管、矩形管、圆管等管材规格，或沿长度连续的闭合空心截面，应归一化为tube；明确板料规格、展开或卷制板壳证据归一化为plate。若材料形态文字缺失，但主要视图以中心线和绑定外部主体的φ/Ø外径或外螺纹明确简单/阶梯实体圆柱，且无连续管腔，则归一化为bar；轴向投影显示为平行直边不等于棱柱。",
+        "subject_scope": "current_object",
+        "allowed_values": ["plate", "tube", "bar", "casting", "forging", "other"],
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查材料规格、全部主要视图、轴向长度、中心线、绑定外部轮廓的φ/Ø外径或外螺纹、闭合截面、内外尺寸、壁厚、展开图和卷制接缝；材料中的方管/矩形管/圆管字样不得忽略。",
+        "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定bar，必须提供中心线、绑定外部主体的φ/Ø外径或外螺纹以及无连续管腔证据；若材料与几何冲突则返回UNABLE_TO_JUDGE并逐项列出冲突。",
+        "judgement_definition": "判断制造前原材料形态。304方管80×50×5必须归一化为tube，不能因壁厚5或薄壁外观判为plate。均匀薄壁卷制圆筒/圆锥只有在存在板料来源、展开或卷制证据时归一化为plate。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形/平行直边；当中心线和绑定外部轮廓的φ/Ø外径或外螺纹证明其为实体圆柱、且无连续管腔时归一化为bar，不得因轴向投影不是圆形返回UNABLE_TO_JUDGE。局部后加工孔不改变该判断。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "single_axis_external_cylindrical_profile",
+      "value": {
+        "label": "单轴外圆实体轮廓",
+        "fact_key": "single_axis_external_cylindrical_profile",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "整件外部主体轮廓是否由单一中心轴上的一个或多个简单外圆、阶梯外圆、圆锥段或外螺纹段组成；局部轴向孔、横孔、倒角或小平面不否定主体外圆。不得把方块内孔、板壳局部圆柱或管材内外壁判为此事实。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "主要视图或剖视图显示整件外部轮廓围绕同一中心轴形成简单或阶梯圆柱/圆锥实体，并且至少一个φ/Ø外径、外螺纹公称直径或圆形端视图明确绑定外部轮廓。圆柱在轴向投影中通常呈两条平行直边或矩形，不能因此否定；关键是外部横向尺寸带φ/Ø或外螺纹并绑定主体。局部倒角、轴向孔、横孔、键槽或小平面不影响命中，但必须能证明它们不是整件主要外形。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "外部主体横向尺寸明确为不带φ/Ø的方形、矩形、板形、壳体、管材或其他非单轴回转外形；或者只存在内孔、套筒、凸台等局部圆柱特征而外部主体为棱柱。只有孔径φ/Ø而没有绑定外部主体的外径/外螺纹或圆形端视证据时必须返回NOT_HIT，不得以标题栏名称判定。",
+        "coverage_requirement": "检查全部主要视图、剖视图和端视图，区分轴向投影的圆柱平行直边、外部主体轮廓与内孔/局部圆柱；核对中心线、绑定外轮廓的φ/Ø外径、外螺纹、总长、外部方形或矩形尺寸以及连续管壁。",
+        "evidence_requirement": "命中时提供同一中心轴、外部轮廓以及明确绑定外轮廓的φ/Ø外径、外螺纹或圆形端视证据；若轴向投影为矩形，须说明横向尺寸为何是外径。未命中时引用不带φ/Ø的外部方/矩形尺寸、板壳/管壁或仅有内孔圆柱的证据。",
+        "judgement_definition": "这是几何事实，不是‘需要车削’的工艺答案。简单圆柱在轴向主视图中显示为矩形或两条平行直边；只要中心线和绑定外部主体的φ/Ø外径或外螺纹证明其为圆柱实体，就应命中。阶梯轴、销和带局部孔的外圆实体同样可命中。外方内圆块的外部尺寸不带φ/Ø，只有内部孔径，不得命中；板壳、管材和局部套筒也不得命中。图号、名称和历史路线不得参与判断。"
+      }
+    }
+  ]
+}

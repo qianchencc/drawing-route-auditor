@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "大型精密内圆焊接部件必须确认加工通道遮挡关系；确认遮挡时延后连接该成员。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "deferred_continuous_weld"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "deferred_weld_finish_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "long_continuous_weld_joint_present"
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "precision_weldment_access_classification_required",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "precision_weldment_access_classification_required",
+        "description": "焊接部件含多组接头和大型精密内圆时，必须从PDF确定是否有待连接成员遮挡加工或测量通道，才能声称后续焊接顺序完整。",
+        "decision_key": "route_completeness",
+        "question": "大型精密内圆周边成员的加工可达关系是否已确定？",
+        "option_key": "precision_weldment_access_ready",
+        "option_label": "精密内圆加工可达关系已确定",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "precision_weldment_access_ready",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 2
+          },
+          {
+            "fact_key": "large_precision_internal_cylindrical_surface_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "machining_access_obstructing_member_present",
+            "operator": "in",
+            "expected_value": [
+              true,
+              false
+            ]
+          }
+        ],
+        "missing_behavior": "error",
+        "priority": 246
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "deferred_obstructing_member_weld",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "deferred_obstructing_member_weld",
+        "description": "会遮挡大型精密内圆加工或测量通道的成员，在精密加工和中间表面处理后再焊接校正。",
+        "decision_key": "deferred_weld_stage",
+        "question": "遮挡精密加工通道的成员何时连接？",
+        "option_key": "deferred_obstructing_member_weld",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "deferred_obstructing_member_weld",
+        "outcome_value": {
+          "order_rank": 70,
+          "process_name": "焊接(校正)",
+          "operation_key": "deferred_obstructing_member_weld"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "machining_access_obstructing_member_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "deferred_member_weld_finish_polish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "deferred_member_weld_finish_polish",
+        "description": "延后连接的成员焊接完成后，按明确焊缝修平要求进行最终抛光。",
+        "decision_key": "deferred_weld_finish_stage",
+        "question": "延后焊接且要求修平的焊缝如何收尾？",
+        "option_key": "deferred_member_weld_finish_polish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "deferred_member_weld_finish_polish",
+        "outcome_value": {
+          "order_rank": 80,
+          "process_name": "抛光",
+          "operation_key": "deferred_member_weld_finish_polish"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "machining_access_obstructing_member_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_seam_finishing_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    }
+  ]
+}

@@ -93,7 +93,6 @@ class Connection:
             if was_autocommit:
                 self._raw.autocommit = True
 
-
     def rollback(self) -> None:
         self._raw.rollback()
 

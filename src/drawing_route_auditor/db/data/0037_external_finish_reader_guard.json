@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "外表面处理关键字必须目视复核；部件该事实无法判断时返回部分结果。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "external_mechanical_surface_finish_required",
+      "value": {
+        "label": "外表面机械整饰要求",
+        "fact_key": "external_mechanical_surface_finish_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "技术要求是否明确要求当前对象外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "明确出现外表面拉丝、亚光、抛光、磨光、抛丸或等价机械整饰要求。若初次转写为工艺上无意义且字形接近的“盐处理”等，必须回看原图辨认“拉丝/亚光/抛丸”，不得直接按无要求处理。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "完整技术要求清晰可读，且没有外表面拉丝、亚光、抛光、磨光、抛丸等机械整饰要求。出现“外表面…处理”但关键字模糊、转写无工艺意义或相互矛盾时不得返回NOT_HIT，必须返回UNABLE_TO_JUDGE。",
+        "coverage_requirement": "检查全部表面技术要求，区分内/外表面及机械整饰与化学处理；对“外表面…处理”的关键字逐字目视复核。",
+        "evidence_requirement": "提供要求原文、对象范围和表面效果。",
+        "judgement_definition": "这是外表面要求事实。有效机械整饰词命中；仅内表面酸洗/钝化不命中；外表面处理关键字模糊或转写成无意义词时返回UNABLE_TO_JUDGE。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "component_external_finish_judgement_required",
+      "value": {
+        "branch_key": "3.4",
+        "rule_key": "component_external_finish_judgement_required",
+        "description": "部件PDF中的外表面机械整饰要求必须完成真/假判断；关键处理词模糊时保持部分结果，不得按无要求放行。",
+        "decision_key": "surface_stage_completeness",
+        "question": "部件的外表面机械整饰要求是否已可靠判断？",
+        "option_key": "external_finish_judged",
+        "option_label": "外表面机械整饰要求已判断",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "external_finish_judged",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "object_has_bom",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "external_mechanical_surface_finish_required",
+            "operator": "in",
+            "expected_value": [
+              true,
+              false
+            ]
+          }
+        ],
+        "missing_behavior": "error",
+        "priority": 230
+      }
+    }
+  ]
+}

@@ -19,25 +19,9 @@ from drawing_route_auditor.workflow.models import (
 )
 
 
-def collect_fact_evidence(
-    executions: tuple[ReaderExecution, ...],
-) -> dict[str, list[EvidenceRef]]:
-    collected: dict[str, list[EvidenceRef]] = {}
-    for execution in executions:
-        if execution.response is None:
-            continue
-        for observation in execution.response.observations:
-            bucket = collected.setdefault(observation.fact_key, [])
-            known = {(item.page, item.region, item.text) for item in bucket}
-            for evidence in observation.evidence:
-                signature = (evidence.page, evidence.region, evidence.text)
-                if signature not in known:
-                    bucket.append(evidence)
-                    known.add(signature)
-    return collected
-
 def collect_fact_observations(
     executions: tuple[ReaderExecution, ...],
+    additional: tuple[FactObservation, ...] = (),
 ) -> dict[str, list[FactObservation]]:
     collected: dict[str, list[FactObservation]] = {}
     for execution in executions:
@@ -45,6 +29,33 @@ def collect_fact_observations(
             continue
         for observation in execution.response.observations:
             collected.setdefault(observation.fact_key, []).append(observation)
+    for observation in additional:
+        collected.setdefault(observation.fact_key, []).append(observation)
+    return collected
+
+
+def collect_fact_evidence(
+    executions: tuple[ReaderExecution, ...],
+    additional: tuple[FactObservation, ...] = (),
+) -> dict[str, list[EvidenceRef]]:
+    collected: dict[str, list[EvidenceRef]] = {}
+    observations = collect_fact_observations(executions, additional)
+    for fact_key, fact_observations in observations.items():
+        bucket = collected.setdefault(fact_key, [])
+        known = {
+            (item.source_type, item.page, item.region, item.text) for item in bucket
+        }
+        for observation in fact_observations:
+            for evidence in observation.evidence:
+                signature = (
+                    evidence.source_type,
+                    evidence.page,
+                    evidence.region,
+                    evidence.text,
+                )
+                if signature not in known:
+                    bucket.append(evidence)
+                    known.add(signature)
     return collected
 
 
@@ -344,6 +355,8 @@ def assemble_recommendation(
                 fact_labels=labels,
                 tree_revision=tree_revision,
             )
+            if not operations:
+                continue
             signature = json.dumps(
                 [item.process_name for item in operations],
                 ensure_ascii=False,

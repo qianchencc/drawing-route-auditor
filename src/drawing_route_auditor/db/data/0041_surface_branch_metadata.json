@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "表面分支元数据与承担层级守卫保持一致：最终质量要求不直接等于独立工序。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "branches",
+      "key": "3.4",
+      "value": {
+        "title": "表面与清洁",
+        "node_key": "3",
+        "priority": 10,
+        "rule_text": "外表面质量要求先判断可验证承担阶段；仅明确独立承担时生成表面工序，承担不明时保持部分结果",
+        "branch_key": "3.4",
+        "confidence_mode": "candidate",
+        "maintenance_status": "needs_review"
+      }
+    }
+  ]
+}

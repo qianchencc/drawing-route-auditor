@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "plm_part_name",
+      "value": {
+        "fact_key": "plm_part_name",
+        "source_kind": "external",
+        "reader_key": null,
+        "subject_scope": "current_object",
+        "value_type": "text",
+        "label": "PLM 物料名称",
+        "description": "来自结构化索引或正式 PLM 的当前对象物料名称。",
+        "allowed_values": null,
+        "judgement_definition": "从当前物料主数据读取名称；用于产品族限定，不替代图纸标题栏观察。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "continuous_revolved_surface",
+      "value": {
+        "label": "连续回转曲面",
+        "fact_key": "continuous_revolved_surface",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否包含需要卷制的连续圆筒、圆锥或连续圆弧壳面；折弯板展开图和折弯端部圆弧不属于此事实。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "主要视图或剖视图存在闭合圆、同心圆弧、圆锥母线，或直径尺寸明确绑定连续圆筒/圆锥轮廓。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查后仅见直边板展开轮廓、内部平行折弯线或局部折弯端部圆弧，没有连续回转壳面。",
+        "coverage_requirement": "检查全部主要视图、剖视图、展开轮廓和直径尺寸所绑定的真实边界。",
+        "evidence_requirement": "提供闭合圆/圆弧截面、明确直径对应轮廓或圆锥母线；仅有局部折弯端部尺寸不能作为命中证据。",
+        "judgement_definition": "连续回转曲面必须由实际圆筒、圆锥或连续圆弧壳面证明。长直板轮廓内存在平行折弯线时，应按折弯展开图判断；右端局部折弯截面、圆角或形似直径符号的密集尺寸不能把整件判成回转壳体。若同时命中折弯特征，只有存在独立且明确的闭合圆/圆弧视图时才可命中本事实。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_sheet_family",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "is_plate_part",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "has_bend_feature",
+            "operator": "eq",
+            "expected_value": false
+          }
+        ],
+        "priority": 50,
+        "question": "选择哪个基础路线族？",
+        "rule_key": "rolled_sheet_family",
+        "branch_key": "5.3",
+        "option_key": "rolled_sheet",
+        "description": "板件具有连续回转曲面且不存在折弯特征时选择卷制路线族",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "卷制板件",
+        "outcome_type": "fact",
+        "outcome_value": "rolled_sheet_part"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "laser_blanking_candidate",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "in",
+            "expected_value": [
+              "flat_cut_plate_part",
+              "bent_sheet_part",
+              "welded_sheet_part"
+            ]
+          }
+        ],
+        "question": "板类零件采用哪种下料方式？",
+        "rule_key": "laser_blanking_candidate",
+        "branch_key": "3.1",
+        "option_key": "laser",
+        "description": "板类路线保留激光下料候选",
+        "outcome_key": "blanking_laser",
+        "result_kind": "candidate",
+        "decision_key": "blanking_method",
+        "option_label": "激光下料",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "激光下料",
+          "operation_key": "blanking"
+        }
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "shear_blanking_candidate",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "in",
+            "expected_value": [
+              "flat_cut_plate_part",
+              "bent_sheet_part",
+              "welded_sheet_part"
+            ]
+          }
+        ],
+        "question": "板类零件采用哪种下料方式？",
+        "rule_key": "shear_blanking_candidate",
+        "branch_key": "3.1",
+        "option_key": "shear",
+        "description": "板类路线保留剪板下料候选",
+        "outcome_key": "blanking_shear",
+        "result_kind": "candidate",
+        "decision_key": "blanking_method",
+        "option_label": "剪板下料",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "剪板下料",
+          "operation_key": "blanking"
+        }
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "verified_cover_shell_laser_blanking",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "verified_cover_shell_laser_blanking",
+        "description": "已审查的折弯罩壳样本均以激光下料开始；复杂罩壳只在其后追加刨槽、焊接或表面工序",
+        "decision_key": "blanking_method",
+        "question": "罩壳折弯件采用哪种下料方式？",
+        "option_key": "verified_cover_shell_laser",
+        "option_label": "激光下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "blanking_laser",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "激光下料",
+          "operation_key": "blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "bent_sheet_part"
+          },
+          {
+            "fact_key": "plm_part_name",
+            "operator": "contains",
+            "expected_value": "罩壳"
+          }
+        ],
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "bend_revolution_conflict_guard",
+      "value": {
+        "branch_key": "5.3",
+        "rule_key": "bend_revolution_conflict_guard",
+        "priority": 120,
+        "description": "同一板件同时被判断为折弯展开件和连续回转壳体时阻塞路线族选择",
+        "decision_key": "route_family",
+        "question": "折弯特征与连续回转曲面判断是否冲突？",
+        "option_key": "geometry_classification_conflict",
+        "option_label": "几何分类冲突",
+        "result_kind": "error",
+        "outcome_type": "error",
+        "outcome_key": "bend_revolution_geometry_conflict",
+        "outcome_value": null,
+        "clauses": [
+          {
+            "fact_key": "is_plate_part",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "has_bend_feature",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "evaluation_mode": "all",
+        "missing_behavior": "error"
+      }
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "以PDF可观察的单轴外圆实体几何补齐短小棒料车削，并把卷制壳面与实体外圆分离；已审查多个短轴正例和外方内圆棱柱反例。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "single_axis_external_cylindrical_profile",
+      "value": {
+        "label": "单轴外圆实体轮廓",
+        "fact_key": "single_axis_external_cylindrical_profile",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "整件外部主体轮廓是否由单一中心轴上的一个或多个简单外圆、阶梯外圆、圆锥段或外螺纹段组成；局部轴向孔、横孔、倒角或小平面不否定主体外圆。不得把方块内孔、板壳局部圆柱或管材内外壁判为此事实。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "主要视图或剖视图显示整件外部轮廓围绕同一中心轴形成简单或阶梯圆柱/圆锥实体，并且至少一个φ/Ø外径、外螺纹公称直径或圆形端视图明确绑定外部轮廓。局部倒角、轴向孔、横孔、键槽或小平面不影响命中，但必须能证明它们不是整件主要外形。",
+        "not_hit_criteria": "外部主体轮廓明确为方形、矩形、板形、壳体、管材或其他非单轴回转外形；或者只存在内孔、套筒、凸台等局部圆柱特征而外部主体为棱柱。只有孔径φ/Ø而没有外部圆柱轮廓证据时必须返回NOT_HIT，不得以标题栏名称判定。",
+        "coverage_requirement": "检查全部主要视图、剖视图和端视图，区分外部主体轮廓与内孔/局部圆柱；核对中心线、外径、外螺纹、总长、外部方形或矩形尺寸以及连续管壁。",
+        "evidence_requirement": "命中时提供同一中心轴、外部轮廓以及绑定外轮廓的φ/Ø外径、外螺纹或圆形端视证据；未命中时引用外部方/矩形尺寸、板壳/管壁或仅有内孔圆柱的证据。",
+        "judgement_definition": "这是几何事实，不是‘需要车削’的工艺答案。判断整件外部主要形状是否为单轴回转实体：简单圆柱、阶梯轴、销和带局部孔的外圆实体可命中；外方内圆块、只有孔或局部套筒的棱柱、薄壁卷制壳体和管材不得命中。图号、名称和历史路线不得参与判断。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "continuous_revolved_surface",
+      "value": {
+        "label": "连续回转曲面",
+        "fact_key": "continuous_revolved_surface",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否包含围绕中心轴形成的连续圆形空心管壁、圆筒、圆锥或圆弧壳面；实体轴、销、盘的外圆，矩形/方形管及折弯端部圆弧不属于此事实。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "主要视图或剖视图显示围绕中心轴的连续圆形空心壁或薄壁壳面，并有成对内外轮廓、壁厚/板厚、圆形空心截面或卷制板料证据；φ/Ø直径、圆锥母线和中心轴必须绑定该空心管壁或壳面。仅有实体零件外径、中心线或外圆轮廓不得命中。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "完整检查后仅见矩形、方形或其他非圆闭合管截面、直边板展开或局部折弯圆角；或者仅见实体轴、销、盘、套的外圆/阶梯外圆而没有连续空心壁、板厚或成对内外壳面证据。方块中的圆孔和实体件局部圆柱也不得命中。",
+        "coverage_requirement": "检查全部主要视图、剖视图、截面形状、中心线、φ/Ø尺寸、内外轮廓、板厚/壁厚、材料形态和旋转校正视图；明确区分圆形空心管壁/薄壁壳面、非圆管截面与实体车削外圆。",
+        "evidence_requirement": "命中时同时提供连续圆形空心壁或薄壁/板厚证据，以及φ/Ø直径、圆锥母线或圆形空心截面；未命中时提供非圆闭合截面，或实体件外径、局部孔和无连续空心壁的证据。",
+        "judgement_definition": "连续回转曲面在此指圆形空心管壁或薄壁卷制壳面，不泛指所有数学上的回转表面。圆管可命中且raw_form独立为tube；矩形方管必须返回NOT_HIT。围绕中心线的实体外圆属于单轴外圆实体轮廓，不得命中本事实。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "axisymmetric_bar_machined_family",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "bar"},
+          {"fact_key": "single_axis_external_cylindrical_profile", "operator": "eq", "expected_value": true},
+          {"fact_key": "requires_precision_machining", "operator": "eq", "expected_value": true}
+        ],
+        "priority": 220,
+        "question": "单轴外圆精密棒料属于哪类制造路线？",
+        "rule_key": "axisymmetric_bar_machined_family",
+        "branch_key": "5.6",
+        "option_key": "axisymmetric_bar_machined_family",
+        "description": "棒料、单轴外圆实体轮廓和精密要求共同确定非板精加工路线；不使用名称或图号。",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "非板精加工件",
+        "outcome_type": "fact",
+        "outcome_value": "non_sheet_machined_part",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "compact_axisymmetric_bar_turning",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "bar"},
+          {"fact_key": "single_axis_external_cylindrical_profile", "operator": "eq", "expected_value": true},
+          {"fact_key": "large_axisymmetric_bar_profile", "operator": "eq", "expected_value": false},
+          {"fact_key": "requires_precision_machining", "operator": "eq", "expected_value": true}
+        ],
+        "priority": 150,
+        "question": "短小单轴外圆精密棒料的尺寸轮廓如何形成？",
+        "rule_key": "compact_axisymmetric_bar_turning",
+        "branch_key": "3.6",
+        "option_key": "compact_axisymmetric_bar_turning",
+        "description": "短小棒料具有单轴简单或阶梯外圆、螺纹及精密要求时，以车削形成外圆、端面和螺纹；长大轴继续使用粗车/调质/精车专门规则。",
+        "outcome_key": "compact_axisymmetric_bar_turning",
+        "result_kind": "resolved",
+        "decision_key": "compact_turning",
+        "option_label": "车",
+        "outcome_type": "process",
+        "outcome_value": {"order_rank": 20, "process_name": "车", "operation_key": "compact_axisymmetric_bar_turning"},
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

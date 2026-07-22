@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "完善无焊接对象的接头组NOT_HIT合同，并强化横向孔的正交视图判据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "independent_weld_joint_group_count",
+      "value": {
+        "label": "独立焊接接头组数量",
+        "fact_key": "independent_weld_joint_group_count",
+        "reader_key": "symbol_relation_reader",
+        "value_type": "number",
+        "description": "按空间位置、连接成员和接头类型区分的独立焊接接头组数量；相邻重复同类焊缝计为一组。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "焊接符号、BOM 引出和视图足以区分至少一组连接成员明确的焊接接头。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "完整检查后当前对象没有焊接符号、焊缝标注或焊接连接，因而不存在独立焊接接头组。",
+        "coverage_requirement": "覆盖全部焊接符号、剖视和 BOM 引出；不得按焊缝条数机械计数。",
+        "evidence_requirement": "逐组提供连接成员、位置和焊接符号/技术要求证据。",
+        "judgement_definition": "按空间位置、连接成员和接头类型区分独立焊接接头组；无焊接对象返回 NOT_HIT/false，不得用名称推断。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "transverse_hole_feature_present",
+      "value": {
+        "label": "横向孔特征",
+        "fact_key": "transverse_hole_feature_present",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否有孔轴线与整体棒料/轴类主轴明显相交或近似垂直的横向孔；同一特征在一个正投影视图呈圆、在正交视图呈两条平行边/隐藏线时属于横向孔。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "孔径或孔轮廓明确；其轴线与棒料主轴相交/近似垂直，或者同一位置在一幅正投影视图呈圆而在正交视图呈两条平行边、矩形投影或隐藏线。轴端耳孔也应命中。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "完整对照全部正交视图后只见与主轴同轴的轴向孔，或没有孔。",
+        "coverage_requirement": "逐一对应全部孔在主视、俯视、端视和剖视中的投影，检查圆形投影与正交矩形/隐藏线投影，不能只看单一视图。",
+        "evidence_requirement": "提供孔径、圆形投影视图、正交投影视图及其相对整体主轴方向。",
+        "judgement_definition": "通过同一孔在正交视图中的投影和中心线判断孔轴方向；不得因孔位于轴端而默认是轴向孔。"
+      }
+    }
+  ]
+}

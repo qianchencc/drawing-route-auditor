@@ -15,6 +15,7 @@ from drawing_route_auditor.db.migrations import current_versions, load_migration
 from drawing_route_auditor.decision_tree.editor import apply_tree_patch
 from drawing_route_auditor.decision_tree.importer import initialize_decision_tree
 from drawing_route_auditor.decision_tree.repository import (
+    current_tree_payload,
     evaluate_tree,
     list_trees,
     tree_details,
@@ -174,6 +175,7 @@ def _observation_cn(observation: Any) -> dict[str, object]:
         "值": observation.value,
         "证据": [
             {
+                "来源": item.source_type,
                 "页码": item.page,
                 "区域": item.region,
                 "原文": item.text,
@@ -228,8 +230,9 @@ def _decision_fact_cn(fact: Any) -> dict[str, object]:
         "事实名称": fact.label,
         "状态": _cn_status(fact.status),
         "值": fact.value,
-        "图纸证据": [
+        "事实证据": [
             {
+                "来源": evidence.source_type,
                 "页码": evidence.page,
                 "区域": evidence.region,
                 "原文": evidence.text,
@@ -337,10 +340,10 @@ def _workflow_cn(workflow: Any) -> dict[str, object]:
         "运行编号": workflow.run_id,
         "输入": {
             "PDF路径": str(workflow.drawing_input.pdf_path),
-            "物料编码": workflow.drawing_input.material_code,
             "图纸哈希": workflow.drawing_sha256,
         },
         "决策树键": workflow.tree_key,
+        "决策树内部修订": workflow.tree_revision,
         "模型版本": workflow.model_version,
         "提示词模板版本": workflow.prompt_template_version,
         "读取器结果": [
@@ -373,14 +376,13 @@ def _evaluation_cn(evaluation: GoldenEvaluation) -> dict[str, object]:
 
 def _reference_sequences(
     pdf: Path,
-    material_code: str | None,
     evaluation: GoldenEvaluation | None,
 ) -> list[list[str]]:
     if evaluation is not None:
         return evaluation.expected_sequences
     try:
         candidates = load_golden_routes(
-            material_code or pdf.stem,
+            pdf.stem,
             route_sources=DEFAULT_ROUTE_SOURCES,
         )
     except (LookupError, OSError):
@@ -503,20 +505,6 @@ def route(
             metavar="PDF文件",
         ),
     ],
-    material_code: Annotated[
-        str | None,
-        typer.Option("--material-code", help="开发评估使用的物料编码。"),
-    ] = None,
-    external_facts: Annotated[
-        Path | None,
-        typer.Option(
-            "--external-facts",
-            exists=True,
-            dir_okay=False,
-            readable=True,
-            help="当前决策树声明的外部事实 JSON。",
-        ),
-    ] = None,
     tree_key: Annotated[
         str,
         typer.Option("--tree-key", help="决策树稳定键。"),
@@ -539,8 +527,6 @@ def route(
 ) -> None:
     if output_format not in {"table", "json"}:
         _abort("--format 只能是 table 或 json", code=2)
-    if evaluate and material_code is None:
-        _abort("--evaluate 需要同时提供 --material-code", code=2)
 
     async def execute(
         progress_callback: ProgressCallback | None,
@@ -562,16 +548,7 @@ def route(
 
     try:
         settings = get_settings()
-        external_payload = (
-            json.loads(external_facts.read_text(encoding="utf-8"))
-            if external_facts is not None
-            else {}
-        )
-        drawing_input = DrawingInput(
-            pdf_path=pdf,
-            material_code=material_code,
-            external_facts=external_payload,
-        )
+        drawing_input = DrawingInput(pdf_path=pdf)
         if output_format == "table":
             with console.status(
                 "[cyan]正在初始化图纸工作流[/cyan]",
@@ -586,7 +563,7 @@ def route(
             workflow, evaluation = asyncio.run(execute(None))
     except Exception as error:
         _abort(f"图纸路线运行失败：{error}")
-    reference_sequences = _reference_sequences(pdf, material_code, evaluation)
+    reference_sequences = _reference_sequences(pdf, evaluation)
 
     payload = {
         "运行结果": _workflow_cn(workflow),
@@ -632,11 +609,6 @@ def route(
         raise typer.Exit(code=3)
 
 
-def _short_text(value: str, limit: int = 48) -> str:
-    normalized = " ".join(value.split())
-    return normalized if len(normalized) <= limit else f"{normalized[: limit - 1]}…"
-
-
 def _display_value(value: object | None) -> str:
     if value is True:
         return "是"
@@ -674,29 +646,44 @@ def _operation_fact_text(operation: Any) -> str:
             else:
                 value = _display_value(fact.value)
             facts.setdefault(fact.label, value)
-    return "；".join(f"{key}={value}" for key, value in facts.items()) or "—"
+    return "\n".join(f"• {key}：{value}" for key, value in facts.items()) or "—"
 
 
-def _operation_evidence_text(operation: Any) -> str:
-    evidence_rows: list[str] = []
-    known: set[tuple[int, str, str]] = set()
-    for decision in operation.decisions:
-        for fact in decision.decisive_facts:
-            for evidence in fact.evidence:
-                signature = (evidence.page, evidence.region, evidence.text)
-                if signature in known:
-                    continue
-                known.add(signature)
-                evidence_rows.append(
-                    f"第{evidence.page}页·{evidence.region}："
-                    f"{_short_text(evidence.text)}"
-                )
-    if not evidence_rows:
-        return "—"
-    visible = evidence_rows[:2]
-    if len(evidence_rows) > 2:
-        visible.append(f"另有 {len(evidence_rows) - 2} 条证据")
-    return "\n".join(visible)
+def _evidence_location(evidence: Any) -> str:
+    source_labels = {"drawing": "图纸", "plm": "PLM", "rule": "规则"}
+    if evidence.source_type == "drawing":
+        page = f"第{evidence.page}页" if evidence.page is not None else "图纸"
+        return f"{page} · {evidence.region or '未标注区域'}"
+    location = source_labels.get(evidence.source_type, evidence.source_type)
+    return f"{location} · {evidence.region}" if evidence.region else location
+
+
+def _route_evidence_entries(
+    operations: list[Any],
+) -> list[tuple[Any, list[str], list[str]]]:
+    entries: dict[
+        tuple[str, int | None, str | None, str],
+        tuple[Any, list[str], list[str]],
+    ] = {}
+    for operation in operations:
+        operation_label = str(operation.sequence)
+        for decision in operation.decisions:
+            for fact in decision.decisive_facts:
+                for evidence in fact.evidence:
+                    signature = (
+                        evidence.source_type,
+                        evidence.page,
+                        evidence.region,
+                        evidence.text,
+                    )
+                    if signature not in entries:
+                        entries[signature] = (evidence, [], [])
+                    _, fact_labels, operation_labels = entries[signature]
+                    if fact.label not in fact_labels:
+                        fact_labels.append(fact.label)
+                    if operation_label not in operation_labels:
+                        operation_labels.append(operation_label)
+    return list(entries.values())
 
 
 def _print_route_table(
@@ -705,23 +692,55 @@ def _print_route_table(
     title: str,
     caption: str | None = None,
 ) -> None:
-    table = Table(title=title, caption=caption, expand=True, show_lines=True)
-    table.add_column("序号", justify="right", no_wrap=True)
-    table.add_column("工序", no_wrap=True)
-    table.add_column("性质", no_wrap=True)
-    table.add_column("决策")
-    table.add_column("事实依据")
-    table.add_column("图纸证据")
+    summary = Table(title=title, caption=caption, expand=True, show_lines=True)
+    summary.add_column("序号", justify="right", no_wrap=True)
+    summary.add_column("工序", no_wrap=True)
+    summary.add_column("性质", no_wrap=True)
+    summary.add_column("决策", ratio=1, overflow="fold")
     for operation in operations:
-        table.add_row(
+        summary.add_row(
             str(operation.sequence),
             operation.process_name,
             _operation_nature(operation),
             _operation_decision_text(operation),
-            _operation_fact_text(operation),
-            _operation_evidence_text(operation),
         )
-    console.print(table)
+    console.print(summary)
+
+    facts = Table(title=f"{title} · 事实依据", expand=True, show_lines=True)
+    facts.add_column("工序", no_wrap=True, vertical="top")
+    facts.add_column("完整事实依据", ratio=1, overflow="fold", vertical="top")
+    for operation in operations:
+        facts.add_row(
+            f"{operation.sequence}. {operation.process_name}",
+            _operation_fact_text(operation),
+        )
+    console.print(facts)
+
+    evidence_entries = _route_evidence_entries(operations)
+    if evidence_entries:
+        evidence_table = Table(
+            title=f"{title} · 完整证据",
+            expand=True,
+            show_lines=True,
+        )
+        evidence_table.add_column("证据索引", ratio=1, overflow="fold", vertical="top")
+        evidence_table.add_column("完整原文", ratio=3, overflow="fold", vertical="top")
+        for index, (evidence, fact_labels, operation_labels) in enumerate(
+            evidence_entries,
+            start=1,
+        ):
+            evidence_table.add_row(
+                "\n".join(
+                    [
+                        f"E{index}",
+                        f"工序：{'、'.join(operation_labels)}",
+                        f"事实：{'、'.join(fact_labels)}",
+                        f"位置：{_evidence_location(evidence)}",
+                    ]
+                ),
+                evidence.text.strip(),
+            )
+        console.print(evidence_table)
 
 
 def _print_recommendation(recommendation: Any) -> None:
@@ -855,6 +874,21 @@ def tree_apply(
     console.print(table)
 
 
+@tree_app.command("export", help="无损导出 PostgreSQL 当前决策树定义。")
+def tree_export(
+    tree_key: Annotated[
+        str,
+        typer.Argument(help="决策树稳定键。", metavar="决策树键"),
+    ] = DEFAULT_TREE_KEY,
+) -> None:
+    try:
+        with connect() as connection:
+            payload = current_tree_payload(connection, tree_key)
+    except (DatabaseError, LookupError, RuntimeError) as error:
+        _abort(f"导出当前决策树失败：{error}")
+    _emit_json(payload)
+
+
 @tree_app.command("list", help="列出当前维护的决策树。")
 def tree_list(
     output_format: Annotated[
@@ -918,7 +952,7 @@ def tree_show(
         return
     if output_format != "table":
         _abort("--format 只能是 table 或 json", code=2)
-    console.print(f"决策树 [bold]{tree_key}[/bold]")
+    console.print(f"决策树 [bold]{tree_key}[/bold] 内部修订={details['revision']}")
     reader_table = Table(title="读取器")
     for heading in ("顺序", "读取器键", "名称", "能力"):
         reader_table.add_column(heading)
@@ -982,6 +1016,7 @@ def tree_show(
 def _tree_details_cn(details: dict[str, Any]) -> dict[str, object]:
     return {
         "决策树键": details["tree_key"],
+        "内部修订": details["revision"],
         "名称": details["name"],
         "说明": details["description"],
         "读取器": [
@@ -1199,8 +1234,6 @@ def tree_evaluate(
             str(item["原因"]),
         )
     console.print(table)
-
-
 
 
 if __name__ == "__main__":

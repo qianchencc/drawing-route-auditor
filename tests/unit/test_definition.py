@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -46,4 +47,19 @@ def test_observed_fact_requires_registered_reader(tmp_path: Path) -> None:
     path.write_text(invalid, encoding="utf-8")
 
     with pytest.raises(ValidationError, match="已注册读取器"):
+        load_tree_definition(path)
+
+
+def test_rule_output_must_match_derived_fact_contract(tmp_path: Path) -> None:
+    payload = json.loads(SOURCE.read_text(encoding="utf-8"))
+    rule = next(
+        item
+        for item in payload["rules"]
+        if item["rule_key"] == "object_component_by_bom"
+    )
+    rule["outcome_value"] = "unknown-kind"
+    path = tmp_path / "invalid-outcome.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="不在允许范围内"):
         load_tree_definition(path)

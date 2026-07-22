@@ -9,17 +9,19 @@ from time import perf_counter
 
 from openai import AsyncOpenAI
 
+from drawing_route_auditor.decision_tree.definition import fact_value_matches
+from drawing_route_auditor.workflow.render import READER_VIEW_VERSION
+
 from drawing_route_auditor.workflow.models import (
     ReaderAdapter,
     ReaderExecution,
     ReaderPlan,
-    RequestedFeature,
     ReaderResponse,
 )
 
 
-PROMPT_TEMPLATE_VERSION = "tree-observation-template-v3"
-OUTPUT_SCHEMA_VERSION = "reader-observations-v2"
+PROMPT_TEMPLATE_VERSION = "tree-observation-template-v4"
+OUTPUT_SCHEMA_VERSION = "reader-observations-v3"
 
 
 _PROMPT_TEMPLATE = """你是制造图纸观察 Reader。你只读取图纸事实，不进行工艺推理。
@@ -37,6 +39,9 @@ _PROMPT_TEMPLATE = """你是制造图纸观察 Reader。你只读取图纸事实
 
 对于 current_object 特征，subject_ref 使用提供的当前对象标识。对于 BOM、连接或 occurrence 特征，分别绑定具体对象或出现位置。Reader 未发现内容不自动等于 not_hit。
 current_object 特征的 subject_ref 必须精确等于当前对象标识；drawing_text 特征必须使用 subject_ref="drawing_text"。
+当前对象标识只是 subject_ref 占位符，不是图纸事实；禁止从标识、文件名或路径推断任何特征值。
+读取标题栏时只取当前图纸的主标题栏字段，不得把 BOM/明细栏中的子件名称、图号或材料当成当前对象字段。
+同一页可能同时提供原方向与顺时针 90° 校正视图；它们是同一图纸证据，优先从文字正立且字段边界完整的方向逐字读取。
 hit、not_hit 和 conflict 都必须提供非空 evidence；not_hit 的 evidence 要说明已检查的区域，不能只返回空数组。
 not_hit 的 value 必须为 false；unable_to_judge 和 conflict 的 value 必须为 null。
 必须返回 requested_features 中的每个 fact_key，不能遗漏、重复或创造未请求字段。
@@ -56,16 +61,38 @@ def build_reader_prompt(plan: ReaderPlan) -> str:
         requested_features=json.dumps(features, ensure_ascii=False, indent=2),
     )
 
-def _value_matches(feature: RequestedFeature, value: object) -> bool:
-    if feature.value_type == "boolean":
-        return isinstance(value, bool)
-    if feature.value_type == "number":
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
-    if feature.value_type == "text":
-        return isinstance(value, str)
-    if feature.value_type == "text_array":
-        return isinstance(value, list) and all(isinstance(item, str) for item in value)
-    return False
+
+_TITLE_FLAG_TOKENS = {
+    "title_contains_welding": ("焊接",),
+    "title_contains_assembly": ("装配", "部装", "总装", "实配"),
+}
+
+
+def _normalize_title_flags(
+    plan: ReaderPlan,
+    response: ReaderResponse,
+) -> None:
+    if plan.reader_key != "document_structure_reader":
+        return
+    observations = {
+        observation.fact_key: observation for observation in response.observations
+    }
+    part_name = observations.get("part_name")
+    if (
+        part_name is None
+        or part_name.status != "hit"
+        or not isinstance(part_name.value, str)
+    ):
+        return
+    for fact_key, tokens in _TITLE_FLAG_TOKENS.items():
+        flag = observations.get(fact_key)
+        if flag is None:
+            continue
+        matched = any(token in part_name.value for token in tokens)
+        flag.status = "hit" if matched else "not_hit"
+        flag.value = matched
+        flag.evidence = part_name.evidence
+        flag.coverage_complete = part_name.coverage_complete
 
 
 def validate_reader_response(
@@ -73,6 +100,7 @@ def validate_reader_response(
     response: ReaderResponse,
     subject_context: str,
 ) -> ReaderResponse:
+    _normalize_title_flags(plan, response)
     requested = {feature.fact_key: feature for feature in plan.requested_features}
     returned_keys = {observation.fact_key for observation in response.observations}
     unknown = returned_keys - set(requested)
@@ -90,7 +118,9 @@ def validate_reader_response(
         if signature in seen:
             raise ValueError(f"Reader 重复返回同一对象事实：{signature}")
         seen.add(signature)
-        scope_counts[observation.fact_key] = scope_counts.get(observation.fact_key, 0) + 1
+        scope_counts[observation.fact_key] = (
+            scope_counts.get(observation.fact_key, 0) + 1
+        )
 
         if (
             feature.subject_scope == "current_object"
@@ -104,11 +134,11 @@ def validate_reader_response(
             feature.subject_scope == "drawing_text"
             and observation.subject_ref != "drawing_text"
         ):
-            raise ValueError(
-                f"事实 {observation.fact_key!r} 必须绑定 drawing_text"
-            )
+            raise ValueError(f"事实 {observation.fact_key!r} 必须绑定 drawing_text")
         if observation.status == "hit":
-            if observation.value is None or not _value_matches(feature, observation.value):
+            if observation.value is None or not fact_value_matches(
+                feature.value_type, observation.value
+            ):
                 raise ValueError(
                     f"事实 {observation.fact_key!r} 的 HIT 值不符合 "
                     f"{feature.value_type} 合同"
@@ -118,8 +148,7 @@ def validate_reader_response(
                 and observation.value not in feature.allowed_values
             ):
                 raise ValueError(
-                    f"事实 {observation.fact_key!r} 返回未允许值 "
-                    f"{observation.value!r}"
+                    f"事实 {observation.fact_key!r} 返回未允许值 {observation.value!r}"
                 )
         if observation.status == "not_hit" and feature.not_hit_criteria is None:
             raise ValueError(f"事实 {observation.fact_key!r} 未定义 NOT_HIT 条件")
@@ -129,9 +158,14 @@ def validate_reader_response(
             and not observation.evidence
         ):
             raise ValueError(f"事实 {observation.fact_key!r} 缺少要求的证据")
+        if any(item.source_type != "drawing" for item in observation.evidence):
+            raise ValueError(f"Reader 事实 {observation.fact_key!r} 只能提供图纸证据")
 
     for fact_key, count in scope_counts.items():
-        if requested[fact_key].subject_scope in {"current_object", "drawing_text"} and count != 1:
+        if (
+            requested[fact_key].subject_scope in {"current_object", "drawing_text"}
+            and count != 1
+        ):
             raise ValueError(f"事实 {fact_key!r} 必须且只能返回一个对象观察")
     return response
 
@@ -144,6 +178,23 @@ _READER_DETAIL_ROLE = {
 }
 
 
+def _view_metadata(page: Path) -> tuple[str | None, str | None, bool]:
+    stem = page.stem
+    for role in {"title", "geometry", "requirements"}:
+        versioned_suffix = f"-{role}-{READER_VIEW_VERSION}"
+        rotated_suffix = f"{versioned_suffix}-rotated"
+        if stem.endswith(rotated_suffix):
+            base = stem.removesuffix(rotated_suffix)
+            raw_number = base.removeprefix("page-")
+            return role, raw_number if raw_number.isdigit() else None, True
+        if stem.endswith(versioned_suffix):
+            base = stem.removesuffix(versioned_suffix)
+            raw_number = base.removeprefix("page-")
+            return role, raw_number if raw_number.isdigit() else None, False
+    raw_number = stem.removeprefix("page-")
+    return None, raw_number if raw_number.isdigit() else None, False
+
+
 def select_reader_views(
     plan: ReaderPlan,
     pages: tuple[Path, ...],
@@ -151,12 +202,14 @@ def select_reader_views(
     role = _READER_DETAIL_ROLE.get(plan.reader_key)
     if role is None:
         return pages
-    selected = [
-        page
-        for page in pages
-        if page.stem.removeprefix("page-").isdigit()
-        or page.stem.endswith(f"-{role}")
-    ]
+    include_overview = plan.reader_key != "geometry_dimension_reader"
+    selected: list[Path] = []
+    for page in pages:
+        page_role, page_number, _ = _view_metadata(page)
+        if page_number is None:
+            continue
+        if page_role == role or (include_overview and page_role is None):
+            selected.append(page)
     return tuple(selected)
 
 
@@ -261,27 +314,13 @@ class OpenAIReaderAdapter:
             "geometry": "几何尺寸高分辨率图",
             "requirements": "技术要求高分辨率图",
         }
-        has_detail = any(
-            any(page.stem.endswith(f"-{role}") for role in role_labels)
-            for page in pages
-        )
+        has_detail = any(_view_metadata(page)[0] is not None for page in pages)
         for fallback_number, page in enumerate(pages, start=1):
-            role = next(
-                (
-                    candidate
-                    for candidate in role_labels
-                    if page.stem.endswith(f"-{candidate}")
-                ),
-                None,
-            )
-            base_stem = (
-                page.stem.removesuffix(f"-{role}") if role is not None else page.stem
-            )
-            raw_page_number = base_stem.removeprefix("page-")
-            page_number = (
-                raw_page_number if raw_page_number.isdigit() else str(fallback_number)
-            )
+            role, raw_page_number, rotated = _view_metadata(page)
+            page_number = raw_page_number or str(fallback_number)
             label = role_labels.get(role, "整页概览")
+            if rotated:
+                label = f"{label}，顺时针 90° 校正"
             encoded = base64.b64encode(page.read_bytes()).decode("ascii")
             content.append({"type": "text", "text": f"第 {page_number} 页（{label}）"})
             content.append(
@@ -289,7 +328,9 @@ class OpenAIReaderAdapter:
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:image/png;base64,{encoded}",
-                        "detail": "high" if role is not None or not has_detail else "low",
+                        "detail": "high"
+                        if role is not None or not has_detail
+                        else "low",
                     },
                 }
             )

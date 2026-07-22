@@ -70,6 +70,24 @@ def _current_tree_row(
     return row
 
 
+def current_tree_payload(
+    connection: Connection,
+    tree_key: str,
+) -> dict[str, object]:
+    current = _current_tree_row(connection, tree_key)
+    row = connection.execute(
+        """
+        SELECT source_payload
+        FROM decision_tree_versions
+        WHERE id = %s
+        """,
+        (current["revision_id"],),
+    ).fetchone()
+    if row is None or not isinstance(row["source_payload"], dict):
+        raise RuntimeError("当前决策树缺少可导出的规范载荷")
+    return row["source_payload"]
+
+
 def tree_details(
     connection: Connection,
     tree_key: str,

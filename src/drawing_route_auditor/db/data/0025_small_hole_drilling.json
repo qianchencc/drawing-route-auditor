@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "用相对尺度明确的小孔拓扑决定钻孔，替代对横向孔方向的错误假设。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "transverse_hole_drilling"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "transverse_hole_feature_present"
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "small_hole_relative_to_body_present",
+      "value": {
+        "fact_key": "small_hole_relative_to_body_present",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "相对本体的小孔特征",
+        "description": "当前对象是否有孔径或螺纹公称直径显著小于本体最大外径的小型轴向、横向、通孔、盲孔或螺纹底孔。",
+        "judgement_definition": "当前对象是否有孔径或螺纹公称直径显著小于本体最大外径的小型轴向、横向、通孔、盲孔或螺纹底孔。",
+        "hit_criteria": "孔径/螺纹规格明确，且公称直径不超过本体最大外径的三分之一；M螺纹、通孔和盲孔均可命中。",
+        "not_hit_criteria": "完整检查后没有孔，或所有孔均为接近本体外径的大型配合孔/内圆面。",
+        "coverage_requirement": "检查全部孔径、螺纹规格、通孔/盲孔文字及本体最大外径；比较相对尺度。",
+        "evidence_requirement": "提供孔径或螺纹规格、本体最大外径和孔轴方向。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "small_hole_drilling",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "small_hole_drilling",
+        "description": "轴类棒料上显著小于本体外径的通孔、盲孔或螺纹底孔映射为钻孔；大型同轴配合孔不得命中。",
+        "decision_key": "hole_machining",
+        "question": "轴类零件上相对本体的小孔如何形成？",
+        "option_key": "small_hole_drilling",
+        "option_label": "钻孔",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "small_hole_drilling",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "钻孔",
+          "operation_key": "small_hole_drilling"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "bar"
+          },
+          {
+            "fact_key": "global_axisymmetric_bar_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "small_hole_relative_to_body_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    }
+  ]
+}

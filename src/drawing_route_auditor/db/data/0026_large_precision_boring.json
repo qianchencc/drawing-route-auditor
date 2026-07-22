@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "以大型精密内圆柱面特征决定镗削，替代无法稳定证明跨BOM边界的条件。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "weldment_coaxial_boring"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "coaxial_precision_bore_across_members"
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "large_precision_internal_cylindrical_surface_present",
+      "value": {
+        "fact_key": "large_precision_internal_cylindrical_surface_present",
+        "source_kind": "observed_drawing",
+        "reader_key": "geometry_dimension_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "大型精密内圆柱面",
+        "description": "当前对象是否有相对局部结构截面较大的内圆柱面，并由直径公差、配合、粗糙度或明确检验尺寸控制。",
+        "judgement_definition": "当前对象是否有相对局部结构截面较大的内圆柱面，并由直径公差、配合、粗糙度或明确检验尺寸控制。",
+        "hit_criteria": "内圆柱直径明确且不小于其所在局部结构高度/外径的三分之一，并至少具有直径公差、配合、粗糙度或“检”尺寸之一。",
+        "not_hit_criteria": "完整检查后没有内圆柱面，或只有相对本体很小的普通孔且无精密控制。",
+        "coverage_requirement": "检查全部内圆轮廓、局部剖视、直径、外部截面尺寸、公差、粗糙度和检验标注。",
+        "evidence_requirement": "提供内圆直径、局部结构尺度及其公差/粗糙度/检验标注。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "weldment_large_precision_boring",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "weldment_large_precision_boring",
+        "description": "焊接部件上相对结构截面较大并受公差、粗糙度或检验尺寸控制的内圆柱面，在连接后统一镗削。",
+        "decision_key": "precision_internal_cylinder_stage",
+        "question": "焊接部件上的大型精密内圆柱面如何统一形成？",
+        "option_key": "weldment_large_precision_boring",
+        "option_label": "镗",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "weldment_large_precision_boring",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "镗",
+          "operation_key": "weldment_large_precision_boring"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "large_precision_internal_cylindrical_surface_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    }
+  ]
+}

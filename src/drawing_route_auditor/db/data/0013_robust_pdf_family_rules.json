@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "ntf_fork_rod_module",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "ntf_fork_rod_module",
+        "description": "由 PDF 图号族与对象类型识别的 NTF800.8069 叉杆精加工模块；名称仅作证据展示，不作为易混汉字门槛",
+        "decision_key": "route_module",
+        "question": "当前对象命中哪个已验证产品族路线模板？",
+        "option_key": "ntf_fork_rod",
+        "option_label": "NTF800 叉杆精加工模块",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_module",
+        "outcome_value": "ntf_fork_rod",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "drawing_number",
+            "operator": "starts_with",
+            "expected_value": "NTF800.8069#"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 220
+      }
+    }
+  ]
+}

@@ -47,7 +47,6 @@ from drawing_route_auditor.workflow.repository import (
     finish_task,
     persist_evaluation,
     persist_reader_executions,
-    persist_external_facts,
     persist_workflow_result,
     start_tasks,
 )
@@ -59,6 +58,13 @@ EVALUATOR_VERSION = "golden-process-sequence-v3"
 
 class WorkflowConfigurationError(ValueError):
     pass
+
+
+def _require_pdf_only_runtime(runtime: RuntimeTree) -> None:
+    if runtime.external_fact_keys:
+        raise WorkflowConfigurationError(
+            f"PDF-only 路线运行禁止外部事实：{list(runtime.external_fact_keys)}"
+        )
 
 
 def _notify(
@@ -85,15 +91,15 @@ async def run_drawing(
     )
     source = drawing_input.pdf_path.read_bytes()
     drawing_sha256 = sha256(source).hexdigest()
-    subject_context = drawing_input.material_code or drawing_input.pdf_path.stem
+    subject_context = "current_object"
 
     with connect(settings) as connection:
         runtime = load_runtime_tree(connection, tree_key)
-        external_facts = _merge_external_facts({}, drawing_input, runtime)
+    _require_pdf_only_runtime(runtime)
     active_adapter = adapter or _configured_adapter(settings)
     model_version = settings.vision_model or "未配置"
     with connect(settings) as connection:
-        run_id, input_id, context_input_id = create_run(
+        run_id, input_id = create_run(
             connection,
             drawing_input=drawing_input,
             drawing_sha256=drawing_sha256,
@@ -200,13 +206,6 @@ async def run_drawing(
                 executions=executions,
                 page_paths=[str(view) for view in reader_views],
             )
-            persist_external_facts(
-                connection,
-                run_id=run_id,
-                input_id=context_input_id,
-                runtime=runtime,
-                drawing_input=drawing_input,
-            )
             for execution in executions:
                 finish_task(
                     connection,
@@ -224,7 +223,6 @@ async def run_drawing(
             WorkflowProgress("evaluate", "started", "正在执行决策树并展开事实闭包"),
         )
         initial_facts, reader_issues = observations_to_facts(executions, runtime)
-        initial_facts.update(external_facts)
         with connect(settings) as connection:
             scenarios = evaluate_scenarios(
                 connection,
@@ -339,8 +337,7 @@ async def run_and_evaluate(
     route_sources: tuple[Path, ...] = DEFAULT_ROUTE_SOURCES,
     answer_path: Path | None = None,
 ) -> tuple[WorkflowResult, GoldenEvaluation]:
-    if drawing_input.material_code is None:
-        raise ValueError("开发评估必须提供物料编码")
+    evaluation_key = drawing_input.pdf_path.stem
     workflow = await run_drawing(
         drawing_input,
         settings,
@@ -350,11 +347,11 @@ async def run_and_evaluate(
         progress_callback=progress_callback,
     )
     golden = load_golden_routes(
-        drawing_input.material_code,
+        evaluation_key,
         route_sources=route_sources,
     )
     evaluation = evaluate_against_golden(
-        drawing_input.material_code,
+        evaluation_key,
         workflow.recommendation,
         golden,
     )
@@ -383,40 +380,6 @@ def _configured_adapter(settings: Settings) -> OpenAIReaderAdapter:
         model=settings.vision_model,
         timeout_seconds=settings.vision_timeout_seconds,
     )
-
-
-def _merge_external_facts(
-    facts: dict[str, object],
-    drawing_input: DrawingInput,
-    runtime: RuntimeTree,
-) -> dict[str, object]:
-    merged = dict(facts)
-    allowed = set(runtime.external_fact_keys)
-    unknown = set(drawing_input.external_facts) - allowed
-    if unknown:
-        raise ValueError(f"当前决策树未声明外部事实：{sorted(unknown)}")
-    default_subject = drawing_input.material_code or drawing_input.pdf_path.stem
-    for fact_key, external in drawing_input.external_facts.items():
-        scope = runtime.fact_scopes[fact_key]
-        subject_ref = external.subject_ref
-        if scope == "current_object":
-            subject_ref = subject_ref or default_subject
-            if subject_ref != default_subject:
-                raise ValueError(
-                    f"外部事实 {fact_key!r} 必须绑定当前对象 {default_subject!r}"
-                )
-        elif scope == "drawing_text":
-            subject_ref = subject_ref or "drawing_text"
-            if subject_ref != "drawing_text":
-                raise ValueError(f"外部事实 {fact_key!r} 必须绑定 drawing_text")
-        elif subject_ref is None:
-            raise ValueError(f"外部事实 {fact_key!r} 必须显式提供 subject_ref")
-
-        payload: dict[str, object] = {"status": external.status}
-        if external.value is not None:
-            payload["value"] = external.value
-        merged[fact_key] = payload
-    return merged
 
 
 def _common_facts(

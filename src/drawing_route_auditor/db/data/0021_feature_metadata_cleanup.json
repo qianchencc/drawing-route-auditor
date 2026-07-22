@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "清理派生事实说明中的图号和名称决策语义。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "object_kind",
+      "value": {
+        "label": "对象类型",
+        "fact_key": "object_kind",
+        "reader_key": null,
+        "value_type": "text",
+        "description": "当前对象是零件还是包含已填写BOM项目的部件。",
+        "source_kind": "derived",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "part",
+          "component"
+        ],
+        "judgement_definition": "仅由当前PDF是否存在至少一条已填写BOM/明细项目行派生；图号和名称禁止参与。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "component_kind",
+      "value": {
+        "label": "部件制造类型",
+        "fact_key": "component_kind",
+        "reader_key": null,
+        "value_type": "text",
+        "description": "部件由焊接连接还是明确装配关系主导。",
+        "source_kind": "derived",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "welded",
+          "assembly",
+          "other"
+        ],
+        "judgement_definition": "仅由当前PDF中的焊接符号、焊缝标注、装配关系和技术要求派生；名称禁止参与。"
+      }
+    }
+  ]
+}

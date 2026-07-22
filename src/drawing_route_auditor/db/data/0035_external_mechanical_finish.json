@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "外表面拉丝、亚光、抛光和磨光统一为可观察机械整饰事实；仅内表面化学处理不命中。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "directional_surface_finish"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "directional_surface_finish_required"
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "external_mechanical_surface_finish_required",
+      "value": {
+        "fact_key": "external_mechanical_surface_finish_required",
+        "source_kind": "observed_drawing",
+        "reader_key": "requirement_annotation_reader",
+        "subject_scope": "current_object",
+        "value_type": "boolean",
+        "allowed_values": null,
+        "label": "外表面机械整饰要求",
+        "description": "技术要求是否明确要求当前对象外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
+        "judgement_definition": "技术要求是否明确要求当前对象外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
+        "hit_criteria": "明确出现外表面拉丝、外表面亚光、外表面抛光、机械磨光或等价要求。",
+        "not_hit_criteria": "完整技术要求可读且没有外表面机械整饰要求；仅有内表面酸洗、钝化等化学处理不得命中。",
+        "coverage_requirement": "检查全部表面技术要求，区分内/外表面及机械整饰与化学处理。",
+        "evidence_requirement": "提供要求原文、对象范围和表面效果。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "external_mechanical_surface_finish",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "external_mechanical_surface_finish",
+        "description": "部件PDF明确要求外表面拉丝、亚光、抛光或磨光时，在已确定的精密加工之后生成抛光。",
+        "decision_key": "external_surface_stage",
+        "question": "明确要求的外表面机械整饰如何完成？",
+        "option_key": "external_mechanical_surface_finish",
+        "option_label": "抛光",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "external_mechanical_surface_finish",
+        "outcome_value": {
+          "order_rank": 60,
+          "process_name": "抛光",
+          "operation_key": "external_mechanical_surface_finish"
+        },
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "external_mechanical_surface_finish_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 150
+      }
+    }
+  ]
+}

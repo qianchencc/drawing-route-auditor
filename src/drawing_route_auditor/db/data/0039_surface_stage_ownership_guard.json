@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "外表面质量要求不能单独证明独立路线工序；删除无依据的表面承担推断，并在承担阶段无法从PDF确定时返回部分结果。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "explicit_part_surface_current_level"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "external_mechanical_surface_finish"
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "component_surface_stage_required",
+      "value": {
+        "branch_key": "3.4",
+        "rule_key": "component_surface_stage_required",
+        "description": "部件PDF明确外表面机械整饰要求时，还必须由PDF可观察事实确定该要求由独立工序还是已验证工序集成承担；仅有最终表面质量要求不得生成独立抛光。",
+        "decision_key": "surface_stage_completeness",
+        "question": "部件外表面机械整饰由哪个可验证制造阶段承担？",
+        "option_key": "component_surface_stage_ready",
+        "option_label": "表面承担阶段已确定",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "component_surface_stage_ready",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "external_mechanical_surface_finish_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_stage_owner",
+            "operator": "in",
+            "expected_value": [
+              "current_level",
+              "process_integrated"
+            ]
+          }
+        ],
+        "missing_behavior": "error",
+        "priority": 232
+      }
+    }
+  ]
+}

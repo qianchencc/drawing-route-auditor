@@ -44,6 +44,8 @@ class DecisionTreePatch(BaseModel):
 
     schema_version: Literal[1] = 1
     tree_key: str = Field(min_length=1)
+    name: str | None = Field(default=None, min_length=1)
+    description: str | None = None
     operations: list[TreePatchOperation] = Field(min_length=1)
 
 
@@ -93,15 +95,11 @@ def _apply_operation(
         if _item_key(operation.collection, item) == operation.key
     ]
     if len(matches) > 1:
-        raise ValueError(
-            f"{operation.collection} 中稳定键 {operation.key!r} 不唯一"
-        )
+        raise ValueError(f"{operation.collection} 中稳定键 {operation.key!r} 不唯一")
 
     if operation.op == "remove":
         if not matches:
-            raise ValueError(
-                f"无法删除不存在的 {operation.collection}:{operation.key}"
-            )
+            raise ValueError(f"无法删除不存在的 {operation.collection}:{operation.key}")
         del items[matches[0]]
     else:
         if operation.value is None:
@@ -130,6 +128,19 @@ def apply_tree_patch(
     patch_path: Path,
 ) -> TreeUpdateSummary:
     patch = load_tree_patch(patch_path)
+    return apply_tree_patch_model(
+        connection,
+        patch,
+        source_label=f"patch:{patch_path}",
+    )
+
+
+def apply_tree_patch_model(
+    connection: Connection,
+    patch: DecisionTreePatch,
+    *,
+    source_label: str,
+) -> TreeUpdateSummary:
     with connection.transaction():
         tree = connection.execute(
             """
@@ -155,6 +166,10 @@ def apply_tree_patch(
         payload = deepcopy(current["source_payload"])
         if not isinstance(payload, dict):
             raise RuntimeError("当前决策树存储载荷无效")
+        if patch.name is not None:
+            payload["name"] = patch.name
+        if patch.description is not None:
+            payload["description"] = patch.description
 
         for operation in patch.operations:
             _apply_operation(payload, operation)
@@ -164,5 +179,5 @@ def apply_tree_patch(
             connection,
             definition=definition,
             source_payload=payload,
-            source_label=f"patch:{patch_path}",
+            source_label=source_label,
         )

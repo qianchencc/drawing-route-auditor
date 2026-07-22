@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from drawing_route_auditor.decision_tree.definition import (
+    ReaderSourceKind,
+    SubjectScope,
+    ValueType,
+)
 
 
 FactStatus = Literal["hit", "not_hit", "unable_to_judge", "conflict"]
@@ -18,12 +24,32 @@ RecommendationStatus = Literal[
 ]
 
 
+def _without_nul(value: object) -> object:
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, list):
+        return [_without_nul(item) for item in value]
+    return value
+
+
 class EvidenceRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    page: int = Field(ge=1)
-    region: str = Field(min_length=1)
+    source_type: Literal["drawing", "plm", "rule"] = "drawing"
+    page: int | None = Field(default=None, ge=1)
+    region: str | None = Field(default=None, min_length=1)
     text: str = Field(min_length=1)
+
+    @field_validator("region", "text", mode="before")
+    @classmethod
+    def remove_nul_characters(cls, value: object) -> object:
+        return _without_nul(value)
+
+    @model_validator(mode="after")
+    def validate_location(self) -> EvidenceRef:
+        if self.source_type == "drawing" and (self.page is None or self.region is None):
+            raise ValueError("图纸证据必须提供页码和区域")
+        return self
 
 
 class FactObservation(BaseModel):
@@ -36,6 +62,11 @@ class FactObservation(BaseModel):
     evidence: list[EvidenceRef]
     coverage_complete: bool
 
+    @field_validator("subject_ref", "value", mode="before")
+    @classmethod
+    def remove_nul_characters(cls, value: object) -> object:
+        return _without_nul(value)
+
     @model_validator(mode="after")
     def validate_status_value(self) -> FactObservation:
         if self.status == "hit" and self.value is None:
@@ -43,6 +74,8 @@ class FactObservation(BaseModel):
         if self.status == "not_hit":
             if not self.coverage_complete:
                 raise ValueError("NOT_HIT 要求观察范围已完整覆盖")
+            if self.value == 0:
+                self.value = False
             if self.value is not False:
                 raise ValueError("NOT_HIT 的 value 必须为 false")
         if self.status in {"unable_to_judge", "conflict"} and self.value is not None:
@@ -50,30 +83,42 @@ class FactObservation(BaseModel):
         return self
 
 
-class ExternalFact(BaseModel):
+class DrawingEvidenceRef(EvidenceRef):
+    source_type: Literal["drawing"] = "drawing"
+
+
+class ReaderFactObservation(FactObservation):
+    evidence: list[DrawingEvidenceRef]
+
+
+class FactContract(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    status: FactStatus
-    value: str | float | bool | list[str] | None
-    source_ref: str = Field(min_length=1)
-    subject_ref: str | None = None
-
-    @model_validator(mode="after")
-    def validate_value(self) -> ExternalFact:
-        if self.status == "hit" and self.value is None:
-            raise ValueError("外部事实 HIT 必须提供 value")
-        if self.status == "not_hit" and self.value is not False:
-            raise ValueError("外部事实 NOT_HIT 的 value 必须为 false")
-        if self.status in {"unable_to_judge", "conflict"} and self.value is not None:
-            raise ValueError("未知或冲突的外部事实 value 必须为 null")
-        return self
+    fact_key: str
+    label: str
+    source_kind: ReaderSourceKind
+    subject_scope: SubjectScope
+    value_type: ValueType
+    allowed_values: list[str] | None
 
 
 class ReaderResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     reader_key: str = Field(min_length=1)
-    observations: list[FactObservation]
+    observations: list[ReaderFactObservation]
+
+    @field_validator("observations", mode="before")
+    @classmethod
+    def normalize_observation_models(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return value
+        return [
+            item.model_dump(mode="python")
+            if isinstance(item, FactObservation)
+            else item
+            for item in value
+        ]
 
 
 class RequestedFeature(BaseModel):
@@ -81,8 +126,8 @@ class RequestedFeature(BaseModel):
 
     fact_key: str
     label: str
-    subject_scope: str
-    value_type: str
+    subject_scope: SubjectScope
+    value_type: ValueType
     allowed_values: list[str] | None
     judgement_definition: str
     hit_criteria: str | None
@@ -115,6 +160,11 @@ class ReaderExecution(BaseModel):
     error_code: str | None = None
     error_message: str | None = None
     page_inputs: list[str] = Field(default_factory=list)
+
+    @field_validator("error_code", "error_message", mode="before")
+    @classmethod
+    def remove_nul_characters(cls, value: object) -> object:
+        return _without_nul(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,8 +267,6 @@ class DrawingInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pdf_path: Path
-    material_code: str | None = None
-    external_facts: dict[str, ExternalFact] = Field(default_factory=dict)
 
 
 class WorkflowResult(BaseModel):

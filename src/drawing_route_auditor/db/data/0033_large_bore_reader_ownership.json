@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "由同时查看几何裁剪和整页总览的符号关系Reader核对大型精密内圆，避免单一剖视漏读。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "large_precision_internal_cylindrical_surface_present",
+      "value": {
+        "label": "大型精密内圆柱面",
+        "fact_key": "large_precision_internal_cylindrical_surface_present",
+        "reader_key": "symbol_relation_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否有相对局部结构截面较大的内圆柱面，并由直径公差、配合、粗糙度或明确检验尺寸控制。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "内圆柱直径明确且不小于其所在局部结构高度/外径的三分之一；只要该内圆柱自身具有直径公差、配合、粗糙度或“检”尺寸中的任意一项就必须命中，不要求跨越多个BOM构件。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "完整检查后没有内圆柱面，或只有相对本体很小的普通孔且无精密控制。",
+        "coverage_requirement": "在几何裁剪和整页总览中检查全部内圆轮廓、直径、局部外部尺度、公差、粗糙度和检验标注，并结合焊接/BOM关系；不得只检查单一剖视。",
+        "evidence_requirement": "提供内圆直径、局部结构尺度，以及该内圆自身的公差/粗糙度/检验标注之一。",
+        "judgement_definition": "这是几何与精度事实，不是镗削答案。满足“大内圆相对尺度 + 任一明确精度控制”即返回HIT；不得因缺少第二种精度标注或跨BOM边界证据返回UNABLE_TO_JUDGE。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "symbol_relation_reader",
+      "value": {
+        "label": "符号关系读取器",
+        "sequence": 3,
+        "reader_key": "symbol_relation_reader",
+        "capability_definition": "读取焊接符号、连接成员、独立接头组、空间可达区域、成员对精密特征通道的遮挡关系；同时在几何裁剪和整页总览中核对受公差/粗糙度/检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案。"
+      }
+    }
+  ]
+}

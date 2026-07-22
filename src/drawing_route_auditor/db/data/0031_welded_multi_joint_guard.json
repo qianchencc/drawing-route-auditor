@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "多接头完整性守卫仅适用于PDF明确存在焊接符号的对象。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "multi_joint_access_classification_required",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "independent_weld_joint_group_count",
+            "operator": "gte",
+            "expected_value": 2
+          },
+          {
+            "fact_key": "separated_weld_access_regions_present",
+            "operator": "in",
+            "expected_value": [
+              true,
+              false
+            ]
+          }
+        ],
+        "priority": 245,
+        "question": "多组焊接接头的空间可达关系是否已确定？",
+        "rule_key": "multi_joint_access_classification_required",
+        "branch_key": "3.6",
+        "option_key": "multi_joint_access_ready",
+        "description": "存在焊接符号且包含两组及以上独立接头时，必须从PDF确定这些接头是否位于分离可达区域，才能声称焊接阶段顺序完整；无焊接对象不适用。",
+        "outcome_key": "multi_joint_access_ready",
+        "result_kind": "resolved",
+        "decision_key": "route_completeness",
+        "option_label": "多组接头可达关系已确定",
+        "outcome_type": "stage",
+        "outcome_value": true,
+        "missing_behavior": "error"
+      }
+    }
+  ]
+}

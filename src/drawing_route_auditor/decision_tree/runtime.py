@@ -7,6 +7,7 @@ from drawing_route_auditor.db.connection import Connection
 from drawing_route_auditor.decision_tree.repository import evaluate_tree
 from drawing_route_auditor.workflow.models import (
     FactObservation,
+    FactContract,
     LocalIssue,
     ReaderExecution,
     ReaderPlan,
@@ -21,9 +22,25 @@ class RuntimeTree:
     tree_key: str
     revision: int
     plans: tuple[ReaderPlan, ...]
-    external_fact_keys: tuple[str, ...]
-    fact_labels: dict[str, str]
-    fact_scopes: dict[str, str]
+    fact_contracts: dict[str, FactContract]
+
+    @property
+    def external_fact_keys(self) -> tuple[str, ...]:
+        return tuple(
+            key
+            for key, contract in self.fact_contracts.items()
+            if contract.source_kind == "external"
+        )
+
+    @property
+    def fact_labels(self) -> dict[str, str]:
+        return {key: contract.label for key, contract in self.fact_contracts.items()}
+
+    @property
+    def fact_scopes(self) -> dict[str, str]:
+        return {
+            key: contract.subject_scope for key, contract in self.fact_contracts.items()
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,18 +95,18 @@ def load_runtime_tree(
     ).fetchall()
     fact_rows = connection.execute(
         """
-        SELECT fact_key, label, source_kind, subject_scope
+        SELECT
+            fact_key, label, source_kind, subject_scope,
+            value_type, allowed_values
         FROM fact_definitions
         WHERE version_id = %s
         ORDER BY fact_key
         """,
         (revision_row["revision_id"],),
     ).fetchall()
-    external_fact_keys = tuple(
-        row["fact_key"] for row in fact_rows if row["source_kind"] == "external"
-    )
-    fact_labels = {row["fact_key"]: row["label"] for row in fact_rows}
-    fact_scopes = {row["fact_key"]: row["subject_scope"] for row in fact_rows}
+    fact_contracts = {
+        row["fact_key"]: FactContract.model_validate(row) for row in fact_rows
+    }
 
     plans_by_key: dict[str, dict[str, object]] = {}
     for row in rows:
@@ -138,9 +155,7 @@ def load_runtime_tree(
         tree_key=tree_key,
         revision=revision_row["revision"],
         plans=plans,
-        external_fact_keys=external_fact_keys,
-        fact_labels=fact_labels,
-        fact_scopes=fact_scopes,
+        fact_contracts=fact_contracts,
     )
 
 
@@ -150,10 +165,14 @@ def observations_to_facts(
 ) -> tuple[dict[str, object], list[LocalIssue]]:
     observations: dict[str, dict[str, list[FactObservation]]] = {}
     issues: list[LocalIssue] = []
-    plan_features = {
-        plan.reader_key: [feature.fact_key for feature in plan.requested_features]
-        for plan in runtime.plans
-    } if runtime is not None else {}
+    plan_features = (
+        {
+            plan.reader_key: [feature.fact_key for feature in plan.requested_features]
+            for plan in runtime.plans
+        }
+        if runtime is not None
+        else {}
+    )
 
     for execution in executions:
         if execution.status == "error" or execution.response is None:
@@ -202,9 +221,7 @@ def observations_to_facts(
                 )
             )
             subject_results.append(
-                values[0].model_copy(
-                    update={"status": "conflict", "value": None}
-                )
+                values[0].model_copy(update={"status": "conflict", "value": None})
             )
 
         if any(item.status == "conflict" for item in subject_results):
@@ -370,8 +387,6 @@ def evaluate_scenarios(
     max_scenarios: int = 64,
 ) -> tuple[EvaluationScenario, ...]:
     prepared_facts = dict(initial_facts)
-    for fact_key in runtime.external_fact_keys:
-        prepared_facts.setdefault(fact_key, {"status": "unable_to_judge"})
 
     pending: list[
         tuple[dict[str, object], tuple[RuleMatch, ...], tuple[LocalIssue, ...]]

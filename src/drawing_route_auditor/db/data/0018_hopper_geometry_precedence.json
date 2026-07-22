@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "当前唯一维护的工艺决策树；数据库是运行时主数据。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "bend_revolution_conflict_guard",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "is_plate_part",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "has_bend_feature",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "not_starts_with",
+            "expected_value": "斗"
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "not_starts_with",
+            "expected_value": "锥"
+          }
+        ],
+        "priority": 120,
+        "question": "折弯特征与连续回转曲面判断是否冲突？",
+        "rule_key": "bend_revolution_conflict_guard",
+        "branch_key": "5.3",
+        "option_key": "geometry_classification_conflict",
+        "description": "同一板件同时命中折弯和连续回转时阻塞；已审查的斗体/锥体族由直径和母线优先确定卷制路线",
+        "outcome_key": "bend_revolution_geometry_conflict",
+        "result_kind": "error",
+        "decision_key": "route_family",
+        "option_label": "几何分类冲突",
+        "outcome_type": "error",
+        "outcome_value": null,
+        "evaluation_mode": "all",
+        "missing_behavior": "error"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "hopper_rolled_family_override",
+      "value": {
+        "branch_key": "5.3",
+        "rule_key": "hopper_rolled_family_override",
+        "description": "PDF 名称为斗体/锥体、板材且有明确直径与连续回转母线时，按已审查斗体族确定卷制路线；锥面连接角不作为折弯冲突",
+        "decision_key": "route_family",
+        "question": "斗体/锥体板件采用哪类成形路线？",
+        "option_key": "hopper_rolled_sheet",
+        "option_label": "卷制板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "rolled_sheet_part",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "is_plate_part",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "part_name",
+            "operator": "in",
+            "expected_value": [
+              "斗体",
+              "锥体"
+            ]
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 200
+      }
+    }
+  ]
+}

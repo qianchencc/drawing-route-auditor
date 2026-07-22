@@ -6,7 +6,9 @@ from typing import Annotated, Any
 
 import typer
 from psycopg2 import Error as DatabaseError
-from rich.console import Console
+from rich import box
+from rich.console import Console, Group
+from rich.panel import Panel
 from rich.table import Table
 
 from drawing_route_auditor.config import get_settings
@@ -55,6 +57,7 @@ app.add_typer(tree_app, name="tree")
 
 console = Console()
 error_console = Console(stderr=True, style="bold red")
+_ROUTE_DETAILS_WIDE_MINIMUM = 120
 
 _STATUS_CN = {
     "queued": "排队中",
@@ -391,6 +394,9 @@ def _reference_sequences(
 
 
 def _print_reference_routes(sequences: list[list[str]]) -> None:
+    if not sequences:
+        console.print("参考路线：未提供")
+        return
     multiple = len(sequences) > 1
     for index, sequence in enumerate(sequences, start=1):
         label = f"参考路线 {index}" if multiple else "参考路线"
@@ -686,12 +692,12 @@ def _route_evidence_entries(
     return list(entries.values())
 
 
-def _print_route_table(
+def _route_renderable(
     operations: list[Any],
     *,
     title: str,
     caption: str | None = None,
-) -> None:
+) -> Group:
     summary = Table(title=title, caption=caption, expand=True, show_lines=True)
     summary.add_column("序号", justify="right", no_wrap=True)
     summary.add_column("工序", no_wrap=True)
@@ -704,7 +710,6 @@ def _print_route_table(
             _operation_nature(operation),
             _operation_decision_text(operation),
         )
-    console.print(summary)
 
     facts = Table(title=f"{title} · 事实依据", expand=True, show_lines=True)
     facts.add_column("工序", no_wrap=True, vertical="top")
@@ -714,46 +719,97 @@ def _print_route_table(
             f"{operation.sequence}. {operation.process_name}",
             _operation_fact_text(operation),
         )
-    console.print(facts)
 
     evidence_entries = _route_evidence_entries(operations)
-    if evidence_entries:
-        evidence_table = Table(
-            title=f"{title} · 完整证据",
-            expand=True,
-            show_lines=True,
+    if not evidence_entries:
+        return Group(summary, facts)
+
+    evidence_table = Table(
+        title=f"{title} · 完整证据",
+        expand=True,
+        show_lines=True,
+    )
+    evidence_table.add_column("证据索引", ratio=1, overflow="fold", vertical="top")
+    evidence_table.add_column("完整原文", ratio=3, overflow="fold", vertical="top")
+    for index, (evidence, fact_labels, operation_labels) in enumerate(
+        evidence_entries,
+        start=1,
+    ):
+        evidence_table.add_row(
+            "\n".join(
+                [
+                    f"E{index}",
+                    f"工序：{'、'.join(operation_labels)}",
+                    f"事实：{'、'.join(fact_labels)}",
+                    f"位置：{_evidence_location(evidence)}",
+                ]
+            ),
+            evidence.text.strip(),
         )
-        evidence_table.add_column("证据索引", ratio=1, overflow="fold", vertical="top")
-        evidence_table.add_column("完整原文", ratio=3, overflow="fold", vertical="top")
-        for index, (evidence, fact_labels, operation_labels) in enumerate(
-            evidence_entries,
-            start=1,
-        ):
-            evidence_table.add_row(
-                "\n".join(
-                    [
-                        f"E{index}",
-                        f"工序：{'、'.join(operation_labels)}",
-                        f"事实：{'、'.join(fact_labels)}",
-                        f"位置：{_evidence_location(evidence)}",
-                    ]
-                ),
-                evidence.text.strip(),
-            )
-        console.print(evidence_table)
+
+    if console.width < _ROUTE_DETAILS_WIDE_MINIMUM:
+        return Group(summary, facts, evidence_table)
+
+    details = Table.grid(expand=True, padding=(0, 1))
+    details.add_column(ratio=2, vertical="top")
+    details.add_column(ratio=3, vertical="top")
+    details.add_row(facts, evidence_table)
+    return Group(summary, details)
+
+
+def _print_route_table(
+    operations: list[Any],
+    *,
+    title: str,
+    caption: str | None = None,
+) -> None:
+    console.print(
+        _route_renderable(
+            operations,
+            title=title,
+            caption=caption,
+        )
+    )
+
+
+def _print_route_panel(
+    operations: list[Any],
+    *,
+    belonging: str,
+) -> None:
+    console.print(
+        Panel(
+            _route_renderable(operations, title="工艺路线"),
+            title=f"所属：{belonging}",
+            title_align="left",
+            box=box.ROUNDED,
+            padding=(0, 1),
+            expand=True,
+        )
+    )
 
 
 def _print_recommendation(recommendation: Any) -> None:
+    has_partial_candidates = (
+        recommendation.status == "partial" and recommendation.route_candidates
+    )
     if recommendation.route is not None:
-        title = "已确定的局部工序" if recommendation.status == "partial" else "工艺路线"
-        _print_route_table(recommendation.route, title=title)
+        if has_partial_candidates:
+            _print_route_table(recommendation.route, title="已确定的顺序前缀")
+        elif recommendation.status == "partial":
+            _print_route_panel(
+                recommendation.route,
+                belonging="已确定的局部工序",
+            )
+        else:
+            _print_route_panel(recommendation.route, belonging="工艺路线")
 
     for index, candidate in enumerate(recommendation.route_candidates, start=1):
-        _print_route_table(
-            candidate.operations,
-            title=f"工艺路线 {index}",
-            caption=f"候选编号：{candidate.route_candidate_id}",
+        candidate_title = (
+            f"局部顺序候选 {index}" if has_partial_candidates else f"工艺路线 {index}"
         )
+        belonging = f"{candidate_title} · 候选编号：{candidate.route_candidate_id}"
+        _print_route_panel(candidate.operations, belonging=belonging)
 
     differences = _candidate_differences_cn(recommendation)
     if differences:
@@ -770,18 +826,50 @@ def _print_recommendation(recommendation: Any) -> None:
         console.print(table)
 
     if recommendation.local_issues:
-        table = Table(title="局部问题")
-        for heading in ("类型", "错误码", "位置", "说明", "缺失事实"):
-            table.add_column(heading)
-        for issue in recommendation.local_issues:
-            table.add_row(
-                _KIND_CN.get(issue.kind, issue.kind),
-                issue.code,
-                issue.location,
-                issue.message,
-                ", ".join(issue.missing_facts),
-            )
-        console.print(table)
+        if console.width < _ROUTE_DETAILS_WIDE_MINIMUM:
+            for index, issue in enumerate(recommendation.local_issues, start=1):
+                missing = "\n".join(f"• {fact}" for fact in issue.missing_facts) or "无"
+                console.print(
+                    Panel(
+                        "\n".join(
+                            [
+                                f"类型：{_KIND_CN.get(issue.kind, issue.kind)}",
+                                f"错误码：{issue.code}",
+                                f"位置：{issue.location}",
+                                "",
+                                "说明：",
+                                issue.message.replace("；", "；\n"),
+                                "",
+                                "缺失事实：",
+                                missing,
+                            ]
+                        ),
+                        title=f"局部问题 #{index}",
+                        title_align="left",
+                        box=box.ROUNDED,
+                        padding=(0, 1),
+                        expand=True,
+                    )
+                )
+        else:
+            table = Table(title="局部问题", expand=True, show_lines=True)
+            table.add_column("问题", ratio=1, overflow="fold", vertical="top")
+            table.add_column("完整内容", ratio=3, overflow="fold", vertical="top")
+            for index, issue in enumerate(recommendation.local_issues, start=1):
+                metadata = "\n".join(
+                    [
+                        f"#{index}",
+                        f"类型：{_KIND_CN.get(issue.kind, issue.kind)}",
+                        f"错误码：{issue.code}",
+                        f"位置：{issue.location}",
+                    ]
+                )
+                missing = "\n".join(f"• {fact}" for fact in issue.missing_facts) or "无"
+                table.add_row(
+                    metadata,
+                    f"说明：\n{issue.message}\n\n缺失事实：\n{missing}",
+                )
+            console.print(table)
 
 
 @tree_app.command("init", help="从完整定义初始化空决策树。")

@@ -9,9 +9,10 @@ from pydantic import BaseModel, ConfigDict
 
 from drawing_route_auditor.workflow.models import RouteRecommendation
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_ROUTE_SOURCES: tuple[Path, ...] = (
-    Path("docs/routes_1.csv"),
-    Path("docs/routes_2.csv"),
+    _PROJECT_ROOT / "docs/routes_1.csv",
+    _PROJECT_ROOT / "docs/routes_2.csv",
 )
 
 

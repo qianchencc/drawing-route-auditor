@@ -269,6 +269,65 @@ def _deduplicate_issues(issues: list[LocalIssue]) -> list[LocalIssue]:
     return list(unique.values())
 
 
+_PARTIAL_ORDER_GROUPS = {
+    "weld_finish_precision_order_supported": (
+        "weld_seam_finish_polish",
+        "weldment_large_precision_boring",
+    ),
+}
+
+
+def _resequence(operations: list[RouteOperation]) -> list[RouteOperation]:
+    return [
+        operation.model_copy(update={"sequence": sequence})
+        for sequence, operation in enumerate(operations, start=1)
+    ]
+
+
+def _partial_order_candidates(
+    operations: list[RouteOperation],
+    issues: list[LocalIssue],
+) -> tuple[list[RouteOperation], list[RouteCandidate]]:
+    missing_fact_keys = {
+        missing.partition(":")[0] for issue in issues for missing in issue.missing_facts
+    }
+    for fact_key, operation_keys in _PARTIAL_ORDER_GROUPS.items():
+        if fact_key not in missing_fact_keys:
+            continue
+        positions = {
+            operation.operation_key: index
+            for index, operation in enumerate(operations)
+            if operation.operation_key in operation_keys
+        }
+        if set(positions) != set(operation_keys):
+            continue
+        first_position = min(positions.values())
+        current = _resequence(operations)
+        alternate_operations = list(operations)
+        left, right = (positions[key] for key in operation_keys)
+        alternate_operations[left], alternate_operations[right] = (
+            alternate_operations[right],
+            alternate_operations[left],
+        )
+        alternate = _resequence(alternate_operations)
+        candidates = []
+        for candidate_operations in (current, alternate):
+            signature = json.dumps(
+                [item.process_name for item in candidate_operations],
+                ensure_ascii=False,
+            )
+            candidates.append(
+                RouteCandidate(
+                    route_candidate_id=sha256(signature.encode("utf-8")).hexdigest()[
+                        :16
+                    ],
+                    operations=candidate_operations,
+                )
+            )
+        return _resequence(operations[:first_position]), candidates
+    return operations, []
+
+
 def assemble_recommendation(
     scenarios: tuple[EvaluationScenario, ...],
     *,
@@ -378,13 +437,15 @@ def assemble_recommendation(
 
     if issues:
         partial = max(partial_routes, key=len, default=[])
-        status = "partial" if partial else "error"
+        confirmed_prefix, order_candidates = _partial_order_candidates(partial, issues)
+        status = "partial" if partial or order_candidates else "error"
         return RouteRecommendation(
             status=status,
-            route=partial or None,
-            route_candidates=[],
+            route=confirmed_prefix or None,
+            route_candidates=order_candidates,
             local_issues=issues,
         )
+
     if len(candidates) > 1:
         return RouteRecommendation(
             status="complete_with_candidates",

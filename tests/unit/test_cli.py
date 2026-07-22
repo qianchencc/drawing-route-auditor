@@ -166,11 +166,198 @@ def test_route_table_shows_all_evidence_without_truncation(
     output = stream.getvalue()
     assert "工艺路线 · 事实依据" in output
     assert "工艺路线 · 完整证据" in output
+    assert any(
+        "工艺路线 · 事实依据" in line and "工艺路线 · 完整证据" in line
+        for line in output.splitlines()
+    )
     assert "规则修订" not in output
     assert "第 1 条证据完整原文" in output
     assert "第 2 条证据完整原文" in output
     assert "第 3 条证据完整原文" in output
     assert "另有" not in output
+    assert "…" not in output
+
+
+def test_route_table_stacks_evidence_at_narrow_width(monkeypatch: object) -> None:
+    evidence = SimpleNamespace(
+        source_type="drawing",
+        page=1,
+        region="技术要求第3条",
+        text="外露焊缝磨平抛光。",
+    )
+    fact = SimpleNamespace(
+        label="焊缝修平要求",
+        status="hit",
+        value=True,
+        evidence=[evidence],
+    )
+    decision = SimpleNamespace(
+        question="明确要求修平的首道焊缝如何整饰？",
+        selected_option="抛光",
+        result_status="resolved",
+        decisive_facts=[fact],
+    )
+    operation = SimpleNamespace(
+        sequence=1,
+        process_name="抛光",
+        decisions=[decision],
+    )
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "console",
+        Console(file=stream, width=88, color_system=None),
+    )
+
+    cli._print_route_table([operation], title="已确定的局部工序")
+
+    output = stream.getvalue()
+    assert "已确定的局部工序 · 事实依据" in output
+    assert "已确定的局部工序 · 完整证据" in output
+    assert not any(
+        "事实依据" in line and "完整证据" in line for line in output.splitlines()
+    )
+
+
+def test_partial_route_is_grouped_in_rounded_panel(monkeypatch: object) -> None:
+    operation = SimpleNamespace(
+        sequence=1,
+        process_name="焊接(校正)",
+        decisions=[],
+    )
+    recommendation = SimpleNamespace(
+        status="partial",
+        route=[operation],
+        route_candidates=[],
+        local_issues=[],
+    )
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "console",
+        Console(file=stream, width=160, color_system=None),
+    )
+
+    cli._print_recommendation(recommendation)
+
+    output = stream.getvalue()
+    assert output.count("╭") == 1
+    assert output.count("╰") == 1
+    assert "所属：已确定的局部工序" in output
+    assert "已确定的局部工序 · 事实依据" not in output
+
+
+def test_complete_route_is_grouped_in_rounded_panel(monkeypatch: object) -> None:
+    operation = SimpleNamespace(
+        sequence=1,
+        process_name="锯床下料",
+        decisions=[],
+    )
+    recommendation = SimpleNamespace(
+        status="complete",
+        route=[operation],
+        route_candidates=[],
+        local_issues=[],
+    )
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "console",
+        Console(file=stream, width=160, color_system=None),
+    )
+
+    cli._print_recommendation(recommendation)
+
+    output = stream.getvalue()
+    assert output.count("╭") == 1
+    assert output.count("╰") == 1
+    assert "所属：工艺路线" in output
+
+
+def test_partial_order_candidates_are_visibly_distinct(
+    monkeypatch: object,
+) -> None:
+    def operation(sequence: int, name: str) -> SimpleNamespace:
+        return SimpleNamespace(sequence=sequence, process_name=name, decisions=[])
+
+    recommendation = SimpleNamespace(
+        status="partial",
+        route=[operation(1, "焊接(校正)")],
+        route_candidates=[
+            SimpleNamespace(
+                route_candidate_id="finish-first",
+                operations=[
+                    operation(1, "焊接(校正)"),
+                    operation(2, "抛光"),
+                    operation(3, "镗"),
+                ],
+            ),
+            SimpleNamespace(
+                route_candidate_id="precision-first",
+                operations=[
+                    operation(1, "焊接(校正)"),
+                    operation(2, "镗"),
+                    operation(3, "抛光"),
+                ],
+            ),
+        ],
+        local_issues=[],
+    )
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "console",
+        Console(file=stream, width=240, color_system=None),
+    )
+
+    cli._print_recommendation(recommendation)
+
+    output = stream.getvalue()
+    assert "已确定的顺序前缀" in output
+    assert "局部顺序候选 1" in output
+    assert "局部顺序候选 2" in output
+    assert "已确定的局部工序" not in output
+    assert output.count("╭") == 2
+    assert output.count("╰") == 2
+    assert "所属：局部顺序候选 1 · 候选编号：finish-first" in output
+    assert "所属：局部顺序候选 2 · 候选编号：precision-first" in output
+
+
+def test_local_issue_table_wraps_without_truncation(monkeypatch: object) -> None:
+    message = (
+        "PDF明确防锈/防腐义务时必须同时给出可验证的具体方法；"
+        "只有防锈处理时保持部分结果，禁止按历史路线补成喷塑。"
+    )
+    missing_fact = "surface_protection_method:unable_to_judge"
+    recommendation = SimpleNamespace(
+        status="partial",
+        route=None,
+        route_candidates=[],
+        local_issues=[
+            SimpleNamespace(
+                kind="error",
+                code="DECISION_FACT_UNRESOLVED",
+                location="3/3.4",
+                message=message,
+                missing_facts=[missing_fact],
+            )
+        ],
+    )
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "console",
+        Console(file=stream, width=88, color_system=None),
+    )
+
+    cli._print_recommendation(recommendation)
+
+    output = stream.getvalue()
+    assert "PDF明确防锈/防腐义务" in output
+    assert "禁止按历史路线补成喷塑。" in output
+    assert "surface_protection_method" in output
+    assert "unable_to_judge" in output
+    assert "DECISION_FACT_UNRESOLVED" in output
     assert "…" not in output
 
 
@@ -238,6 +425,68 @@ def test_pdf_stem_loads_reference_route_without_evaluation(
         "参考路线：激光下料 → 焊接(校正) → 卷圆 → 焊接(校正) → 卷圆 → 转焊接" in output
     )
     assert "开发评估" not in output
+
+
+def test_missing_reference_route_is_printed_explicitly(monkeypatch: object) -> None:
+    stream = StringIO()
+    monkeypatch.setattr(
+        cli,
+        "console",
+        Console(file=stream, width=88, color_system=None),
+    )
+
+    cli._print_reference_routes([])
+
+    assert stream.getvalue().strip() == "参考路线：未提供"
+
+
+def test_pdf_stem_loads_reference_route_outside_project_directory(
+    monkeypatch: object,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    references = cli._reference_sequences(
+        Path("/drawings/DEMO-WELD-001.pdf"),
+        evaluation=None,
+    )
+
+    assert references == [["焊接(校正)", "镗", "抛光", "喷塑", "转部装"]]
+
+
+def test_route_prints_reference_answer_last_outside_project_directory(
+    monkeypatch: object,
+    tmp_path: Path,
+) -> None:
+    pdf = tmp_path / "DEMO-WELD-001.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    workflow = SimpleNamespace(
+        run_id="run",
+        recommendation=SimpleNamespace(
+            status="partial",
+            route=None,
+            route_candidates=[],
+            local_issues=[],
+        ),
+        elapsed_seconds=1.0,
+        reader_seconds=0.8,
+        reader_executions=[],
+    )
+
+    async def run_drawing(*args: object, **kwargs: object) -> SimpleNamespace:
+        return workflow
+
+    monkeypatch.setattr(cli, "get_settings", lambda: object())
+    monkeypatch.setattr(cli, "run_drawing", run_drawing)
+    monkeypatch.setattr(cli, "_workflow_cn", lambda workflow: {})
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(cli.app, ["route", str(pdf)])
+
+    assert result.exit_code == 0
+    assert result.stdout.rstrip().endswith(
+        "参考路线：焊接(校正) → 镗 → 抛光 → 喷塑 → 转部装"
+    )
 
 
 def test_route_cli_exposes_no_non_pdf_inference_inputs() -> None:

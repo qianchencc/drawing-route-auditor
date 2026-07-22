@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "非圆截面或弯曲轴线的连续薄壁板壳同样属于卷制成形；区分连续曲率壳面与离散折弯。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "continuous_rolled_shell_surface_present",
+      "value": {
+        "label": "连续卷制板壳曲面",
+        "fact_key": "continuous_rolled_shell_surface_present",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否为由均匀板厚形成、沿主体大范围保持连续曲率的薄壁板壳；截面可以是圆形、非圆闭合或开放曲线，主体轴线也可以弯曲。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "主要视图或剖视图显示成对内外轮廓或明确板厚，主体壳面沿显著长度连续弯曲，并有大半径、圆弧、曲率或实配弧形尺寸约束。非圆截面和弯曲主体轴线不否定；关键是连续曲率而非若干离散直线折弯。",
+        "not_hit_criteria": "完整检查后仅有平板、标准成品管材，或仅由明确折弯线、折角、短翻边和直线板段组成的离散钣金折弯件；局部倒圆或单个折弯圆角不得命中。",
+        "coverage_requirement": "检查全部主要视图、端视图、剖视图、成对内外轮廓、板厚、曲率半径、圆弧尺寸、展开线和离散折弯线；区分连续卷制壳面、标准管材和折弯板件。",
+        "evidence_requirement": "提供均匀板厚或成对内外轮廓、连续弯曲主体，以及大半径/圆弧/曲率尺寸之一；未命中时提供平板、标准管材或离散折弯线证据。",
+        "judgement_definition": "这是连续卷制形态事实，不是工序答案。圆筒圆锥可命中，非圆闭合截面、开放曲线截面和弯曲轴线薄壁壳也可命中；仅15°等截面开口角不能单独证明折弯，必须寻找独立折弯线或短翻边。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "continuous_rolled_shell_family",
+      "value": {
+        "branch_key": "5.3",
+        "rule_key": "continuous_rolled_shell_family",
+        "description": "板料形成大范围连续曲率薄壁壳面时选择卷制板件路线族，不要求固定回转轴或圆形截面。",
+        "decision_key": "route_family",
+        "question": "连续曲率薄壁板壳属于哪个基础路线族？",
+        "option_key": "continuous_rolled_shell",
+        "option_label": "卷制板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "rolled_sheet_part",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "plate"
+          },
+          {
+            "fact_key": "continuous_rolled_shell_surface_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 55
+      }
+    }
+  ]
+}

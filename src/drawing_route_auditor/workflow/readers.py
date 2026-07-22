@@ -20,7 +20,7 @@ from drawing_route_auditor.workflow.models import (
 )
 
 
-PROMPT_TEMPLATE_VERSION = "tree-observation-template-v4"
+PROMPT_TEMPLATE_VERSION = "tree-observation-template-v5"
 OUTPUT_SCHEMA_VERSION = "reader-observations-v3"
 
 
@@ -53,12 +53,19 @@ requested_features：
 
 
 def build_reader_prompt(plan: ReaderPlan) -> str:
-    features = [feature.model_dump(mode="json") for feature in plan.requested_features]
+    features = [
+        feature.model_dump(mode="json", exclude_none=True)
+        for feature in plan.requested_features
+    ]
     return _PROMPT_TEMPLATE.format(
         reader_key=plan.reader_key,
         reader_label=plan.label,
         capability_definition=plan.capability_definition,
-        requested_features=json.dumps(features, ensure_ascii=False, indent=2),
+        requested_features=json.dumps(
+            features,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
     )
 
 
@@ -95,12 +102,153 @@ def _normalize_title_flags(
         flag.coverage_complete = part_name.coverage_complete
 
 
+_GLOBAL_SURFACE_FACT_KEYS = {
+    "external_mechanical_surface_finish_required",
+    "outer_surface_polish_required",
+}
+_GLOBAL_SURFACE_SCOPE_MARKERS = ("外表面", "全部表面", "整体表面", "整面")
+_LOCAL_WELD_FINISH_MARKERS = ("焊缝", "焊道", "焊接处")
+
+
+def _normalize_surface_scope(
+    plan: ReaderPlan,
+    response: ReaderResponse,
+) -> None:
+    if plan.reader_key != "requirement_annotation_reader":
+        return
+    for observation in response.observations:
+        if (
+            observation.fact_key not in _GLOBAL_SURFACE_FACT_KEYS
+            or observation.status != "hit"
+        ):
+            continue
+        evidence_texts = [
+            item.text.strip() for item in observation.evidence if item.text.strip()
+        ]
+        if not evidence_texts or any(
+            marker in text
+            for text in evidence_texts
+            for marker in _GLOBAL_SURFACE_SCOPE_MARKERS
+        ):
+            continue
+        if all(
+            any(marker in text for marker in _LOCAL_WELD_FINISH_MARKERS)
+            for text in evidence_texts
+        ):
+            observation.status = "not_hit"
+            observation.value = False
+
+
+def _normalize_solid_axis_raw_form(
+    plan: ReaderPlan,
+    response: ReaderResponse,
+) -> None:
+    if plan.reader_key != "geometry_dimension_reader":
+        return
+    observations = {
+        observation.fact_key: observation for observation in response.observations
+    }
+    raw_form = observations.get("raw_form")
+    external_axis = observations.get("single_axis_external_cylindrical_profile")
+    continuous_cavity = observations.get("continuous_revolved_surface")
+    if (
+        raw_form is None
+        or not (
+            raw_form.status == "unable_to_judge"
+            or (raw_form.status == "hit" and raw_form.value == "bar")
+        )
+        or external_axis is None
+        or external_axis.status != "hit"
+        or external_axis.value is not True
+        or continuous_cavity is None
+        or continuous_cavity.status != "not_hit"
+        or continuous_cavity.value is not False
+    ):
+        return
+    raw_form.status = "hit"
+    raw_form.value = "bar"
+    raw_form.evidence = [*external_axis.evidence, *continuous_cavity.evidence]
+    raw_form.coverage_complete = (
+        external_axis.coverage_complete and continuous_cavity.coverage_complete
+    )
+
+
+_ROLLED_SHELL_MARKERS = (
+    "薄壁板壳",
+    "薄壁壳面",
+    "闭合薄壁轮廓",
+    "成对内外轮廓",
+)
+_CONTINUOUS_CURVATURE_MARKERS = ("连续弯曲", "连续曲率", "大半径", "圆弧")
+_EXPLICIT_TUBE_STOCK_MARKERS = (
+    "方管",
+    "矩形管",
+    "圆管",
+    "无缝管",
+    "标准管材",
+    "管材规格",
+)
+
+
+def _normalize_rolled_shell_raw_form(
+    plan: ReaderPlan,
+    response: ReaderResponse,
+) -> None:
+    if plan.reader_key != "geometry_dimension_reader":
+        return
+    observations = {
+        observation.fact_key: observation for observation in response.observations
+    }
+    raw_form = observations.get("raw_form")
+    rolled_shell = observations.get("continuous_rolled_shell_surface_present")
+    if raw_form is None or rolled_shell is None:
+        return
+    evidence = list(rolled_shell.evidence or raw_form.evidence)
+    evidence_texts = [item.text for item in evidence]
+    explicit_rolled_shell = rolled_shell.status == "hit" and rolled_shell.value is True
+    evidence_proves_rolled_shell = any(
+        marker in text for text in evidence_texts for marker in _ROLLED_SHELL_MARKERS
+    ) and any(
+        marker in text
+        for text in evidence_texts
+        for marker in _CONTINUOUS_CURVATURE_MARKERS
+    )
+    if not explicit_rolled_shell and not evidence_proves_rolled_shell:
+        return
+    raw_evidence_texts = [item.text for item in raw_form.evidence]
+    shape_only_tube = (
+        raw_form.status == "hit"
+        and raw_form.value == "tube"
+        and not any(
+            marker in text
+            for text in raw_evidence_texts
+            for marker in _EXPLICIT_TUBE_STOCK_MARKERS
+        )
+    )
+    if not (
+        raw_form.status == "unable_to_judge"
+        or (raw_form.status == "hit" and raw_form.value == "plate")
+        or shape_only_tube
+    ):
+        return
+    rolled_shell.status = "hit"
+    rolled_shell.value = True
+    rolled_shell.evidence = evidence
+    raw_form.status = "hit"
+    raw_form.value = "plate"
+    raw_form.evidence = evidence
+    raw_form.coverage_complete = rolled_shell.coverage_complete
+
+
 def validate_reader_response(
     plan: ReaderPlan,
     response: ReaderResponse,
     subject_context: str,
 ) -> ReaderResponse:
     _normalize_title_flags(plan, response)
+    _normalize_surface_scope(plan, response)
+    _normalize_solid_axis_raw_form(plan, response)
+    _normalize_rolled_shell_raw_form(plan, response)
     requested = {feature.fact_key: feature for feature in plan.requested_features}
     returned_keys = {observation.fact_key for observation in response.observations}
     unknown = returned_keys - set(requested)
@@ -170,11 +318,12 @@ def validate_reader_response(
     return response
 
 
-_READER_DETAIL_ROLE = {
-    "document_structure_reader": "title",
-    "geometry_dimension_reader": "geometry",
-    "symbol_relation_reader": "geometry",
-    "requirement_annotation_reader": "requirements",
+_READER_VIEW_POLICY = {
+    "document_structure_reader": ("title", True),
+    "geometry_dimension_reader": ("geometry", False),
+    "geometry_feature_reader": ("geometry", False),
+    "symbol_relation_reader": ("geometry", True),
+    "requirement_annotation_reader": ("requirements", True),
 }
 
 
@@ -199,10 +348,10 @@ def select_reader_views(
     plan: ReaderPlan,
     pages: tuple[Path, ...],
 ) -> tuple[Path, ...]:
-    role = _READER_DETAIL_ROLE.get(plan.reader_key)
-    if role is None:
+    policy = _READER_VIEW_POLICY.get(plan.reader_key)
+    if policy is None:
         return pages
-    include_overview = plan.reader_key != "geometry_dimension_reader"
+    role, include_overview = policy
     selected: list[Path] = []
     for page in pages:
         page_role, page_number, _ = _view_metadata(page)
@@ -337,6 +486,60 @@ class OpenAIReaderAdapter:
         return content
 
 
+def _normalize_cross_reader_geometry(
+    executions: tuple[ReaderExecution, ...],
+) -> None:
+    observations = {
+        observation.fact_key: observation
+        for execution in executions
+        if execution.response is not None
+        for observation in execution.response.observations
+    }
+    external_axis = observations.get("single_axis_external_cylindrical_profile")
+    has_hole = observations.get("has_hole_feature")
+    internal_surface = observations.get(
+        "large_precision_internal_cylindrical_surface_present"
+    )
+    if (
+        external_axis is not None
+        and external_axis.status == "hit"
+        and external_axis.value is True
+        and has_hole is not None
+        and has_hole.status == "not_hit"
+        and has_hole.value is False
+        and internal_surface is not None
+        and internal_surface.status == "hit"
+        and internal_surface.value is True
+    ):
+        internal_surface.status = "not_hit"
+        internal_surface.value = False
+        internal_surface.evidence = list(has_hole.evidence)
+        internal_surface.coverage_complete = (
+            external_axis.coverage_complete and has_hole.coverage_complete
+        )
+
+    rolled_shell = observations.get("continuous_rolled_shell_surface_present")
+    bend = observations.get("has_bend_feature")
+    discrete_bend_markers = ("折弯线", "折弯半径", "折角", "折边", "翻边")
+    if (
+        rolled_shell is not None
+        and rolled_shell.status == "hit"
+        and rolled_shell.value is True
+        and bend is not None
+        and bend.status == "hit"
+        and bend.value is True
+        and not any(
+            marker in evidence.text
+            for evidence in bend.evidence
+            for marker in discrete_bend_markers
+        )
+    ):
+        bend.status = "not_hit"
+        bend.value = False
+        bend.evidence = list(rolled_shell.evidence)
+        bend.coverage_complete = rolled_shell.coverage_complete
+
+
 async def read_all(
     adapter: ReaderAdapter,
     plans: tuple[ReaderPlan, ...],
@@ -352,6 +555,8 @@ async def read_all(
         return plan.sequence, execution
 
     completed = await asyncio.gather(*(read_one(plan) for plan in plans))
-    return tuple(
+    executions = tuple(
         execution for _, execution in sorted(completed, key=lambda item: item[0])
     )
+    _normalize_cross_reader_geometry(executions)
+    return executions

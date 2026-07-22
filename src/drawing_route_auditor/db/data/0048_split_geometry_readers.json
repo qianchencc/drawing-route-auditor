@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "新增局部特征尺寸读取器并与全局形态几何读取器并发分担几何观察；删除无规则消费者的板厚事实，以raw_form=plate统一板材来源判断。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "geometry_dimension_reader",
+      "value": {
+        "reader_key": "geometry_dimension_reader",
+        "label": "全局形态几何读取器",
+        "sequence": 2,
+        "capability_definition": "读取材料规格、全局截面、中心轴、实体或空心主体和整体轴类轮廓；判定原始形态、连续回转曲面和外圆主体，严格区分局部圆柱、实体外圆和连续空心壁。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "geometry_feature_reader",
+      "value": {
+        "reader_key": "geometry_feature_reader",
+        "label": "局部特征尺寸读取器",
+        "sequence": 3,
+        "capability_definition": "读取折弯、孔槽、尺寸公差和局部孔相对本体比例；区分局部加工特征与整体主体轮廓，并完整检查全部主要视图和局部详图。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "symbol_relation_reader",
+      "value": {
+        "label": "符号关系读取器",
+        "sequence": 4,
+        "reader_key": "symbol_relation_reader",
+        "capability_definition": "读取焊接符号、焊缝标注和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "requirement_annotation_reader",
+      "value": {
+        "label": "技术要求读取器",
+        "sequence": 5,
+        "reader_key": "requirement_annotation_reader",
+        "capability_definition": "读取技术要求、公差、表面、清洁、检验、焊缝修平、定向拉丝及防锈/防腐义务；逐字区分通用防锈要求与明确喷塑/粉末涂层，不将要求直接改写成路线。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "has_bend_feature",
+      "value": {
+        "label": "存在折弯特征",
+        "fact_key": "has_bend_feature",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "是否存在明确折弯线、折角、折弯半径或钣金展开图中的折线。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "发现板材展开轮廓内部折弯线、钣金折角、明确折弯半径，或局部剖面/详图显示连续板厚的短翻边相对主体存在非零夹角；2°等小角度仍是折弯。必须排除由 φ/Ø 直径、中心线和圆锥母线共同定义的回转壳体轴向剖面。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查展开图和全部局部剖面/详图后，没有折弯线、钣金折角、折弯半径或带非零夹角的连续板厚短翻边；仅见直板、倒角，或由 φ/Ø 直径和中心线定义的圆筒/圆锥母线。",
+        "coverage_requirement": "检查全部主要视图、展开图内部线型、局部剖面/详图、短边角度、中心线、φ/Ø直径和折弯标注。",
+        "evidence_requirement": "命中时提供展开折弯线、钣金折角，或局部短翻边的连续板厚、长度和角度；未命中时若为回转壳体，引用其中心线、φ/Ø直径和母线证据。",
+        "judgement_definition": "折弯包括小角度短翻边：局部详图中短边与主体板保持连续板厚并标注2°等非零夹角时应命中，即使整件主视图近似平板。单纯材料边缘倒角不保持两段连续板面，不算折弯。圆锥/圆筒轴向剖面的母线、锥角和过渡R仍归连续回转而非折弯。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "has_hole_feature",
+      "value": {
+        "label": "存在孔特征",
+        "fact_key": "has_hole_feature",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在孔。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "发现明确孔轮廓、孔尺寸，或 n-φd、n×φd 等绑定到重复位置的孔数量与直径标注。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查全部视图后未发现孔。",
+        "coverage_requirement": "检查全部视图、旋转校正视图、孔引出线和重复特征标注。",
+        "evidence_requirement": "提供孔轮廓、孔尺寸或重复孔标注原文及其引出位置。",
+        "judgement_definition": "检查全部视图中的孔轮廓和孔尺寸；n-φ6、n×φ6 等标注连到重复点位时必须视为孔证据，不能因孔轮廓很小而返回未命中。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "has_slot_feature",
+      "value": {
+        "label": "存在槽特征",
+        "fact_key": "has_slot_feature",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在槽或缺口加工特征。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "发现明确槽或缺口。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查全部视图后未发现。",
+        "coverage_requirement": "检查全部视图。",
+        "evidence_requirement": "提供槽轮廓或尺寸。",
+        "judgement_definition": "检查全部视图中的槽轮廓和槽尺寸。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "precision_tolerance_present",
+      "value": {
+        "label": "存在精密公差",
+        "fact_key": "precision_tolerance_present",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "几何尺寸是否带需要精加工保证的明确公差。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "关键尺寸存在明确尺寸公差、形位公差或精密配合。",
+        "subject_scope": "current_object",
+        "not_hit_criteria": "完整检查后仅有普通尺寸或未注公差。",
+        "coverage_requirement": "检查全部尺寸和形位公差。",
+        "evidence_requirement": "提供公差原文和作用尺寸。",
+        "judgement_definition": "普通未注公差不单独视为精密公差。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "small_hole_relative_to_body_present",
+      "value": {
+        "label": "相对本体的小孔特征",
+        "fact_key": "small_hole_relative_to_body_present",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否有孔径或螺纹公称直径显著小于本体最大外径的小型轴向、横向、通孔、盲孔或螺纹底孔。",
+        "source_kind": "observed_drawing",
+        "hit_criteria": "孔径/螺纹规格明确，且公称直径不超过本体最大外径的三分之一；M螺纹、通孔和盲孔均可命中。",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": "完整检查后没有孔，或所有孔均为接近本体外径的大型配合孔/内圆面。",
+        "coverage_requirement": "检查全部孔径、螺纹规格、通孔/盲孔文字及本体最大外径；比较相对尺度。",
+        "evidence_requirement": "提供孔径或螺纹规格、本体最大外径和孔轴方向。",
+        "judgement_definition": "当前对象是否有孔径或螺纹公称直径显著小于本体最大外径的小型轴向、横向、通孔、盲孔或螺纹底孔。"
+      }
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "sheet_thickness_mm"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "is_plate_part"
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "bent_sheet_family",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "has_bend_feature", "operator": "eq", "expected_value": true},
+          {"fact_key": "continuous_revolved_surface", "operator": "eq", "expected_value": false}
+        ],
+        "priority": 40,
+        "question": "选择哪个基础路线族？",
+        "rule_key": "bent_sheet_family",
+        "branch_key": "5.2",
+        "option_key": "bent_sheet",
+        "description": "板件存在折弯特征选择折弯路线族",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "折弯板件",
+        "outcome_type": "fact",
+        "outcome_value": "bent_sheet_part"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "flat_sheet_family",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "has_bend_feature", "operator": "eq", "expected_value": false},
+          {"fact_key": "continuous_revolved_surface", "operator": "eq", "expected_value": false}
+        ],
+        "priority": 10,
+        "question": "选择哪个基础路线族？",
+        "rule_key": "flat_sheet_family",
+        "branch_key": "5.1",
+        "option_key": "flat_sheet",
+        "description": "无成形和精加工特征选择平板路线族",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "平板件",
+        "outcome_type": "fact",
+        "outcome_value": "flat_cut_plate_part"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "machined_plate_family",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "requires_precision_machining", "operator": "eq", "expected_value": true}
+        ],
+        "priority": 30,
+        "question": "选择哪个基础路线族？",
+        "rule_key": "machined_plate_family",
+        "branch_key": "5.5",
+        "option_key": "machined_plate",
+        "description": "板件需要精加工保留精加工板件路线族",
+        "outcome_key": "route_family",
+        "result_kind": "candidate",
+        "decision_key": "route_family",
+        "option_label": "精加工板件",
+        "outcome_type": "fact",
+        "outcome_value": "machined_plate_part",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_sheet_family",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "continuous_revolved_surface", "operator": "eq", "expected_value": true},
+          {"fact_key": "has_bend_feature", "operator": "eq", "expected_value": false}
+        ],
+        "priority": 50,
+        "question": "选择哪个基础路线族？",
+        "rule_key": "rolled_sheet_family",
+        "branch_key": "5.3",
+        "option_key": "rolled_sheet",
+        "description": "板件具有连续回转曲面且不存在折弯特征时选择卷制路线族",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "卷制板件",
+        "outcome_type": "fact",
+        "outcome_value": "rolled_sheet_part"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "welded_sheet_family",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "has_welding_feature", "operator": "eq", "expected_value": true}
+        ],
+        "priority": 30,
+        "question": "选择哪个基础路线族？",
+        "rule_key": "welded_sheet_family",
+        "branch_key": "5.4",
+        "option_key": "welded_sheet",
+        "description": "板件存在焊接特征保留焊接板件路线族",
+        "outcome_key": "route_family",
+        "result_kind": "candidate",
+        "decision_key": "route_family",
+        "option_label": "焊接板件",
+        "outcome_type": "fact",
+        "outcome_value": "welded_sheet_part",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "plain_tube_cut_family",
+      "value": {
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "tube"},
+          {"fact_key": "has_bend_feature", "operator": "eq", "expected_value": false},
+          {"fact_key": "has_hole_feature", "operator": "eq", "expected_value": false},
+          {"fact_key": "has_slot_feature", "operator": "eq", "expected_value": false},
+          {"fact_key": "precision_tolerance_present", "operator": "eq", "expected_value": false}
+        ],
+        "priority": 225,
+        "question": "标准管材是否只需定长下料？",
+        "rule_key": "plain_tube_cut_family",
+        "branch_key": "5.6",
+        "option_key": "plain_tube_cut",
+        "description": "无孔槽、无精密公差且无折弯的标准管材零件属于定长锯切路线族；只按PDF材料规格和几何事实判断。",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "管材定长下料件",
+        "outcome_type": "fact",
+        "outcome_value": "tube_cut_part",
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

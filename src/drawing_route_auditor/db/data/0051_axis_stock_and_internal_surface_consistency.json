@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "实体单轴阶梯外圆应归一化为棒料；大型精密内圆必须有可见内边界和孔特征，禁止把外径公差误判为内圆。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "raw_form",
+      "value": {
+        "label": "原始形态",
+        "fact_key": "raw_form",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "text",
+        "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局截面共同决定，局部后加工特征不得改变原材料形态。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": ["plate", "tube", "bar", "casting", "forging", "other"],
+        "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局截面复核。明确管材规格或沿长度连续的闭合空心截面归一化为tube；明确板料规格、展开或卷制板壳证据归一化为plate。若材料栏只给牌号或形态文字缺失，但整件具有同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓且无连续管腔，则必须归一化为bar，不受总长和最大外径阈值限制，也不得返回UNABLE_TO_JUDGE。",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查材料规格、全部主要视图、整个阶梯外轮廓、中心线、每个绑定外部轮廓的φ/Ø外径和外螺纹、轴向长度、闭合截面、内外尺寸、壁厚、展开图和卷制接缝；不得只检查最大横向尺寸，也不得忽略材料中的方管/矩形管/圆管字样。",
+        "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定bar，必须提供中心线、至少一个绑定外部主体的φ/Ø外径或外螺纹、阶梯实体外轮廓以及无连续管腔证据。若材料与几何冲突则返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "判断制造前原材料形态。304方管80×50×5等标准方管、矩形管和圆管归一化为tube；板料展开或卷制壳体归一化为plate。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形或平行直边；同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓以及无连续管腔共同成立时必须归一化为bar，即使材料栏只给牌号。短轴、长细轴和小直径阶梯轴同样适用；长大轴阈值只控制后续路线细分，不控制棒料事实。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "large_precision_internal_cylindrical_surface_present",
+      "value": {
+        "label": "大型精密内圆柱面",
+        "fact_key": "large_precision_internal_cylindrical_surface_present",
+        "reader_key": "symbol_relation_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在具有可见内边界、相对局部结构截面较大且受精度控制的内圆柱面。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "必须先看到区别于外轮廓的明确内孔或内圆柱边界，并确认直径引出线绑定该内边界；随后内圆直径不小于所在局部结构高度或外径的三分之一，且该内圆自身具有直径公差、配合、粗糙度或明确检验尺寸中的至少一项。",
+        "not_hit_criteria": "完整检查后没有区别于外轮廓的内孔或内圆柱边界，或只有相对本体很小且无精密控制的普通孔。实体轴上的Ø外径、外径公差、中心线和外圆粗糙度不得解释成内圆；孔特征明确为NOT_HIT时本事实也必须为NOT_HIT。",
+        "coverage_requirement": "在几何裁剪和整页总览中检查全部内外轮廓、尺寸引出线、局部外部尺度、公差、粗糙度和检验标注；必须确认尺寸绑定内边界而非实体轴外轮廓。",
+        "evidence_requirement": "提供可见内边界、绑定该内边界的内圆直径、局部结构尺度，以及该内圆自身的公差、粗糙度或检验标注之一；只复述一个Ø尺寸或声称其为内圆不构成证据。",
+        "judgement_definition": "这是几何与精度事实，不是镗削答案。先证明存在内圆边界，再判断相对尺度和精度；不得把实体轴阶梯外径或外圆公差误判为大型精密内圆。"
+      }
+    }
+  ]
+}

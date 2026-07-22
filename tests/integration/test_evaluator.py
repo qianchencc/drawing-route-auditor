@@ -61,8 +61,12 @@ def test_closure_and_route_expansion_generate_complete_candidates(
     connection, runtime = imported_tree
     initial_facts = {
         "object_has_bom": {"status": "not_hit", "value": False},
-        "is_plate_part": {"status": "hit", "value": True},
+        "raw_form": {"status": "hit", "value": "plate"},
         "continuous_revolved_surface": {"status": "not_hit", "value": False},
+        "continuous_rolled_shell_surface_present": {
+            "status": "not_hit",
+            "value": False,
+        },
         "has_bend_feature": {"status": "hit", "value": True},
         "outer_surface_polish_required": {"status": "not_hit", "value": False},
         "formal_cleaning_required": {"status": "not_hit", "value": False},
@@ -110,8 +114,12 @@ def test_identity_metadata_does_not_override_bent_geometry(
             runtime,
             {
                 "object_has_bom": {"status": "not_hit", "value": False},
-                "is_plate_part": {"status": "hit", "value": True},
+                "raw_form": {"status": "hit", "value": "plate"},
                 "continuous_revolved_surface": {
+                    "status": "not_hit",
+                    "value": False,
+                },
+                "continuous_rolled_shell_surface_present": {
                     "status": "not_hit",
                     "value": False,
                 },
@@ -140,6 +148,77 @@ def test_identity_metadata_does_not_override_bent_geometry(
 
 
 @pytest.mark.integration
+def test_continuous_rolled_shell_route_is_identity_invariant_and_feature_sensitive(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    shell_facts = {
+        "object_has_bom": {"status": "not_hit", "value": False},
+        "raw_form": {"status": "hit", "value": "plate"},
+        "continuous_revolved_surface": {"status": "not_hit", "value": False},
+        "continuous_rolled_shell_surface_present": {
+            "status": "hit",
+            "value": True,
+        },
+        "has_bend_feature": {"status": "not_hit", "value": False},
+        "has_hole_feature": {"status": "not_hit", "value": False},
+        "has_slot_feature": {"status": "not_hit", "value": False},
+        "precision_tolerance_present": {"status": "not_hit", "value": False},
+        "outer_surface_polish_required": {"status": "not_hit", "value": False},
+        "formal_cleaning_required": {"status": "not_hit", "value": False},
+    }
+    for drawing_number, part_name in [
+        ("IDENTITY-D", "弯曲管壳"),
+        ("UNRELATED-SHELL", "任意连续板壳"),
+    ]:
+        scenarios = evaluate_scenarios(
+            connection,
+            runtime,
+            {
+                **shell_facts,
+                "drawing_number": {"status": "hit", "value": drawing_number},
+                "part_name": {"status": "hit", "value": part_name},
+            },
+        )
+        recommendation = assemble_recommendation(
+            scenarios,
+            tree_revision=runtime.revision,
+        )
+        assert recommendation.status == "complete"
+        assert recommendation.route is not None
+        assert tuple(item.process_name for item in recommendation.route) == (
+            "激光下料",
+            "卷圆",
+        )
+
+    flat_scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **shell_facts,
+            "continuous_rolled_shell_surface_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+        },
+    )
+    flat_recommendation = assemble_recommendation(
+        flat_scenarios,
+        tree_revision=runtime.revision,
+    )
+    routes = (
+        [flat_recommendation.route]
+        if flat_recommendation.route is not None
+        else [
+            candidate.operations for candidate in flat_recommendation.route_candidates
+        ]
+    )
+    assert all(
+        operation.process_name != "卷圆" for route in routes for operation in route
+    )
+
+
+@pytest.mark.integration
 def test_feature_routes_are_identity_invariant_and_feature_sensitive(
     imported_tree: tuple[Connection, object],
 ) -> None:
@@ -156,7 +235,6 @@ def test_feature_routes_are_identity_invariant_and_feature_sensitive(
 
     shaft_features = {
         "object_has_bom": {"status": "not_hit", "value": False},
-        "is_plate_part": {"status": "not_hit", "value": False},
         "raw_form": {"status": "hit", "value": "bar"},
         "single_axis_external_cylindrical_profile": {
             "status": "hit",
@@ -200,6 +278,10 @@ def test_feature_routes_are_identity_invariant_and_feature_sensitive(
             "status": "not_hit",
             "value": False,
         },
+        "surface_corrosion_protection_required": {
+            "status": "not_hit",
+            "value": False,
+        },
         "formal_cleaning_required": {"status": "not_hit", "value": False},
     }
     expected_crossbeam = ("焊接(校正)", "抛光", "镗")
@@ -234,6 +316,147 @@ def test_feature_routes_are_identity_invariant_and_feature_sensitive(
 
 
 @pytest.mark.integration
+def test_single_axis_external_tolerance_drives_turning_without_identity(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    geometry_facts = {
+        "object_has_bom": {"status": "not_hit", "value": False},
+        "raw_form": {"status": "hit", "value": "bar"},
+        "single_axis_external_cylindrical_profile": {
+            "status": "hit",
+            "value": True,
+        },
+        "large_axisymmetric_bar_profile": {"status": "not_hit", "value": False},
+        "has_hole_feature": {"status": "not_hit", "value": False},
+        "has_slot_feature": {"status": "not_hit", "value": False},
+        "large_precision_internal_cylindrical_surface_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "outer_surface_polish_required": {"status": "not_hit", "value": False},
+        "external_mechanical_surface_finish_required": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "formal_cleaning_required": {"status": "not_hit", "value": False},
+    }
+    for drawing_number, part_name in [
+        ("IDENTITY-C", "销轴"),
+        ("UNRELATED-IDENTITY", "任意单轴零件"),
+    ]:
+        scenarios = evaluate_scenarios(
+            connection,
+            runtime,
+            {
+                **geometry_facts,
+                "precision_tolerance_present": {"status": "hit", "value": True},
+                "drawing_number": {"status": "hit", "value": drawing_number},
+                "part_name": {"status": "hit", "value": part_name},
+            },
+        )
+        recommendation = assemble_recommendation(
+            scenarios,
+            tree_revision=runtime.revision,
+        )
+        assert recommendation.status == "complete"
+        assert recommendation.route is not None
+        assert tuple(item.process_name for item in recommendation.route) == (
+            "锯床下料",
+            "车",
+        )
+
+    without_tolerance = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **geometry_facts,
+            "precision_tolerance_present": {"status": "not_hit", "value": False},
+        },
+    )
+    incomplete = assemble_recommendation(
+        without_tolerance,
+        tree_revision=runtime.revision,
+    )
+    assert incomplete.status != "complete"
+    assert incomplete.route is None or all(
+        item.process_name != "车" for item in incomplete.route
+    )
+
+
+@pytest.mark.integration
+def test_corrosion_protection_without_method_and_finish_order_is_partial(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            "object_has_bom": {"status": "hit", "value": True},
+            "weld_symbol_present": {"status": "hit", "value": True},
+            "weld_annotation_present": {"status": "hit", "value": True},
+            "weld_seam_finishing_required": {"status": "hit", "value": True},
+            "large_precision_internal_cylindrical_surface_present": {
+                "status": "hit",
+                "value": True,
+            },
+            "external_mechanical_surface_finish_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "surface_corrosion_protection_required": {
+                "status": "hit",
+                "value": True,
+            },
+            "surface_protection_method": {"status": "unable_to_judge"},
+            "formal_cleaning_required": {"status": "not_hit", "value": False},
+        },
+    )
+
+    recommendation = assemble_recommendation(scenarios, tree_revision=runtime.revision)
+
+    assert recommendation.status == "partial"
+    assert recommendation.route is not None
+    assert tuple(item.process_name for item in recommendation.route) == ("焊接(校正)",)
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {
+        ("焊接(校正)", "抛光", "镗"),
+        ("焊接(校正)", "镗", "抛光"),
+    }
+    missing = {
+        fact for issue in recommendation.local_issues for fact in issue.missing_facts
+    }
+    assert any(fact.startswith("surface_protection_method:") for fact in missing)
+    assert any(
+        fact.startswith("weld_finish_precision_order_supported:") for fact in missing
+    )
+
+    explicit = evaluate_tree(
+        connection,
+        TREE_KEY,
+        {
+            "surface_corrosion_protection_required": {
+                "status": "hit",
+                "value": True,
+            },
+            "surface_protection_method": {
+                "status": "hit",
+                "value": "powder_coating",
+            },
+        },
+    )
+    assert any(
+        item["result_status"] == "resolved"
+        and item["outcome_type"] == "process"
+        and item["outcome_value"]["process_name"] == "喷塑"
+        for item in explicit
+    )
+
+
+@pytest.mark.integration
 def test_plain_tube_stock_uses_saw_cut_without_plate_forming(
     imported_tree: tuple[Connection, object],
 ) -> None:
@@ -243,7 +466,6 @@ def test_plain_tube_stock_uses_saw_cut_without_plate_forming(
         runtime,
         {
             "object_has_bom": {"status": "not_hit", "value": False},
-            "is_plate_part": {"status": "not_hit", "value": False},
             "raw_form": {"status": "hit", "value": "tube"},
             "continuous_revolved_surface": {"status": "not_hit", "value": False},
             "has_bend_feature": {"status": "not_hit", "value": False},
@@ -276,7 +498,6 @@ def test_compact_axisymmetric_bar_uses_general_turning_without_identity(
             runtime,
             {
                 "object_has_bom": {"status": "not_hit", "value": False},
-                "is_plate_part": {"status": "not_hit", "value": False},
                 "raw_form": {"status": "hit", "value": "bar"},
                 "single_axis_external_cylindrical_profile": {
                     "status": profile_status,
@@ -327,7 +548,6 @@ def test_part_surface_requirement_without_stage_evidence_is_partial(
         runtime,
         {
             "object_has_bom": {"status": "not_hit", "value": False},
-            "is_plate_part": {"status": "not_hit", "value": False},
             "raw_form": {"status": "hit", "value": "bar"},
             "single_axis_external_cylindrical_profile": {
                 "status": "hit",
@@ -415,7 +635,7 @@ def test_unclassified_geometry_conflict_leaves_route_family_unresolved(
         {
             "drawing_number_numeric_prefix": {"status": "hit", "value": "80"},
             "object_has_bom": {"status": "not_hit", "value": False},
-            "is_plate_part": {"status": "hit", "value": True},
+            "raw_form": {"status": "hit", "value": "plate"},
             "continuous_revolved_surface": {"status": "hit", "value": True},
             "has_bend_feature": {"status": "hit", "value": True},
         },
@@ -476,8 +696,12 @@ def test_rolled_sheet_without_feature_complete_sequence_stays_partial(
         runtime,
         {
             "object_has_bom": {"status": "not_hit", "value": False},
-            "is_plate_part": {"status": "hit", "value": True},
+            "raw_form": {"status": "hit", "value": "plate"},
             "continuous_revolved_surface": {"status": "hit", "value": True},
+            "continuous_rolled_shell_surface_present": {
+                "status": "not_hit",
+                "value": False,
+            },
             "has_bend_feature": {"status": "not_hit", "value": False},
             "outer_surface_polish_required": {"status": "not_hit", "value": False},
             "formal_cleaning_required": {"status": "not_hit", "value": False},
@@ -512,7 +736,7 @@ def test_identity_name_does_not_resolve_conflicting_geometry(
             {
                 "object_has_bom": {"status": "not_hit", "value": False},
                 "part_name": {"status": "hit", "value": part_name},
-                "is_plate_part": {"status": "hit", "value": True},
+                "raw_form": {"status": "hit", "value": "plate"},
                 "continuous_revolved_surface": {"status": "hit", "value": True},
                 "has_bend_feature": {"status": "hit", "value": True},
                 "outer_surface_polish_required": {"status": "not_hit", "value": False},
@@ -537,7 +761,6 @@ def test_missing_base_route_is_not_reported_as_complete(
         runtime,
         {
             "object_has_bom": {"status": "not_hit", "value": False},
-            "is_plate_part": {"status": "not_hit", "value": False},
             "continuous_revolved_surface": {"status": "hit", "value": True},
             "has_bend_feature": {"status": "not_hit", "value": False},
             "raw_form": {"status": "hit", "value": "other"},

@@ -6,11 +6,18 @@ from drawing_route_auditor.db.connection import Connection
 
 from drawing_route_auditor.decision_tree.editor import apply_tree_patch
 from drawing_route_auditor.db.knowledge_migrations import (
+    apply_axis_stock_and_internal_surface_consistency,
+    apply_continuous_rolled_shell_route,
+    apply_exclude_rolled_shell_from_flat_bent,
+    apply_scope_rolled_shell_completion,
+    apply_general_axis_stock_guard,
+    apply_external_cylindrical_precision_route,
     apply_compact_geometry_features,
     apply_compact_axisymmetric_turning,
     apply_cylindrical_projection_guard,
     apply_stepped_bar_evidence_guard,
     apply_preserve_tube_stock_guard,
+    apply_surface_protection_and_order_guards,
     apply_cover_pdf_family_upgrade,
     apply_feature_derived_routes_upgrade,
     apply_external_mechanical_finish,
@@ -30,11 +37,13 @@ from drawing_route_auditor.db.knowledge_migrations import (
     apply_multi_joint_access_guard,
     apply_oriented_facts_upgrade,
     apply_precision_weldment_access,
+    apply_precision_tolerance_judgement_guard,
     apply_pdf_only_upgrade,
     apply_pdf_only_metadata_upgrade,
     apply_remove_unvalidated_weld_stages,
     apply_surface_stage_ownership_guard,
     apply_surface_branch_metadata,
+    apply_split_geometry_readers,
     apply_shaft_local_hole_geometry_guard,
     apply_tube_stock_cut_route,
     apply_robust_family_upgrade,
@@ -42,6 +51,7 @@ from drawing_route_auditor.db.knowledge_migrations import (
     apply_rolled_feature_completeness,
     apply_welded_multi_joint_guard,
     apply_strict_geometry_upgrade,
+    apply_weld_local_surface_scope_guard,
 )
 from drawing_route_auditor.decision_tree.importer import initialize_decision_tree
 from drawing_route_auditor.decision_tree.repository import tree_details, validate_tree
@@ -126,11 +136,11 @@ def test_init_is_idempotent_and_patch_updates_current_tree(
     with pytest.raises(ValueError, match="请使用增量补丁更新"):
         initialize_decision_tree(db_connection, source)
     assert second.revision_id == first.revision_id
-    assert first.reader_count == 4
-    assert first.fact_count == 33
+    assert first.reader_count == 5
+    assert first.fact_count == 35
     assert first.node_count == 4
     assert first.branch_count == 15
-    assert first.rule_count == 42
+    assert first.rule_count == 47
 
     ownership = db_connection.execute(
         """
@@ -150,9 +160,9 @@ def test_init_is_idempotent_and_patch_updates_current_tree(
         (first.revision_id,),
     ).fetchone()
     assert ownership == {
-        "observed_owned": 27,
-        "non_observed_unowned": 6,
-        "total": 33,
+        "observed_owned": 28,
+        "non_observed_unowned": 7,
+        "total": 35,
     }
 
     payload = json.loads(source.read_text(encoding="utf-8"))
@@ -227,8 +237,13 @@ def test_current_tree_is_pdf_only_and_all_cleanup_migrations_are_idempotent(
         "M10等局部后加工孔"
         in facts_by_key["large_axisymmetric_bar_profile"]["judgement_definition"]
     )
-    assert "标准管材的壁厚不是板厚" in facts_by_key["sheet_thickness_mm"]["description"]
-    assert "304方管80×50×5" in facts_by_key["is_plate_part"]["judgement_definition"]
+    assert {"sheet_thickness_mm", "is_plate_part"}.isdisjoint(facts_by_key)
+    assert facts_by_key["has_bend_feature"]["reader_key"] == "geometry_feature_reader"
+    assert facts_by_key["raw_form"]["reader_key"] == "geometry_dimension_reader"
+    assert (
+        "逐尺寸标注优先于未注公差说明"
+        in facts_by_key["precision_tolerance_present"]["judgement_definition"]
+    )
     assert (
         "矩形方管"
         in facts_by_key["continuous_revolved_surface"]["judgement_definition"]
@@ -245,6 +260,9 @@ def test_current_tree_is_pdf_only_and_all_cleanup_migrations_are_idempotent(
         ]
     )
     assert "不得只检查最大横向尺寸" in facts_by_key["raw_form"]["coverage_requirement"]
+    assert "surface_corrosion_protection_required" in facts_by_key
+    assert "surface_protection_method" in facts_by_key
+    assert "weld_finish_precision_order_supported" in facts_by_key
     assert "tube_cut_part" in facts_by_key["route_family"]["allowed_values"]
     branches_by_key = {item["branch_key"]: item for item in payload["branches"]}
     assert "承担不明时保持部分结果" in branches_by_key["3.4"]["rule_text"]
@@ -290,6 +308,36 @@ def test_current_tree_is_pdf_only_and_all_cleanup_migrations_are_idempotent(
     assert apply_cylindrical_projection_guard(db_connection, tree_key=tree_key) is None
     assert apply_stepped_bar_evidence_guard(db_connection, tree_key=tree_key) is None
     assert apply_preserve_tube_stock_guard(db_connection, tree_key=tree_key) is None
+    assert (
+        apply_surface_protection_and_order_guards(db_connection, tree_key=tree_key)
+        is None
+    )
+    assert apply_split_geometry_readers(db_connection, tree_key=tree_key) is None
+    assert (
+        apply_precision_tolerance_judgement_guard(db_connection, tree_key=tree_key)
+        is None
+    )
+    assert (
+        apply_weld_local_surface_scope_guard(db_connection, tree_key=tree_key) is None
+    )
+    assert (
+        apply_axis_stock_and_internal_surface_consistency(
+            db_connection,
+            tree_key=tree_key,
+        )
+        is None
+    )
+    assert apply_general_axis_stock_guard(db_connection, tree_key=tree_key) is None
+    assert (
+        apply_external_cylindrical_precision_route(db_connection, tree_key=tree_key)
+        is None
+    )
+    assert apply_continuous_rolled_shell_route(db_connection, tree_key=tree_key) is None
+    assert (
+        apply_exclude_rolled_shell_from_flat_bent(db_connection, tree_key=tree_key)
+        is None
+    )
+    assert apply_scope_rolled_shell_completion(db_connection, tree_key=tree_key) is None
 
 
 @pytest.mark.integration
@@ -410,18 +458,28 @@ def test_feature_cleanup_is_atomic_idempotent_and_removes_unknown_identity_rules
 
 
 @pytest.mark.integration
-def test_patch_rejects_invalid_runtime_reader_contract(
+def test_patch_accepts_additional_reader_with_owned_fact(
     db_connection: Connection,
     tmp_path: Path,
 ) -> None:
     tree_key = "integration-tree-reader-contract"
     source = _definition(tmp_path, tree_key)
-    initialized = initialize_decision_tree(db_connection, source)
+    initialize_decision_tree(db_connection, source)
     payload = json.loads(source.read_text(encoding="utf-8"))
     extra_reader = dict(payload["readers"][0])
-    extra_reader["reader_key"] = "unexpected_fifth_reader"
-    extra_reader["sequence"] = 5
-    patch = tmp_path / "fifth-reader-patch.json"
+    extra_reader["reader_key"] = "additional_reader"
+    extra_reader["sequence"] = (
+        max(int(item["sequence"]) for item in payload["readers"]) + 1
+    )
+    moved_fact = dict(
+        next(
+            item
+            for item in payload["facts"]
+            if item.get("reader_key") == payload["readers"][0]["reader_key"]
+        )
+    )
+    moved_fact["reader_key"] = "additional_reader"
+    patch = tmp_path / "additional-reader-patch.json"
     patch.write_text(
         json.dumps(
             {
@@ -431,9 +489,15 @@ def test_patch_rejects_invalid_runtime_reader_contract(
                     {
                         "op": "upsert",
                         "collection": "readers",
-                        "key": "unexpected_fifth_reader",
+                        "key": "additional_reader",
                         "value": extra_reader,
-                    }
+                    },
+                    {
+                        "op": "upsert",
+                        "collection": "facts",
+                        "key": moved_fact["fact_key"],
+                        "value": moved_fact,
+                    },
                 ],
             },
             ensure_ascii=False,
@@ -441,12 +505,16 @@ def test_patch_rejects_invalid_runtime_reader_contract(
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="四个读取器"):
-        apply_tree_patch(db_connection, patch)
-
+    updated = apply_tree_patch(db_connection, patch)
     details = tree_details(db_connection, tree_key)
-    assert details["revision_id"] == initialized.revision_id
-    assert len(details["readers"]) == 4
+
+    assert updated.reader_count == len(payload["readers"]) + 1
+    assert len(details["readers"]) == len(payload["readers"]) + 1
+    assert any(
+        item["fact_key"] == moved_fact["fact_key"]
+        and item["reader_key"] == "additional_reader"
+        for item in details["facts"]
+    )
 
 
 @pytest.mark.integration
@@ -466,12 +534,12 @@ def test_validation_and_details_use_current_tree(
         "nodes": 4,
         "branches": 15,
         "edges": 5,
-        "rules": 42,
-        "clauses": 107,
+        "rules": 47,
+        "clauses": 123,
     }
-    assert len(details["readers"]) == 4
-    assert len(details["facts"]) == 33
-    assert len(details["rules"]) == 42
+    assert len(details["readers"]) == 5
+    assert len(details["facts"]) == 35
+    assert len(details["rules"]) == 47
     assert {
         item["reader_key"]
         for item in details["facts"]
@@ -479,6 +547,7 @@ def test_validation_and_details_use_current_tree(
     } == {
         "document_structure_reader",
         "geometry_dimension_reader",
+        "geometry_feature_reader",
         "symbol_relation_reader",
         "requirement_annotation_reader",
     }

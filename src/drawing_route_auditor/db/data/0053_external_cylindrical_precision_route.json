@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "单轴实体外圆上的明确数值公差属于外圆精加工需求，不要求同时存在孔或槽。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "precision_by_external_cylindrical_tolerance",
+      "value": {
+        "branch_key": "5.5",
+        "rule_key": "precision_by_external_cylindrical_tolerance",
+        "description": "零件具有单轴实体外圆轮廓，且至少一个绑定该外圆的尺寸带明确数值公差时，派生精加工需求。",
+        "decision_key": "precision_need",
+        "question": "单轴实体外圆的明确尺寸公差是否需要精加工？",
+        "option_key": "external_cylindrical_tolerance",
+        "option_label": "需要",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "requires_precision_machining",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "single_axis_external_cylindrical_profile",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "precision_tolerance_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 120
+      }
+    }
+  ]
+}

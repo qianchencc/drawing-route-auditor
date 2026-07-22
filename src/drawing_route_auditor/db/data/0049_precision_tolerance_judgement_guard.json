@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "明确逐尺寸单边或双边数值公差属于精密公差，避免Reader引用公差原文后仍返回NOT_HIT。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "precision_tolerance_present",
+      "value": {
+        "label": "存在精密公差",
+        "fact_key": "precision_tolerance_present",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在绑定具体尺寸、需要加工保证的明确数值公差、形位公差或精密配合。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "任一具体尺寸带明确单边或双边数值公差，例如φ78−0.046、φ60±0.5、上/下偏差，或存在形位公差、配合代号时命中；不要求全部尺寸均带公差。",
+        "not_hit_criteria": "完整检查全部尺寸后，仅有普通尺寸和未注公差说明，没有任何绑定具体尺寸的数值偏差、形位公差或精密配合。",
+        "coverage_requirement": "检查全部尺寸、上下偏差、±公差、形位公差框、配合代号和未注公差说明。",
+        "evidence_requirement": "命中时逐字提供至少一个具体尺寸及其公差；未命中时说明只见普通尺寸和未注公差。",
+        "judgement_definition": "逐尺寸标注优先于未注公差说明。只要一个具体尺寸明确标有单边/双边偏差、±公差、形位公差或配合代号，就必须返回HIT；不得因为其他尺寸普通、没有配合代号或同时存在ISO未注公差而返回NOT_HIT。"
+      }
+    }
+  ]
+}

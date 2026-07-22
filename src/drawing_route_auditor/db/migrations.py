@@ -48,6 +48,16 @@ _KNOWLEDGE_DATA = {
     "0044": "0044_cylindrical_projection_guard.json",
     "0045": "0045_stepped_bar_evidence_guard.json",
     "0046": "0046_preserve_tube_stock_guard.json",
+    "0047": "0047_surface_protection_and_order_guards.json",
+    "0048": "0048_split_geometry_readers.json",
+    "0049": "0049_precision_tolerance_judgement_guard.json",
+    "0050": "0050_weld_local_surface_scope_guard.json",
+    "0051": "0051_axis_stock_and_internal_surface_consistency.json",
+    "0052": "0052_general_axis_stock_guard.json",
+    "0053": "0053_external_cylindrical_precision_route.json",
+    "0054": "0054_continuous_rolled_shell_route.json",
+    "0055": "0055_exclude_rolled_shell_from_flat_bent.json",
+    "0056": "0056_scope_rolled_shell_completion.json",
 }
 
 
@@ -272,6 +282,60 @@ def _apply_python_migration(connection: Connection, version: str) -> None:
         from drawing_route_auditor.db.knowledge_migrations import apply_preserve_tube_stock_guard
 
         apply_preserve_tube_stock_guard(connection)
+    elif version == "0047":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_surface_protection_and_order_guards,
+        )
+
+        apply_surface_protection_and_order_guards(connection)
+    elif version == "0048":
+        from drawing_route_auditor.db.knowledge_migrations import apply_split_geometry_readers
+
+        apply_split_geometry_readers(connection)
+    elif version == "0049":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_precision_tolerance_judgement_guard,
+        )
+
+        apply_precision_tolerance_judgement_guard(connection)
+    elif version == "0050":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_weld_local_surface_scope_guard,
+        )
+
+        apply_weld_local_surface_scope_guard(connection)
+    elif version == "0051":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_axis_stock_and_internal_surface_consistency,
+        )
+
+        apply_axis_stock_and_internal_surface_consistency(connection)
+    elif version == "0052":
+        from drawing_route_auditor.db.knowledge_migrations import apply_general_axis_stock_guard
+
+        apply_general_axis_stock_guard(connection)
+    elif version == "0053":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_external_cylindrical_precision_route,
+        )
+
+        apply_external_cylindrical_precision_route(connection)
+    elif version == "0054":
+        from drawing_route_auditor.db.knowledge_migrations import apply_continuous_rolled_shell_route
+
+        apply_continuous_rolled_shell_route(connection)
+    elif version == "0055":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_exclude_rolled_shell_from_flat_bent,
+        )
+
+        apply_exclude_rolled_shell_from_flat_bent(connection)
+    elif version == "0056":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_scope_rolled_shell_completion,
+        )
+
+        apply_scope_rolled_shell_completion(connection)
 
 
 def migrate(connection: Connection) -> MigrationResult:

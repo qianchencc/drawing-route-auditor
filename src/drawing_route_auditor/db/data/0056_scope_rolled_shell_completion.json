@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "仅传统圆筒/圆锥卷制件继续保留后续连接与校圆完整性守卫；明确连续非回转板壳在当前对象范围内可结束于卷制。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_sheet_feature_sequence_incomplete",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "rolled_sheet_feature_sequence_incomplete",
+        "description": "传统圆筒或圆锥卷制板件若未建立纵缝连接、校圆及阶段表面处理规则，则保持部分结果；连续非回转板壳不触发本守卫。",
+        "decision_key": "route_completeness",
+        "question": "卷制板件的连接与校圆特征是否已完整建立？",
+        "option_key": "rolled_sequence_incomplete",
+        "option_label": "卷制后续特征不足",
+        "result_kind": "error",
+        "outcome_type": "error",
+        "outcome_key": "rolled_sheet_feature_sequence_missing",
+        "outcome_value": null,
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "continuous_rolled_shell_surface_present",
+            "operator": "neq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 240
+      }
+    }
+  ]
+}

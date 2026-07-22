@@ -856,7 +856,10 @@ def apply_large_bore_reader_guard(
         ),
         None,
     )
-    if isinstance(fact, dict) and "任意一项" in str(fact.get("hit_criteria", "")):
+    if isinstance(fact, dict) and (
+        "任意一项" in str(fact.get("hit_criteria", ""))
+        or "区别于外轮廓" in str(fact.get("hit_criteria", ""))
+    ):
         return None
     return apply_tree_patch_model(
         connection,
@@ -1123,7 +1126,10 @@ def apply_external_finish_reader_guard(
     fact = facts.get("external_mechanical_surface_finish_required")
     if (
         isinstance(fact, dict)
-        and "无工艺意义" in str(fact.get("not_hit_criteria", ""))
+        and (
+            "无工艺意义" in str(fact.get("not_hit_criteria", ""))
+            or "局部焊缝整饰不得命中本事实" in str(fact.get("judgement_definition", ""))
+        )
         and "component_external_finish_judgement_required" in rules
     ):
         return None
@@ -1366,4 +1372,303 @@ def apply_preserve_tube_stock_guard(
         connection,
         _upgrade_patch(tree_key, "0046_preserve_tube_stock_guard.json"),
         source_label="migration:0046_preserve_tube_stock_guard",
+    )
+
+
+def apply_surface_protection_and_order_guards(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    return _apply_upgrade(
+        connection,
+        tree_key=tree_key,
+        data_name="0047_surface_protection_and_order_guards.json",
+        required_facts={
+            "surface_corrosion_protection_required",
+            "surface_protection_method",
+            "weld_finish_precision_order_supported",
+        },
+        required_rules={
+            "surface_protection_method_required",
+            "explicit_powder_coating",
+            "weld_finish_precision_order_required",
+        },
+        source_label="migration:0047_surface_protection_and_order_guards",
+    )
+
+
+def apply_split_geometry_readers(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    reader_keys = {
+        item.get("reader_key")
+        for item in payload.get("readers", [])
+        if isinstance(item, dict)
+    }
+    facts = {
+        item.get("fact_key"): item
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    local_fact_keys = {
+        "has_bend_feature",
+        "has_hole_feature",
+        "has_slot_feature",
+        "precision_tolerance_present",
+        "small_hole_relative_to_body_present",
+    }
+    if (
+        "geometry_feature_reader" in reader_keys
+        and {"is_plate_part", "sheet_thickness_mm"}.isdisjoint(facts)
+        and all(
+            facts.get(fact_key, {}).get("reader_key") == "geometry_feature_reader"
+            for fact_key in local_fact_keys
+        )
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0048_split_geometry_readers.json"),
+        source_label="migration:0048_split_geometry_readers",
+    )
+
+
+def apply_precision_tolerance_judgement_guard(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict)
+            and item.get("fact_key") == "precision_tolerance_present"
+        ),
+        None,
+    )
+    if isinstance(fact, dict) and "逐尺寸标注优先于未注公差说明" in str(
+        fact.get("judgement_definition", "")
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0049_precision_tolerance_judgement_guard.json"),
+        source_label="migration:0049_precision_tolerance_judgement_guard",
+    )
+
+
+def apply_weld_local_surface_scope_guard(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    guarded_fact_keys = {
+        "external_mechanical_surface_finish_required",
+        "outer_surface_polish_required",
+    }
+    guarded_facts = {
+        item.get("fact_key"): item
+        for item in payload.get("facts", [])
+        if isinstance(item, dict) and item.get("fact_key") in guarded_fact_keys
+    }
+    if guarded_fact_keys == set(guarded_facts) and all(
+        "局部焊缝整饰不得命中本事实" in str(fact.get("judgement_definition", ""))
+        for fact in guarded_facts.values()
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0050_weld_local_surface_scope_guard.json"),
+        source_label="migration:0050_weld_local_surface_scope_guard",
+    )
+
+
+def apply_axis_stock_and_internal_surface_consistency(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    facts = {
+        item.get("fact_key"): item
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    raw_form = facts.get("raw_form")
+    internal_surface = facts.get("large_precision_internal_cylindrical_surface_present")
+    if (
+        isinstance(raw_form, dict)
+        and "长大轴阈值只控制后续路线细分"
+        in str(raw_form.get("judgement_definition", ""))
+        and isinstance(internal_surface, dict)
+        and "先证明存在内圆边界"
+        in str(internal_surface.get("judgement_definition", ""))
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(
+            tree_key,
+            "0051_axis_stock_and_internal_surface_consistency.json",
+        ),
+        source_label="migration:0051_axis_stock_and_internal_surface_consistency",
+    )
+
+
+def apply_general_axis_stock_guard(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    raw_form = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict) and item.get("fact_key") == "raw_form"
+        ),
+        None,
+    )
+    if (
+        isinstance(raw_form, dict)
+        and "短轴、长细轴和小直径阶梯轴同样适用"
+        in str(raw_form.get("judgement_definition", ""))
+        and "局部后加工孔不改变该判断" in str(raw_form.get("judgement_definition", ""))
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0052_general_axis_stock_guard.json"),
+        source_label="migration:0052_general_axis_stock_guard",
+    )
+
+
+def apply_external_cylindrical_precision_route(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    if any(
+        isinstance(item, dict)
+        and item.get("rule_key") == "precision_by_external_cylindrical_tolerance"
+        for item in payload.get("rules", [])
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0053_external_cylindrical_precision_route.json"),
+        source_label="migration:0053_external_cylindrical_precision_route",
+    )
+
+
+def apply_continuous_rolled_shell_route(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    facts = {
+        item.get("fact_key")
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rules = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    if (
+        "continuous_rolled_shell_surface_present" in facts
+        and "continuous_rolled_shell_family" in rules
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0054_continuous_rolled_shell_route.json"),
+        source_label="migration:0054_continuous_rolled_shell_route",
+    )
+
+
+def apply_exclude_rolled_shell_from_flat_bent(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    rules = {
+        item.get("rule_key"): item
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    guarded_rule_keys = {"bent_sheet_family", "flat_sheet_family"}
+    if guarded_rule_keys <= set(rules) and all(
+        any(
+            isinstance(clause, dict)
+            and clause.get("fact_key") == "continuous_rolled_shell_surface_present"
+            and clause.get("expected_value") is False
+            for clause in rules[rule_key].get("clauses", [])
+        )
+        for rule_key in guarded_rule_keys
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0055_exclude_rolled_shell_from_flat_bent.json"),
+        source_label="migration:0055_exclude_rolled_shell_from_flat_bent",
+    )
+
+
+def apply_scope_rolled_shell_completion(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    guard = next(
+        (
+            item
+            for item in payload.get("rules", [])
+            if isinstance(item, dict)
+            and item.get("rule_key") == "rolled_sheet_feature_sequence_incomplete"
+        ),
+        None,
+    )
+    if isinstance(guard, dict) and any(
+        isinstance(clause, dict)
+        and clause.get("fact_key") == "continuous_rolled_shell_surface_present"
+        and clause.get("operator") == "neq"
+        and clause.get("expected_value") is True
+        for clause in guard.get("clauses", [])
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0056_scope_rolled_shell_completion.json"),
+        source_label="migration:0056_scope_rolled_shell_completion",
     )

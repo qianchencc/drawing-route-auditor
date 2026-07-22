@@ -144,10 +144,8 @@ def load_runtime_tree(
             key=lambda item: int(item["sequence"]),
         )
     )
-    if len(plans) != 4:
-        raise ValueError(
-            f"当前决策树必须定义且仅定义四个读取器；当前为 {len(plans)} 个"
-        )
+    if not plans:
+        raise ValueError("当前决策树必须至少定义一个读取器")
     if any(not plan.requested_features for plan in plans):
         raise ValueError("每个读取器必须负责至少一个图纸观察事实")
     return RuntimeTree(

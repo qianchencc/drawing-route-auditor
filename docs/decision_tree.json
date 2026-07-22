@@ -116,41 +116,13 @@
       "judgement_definition": "只有至少一条已填写的物料项目行才算存在 BOM。仅看到表格线、项目号栏标题、空白格、标记处数/更改文件号修订表或设计校对审核栏必须返回 NOT_HIT。"
     },
     {
-      "label": "板厚",
-      "fact_key": "sheet_thickness_mm",
-      "reader_key": "geometry_dimension_reader",
-      "value_type": "number",
-      "description": "当前对象由板材制造时的板料厚度，单位毫米；标准管材的壁厚不是板厚。",
-      "source_kind": "observed_drawing",
-      "hit_criteria": "存在明确板材厚度标注T/t、板料规格，或展开/卷制图与材料信息共同证明该尺寸是板料厚度。",
-      "subject_scope": "current_object",
-      "not_hit_criteria": "材料规格或闭合空心截面明确为方管、矩形管、圆管或其他标准管材，且所见厚度仅为管壁厚度；此时返回NOT_HIT。",
-      "coverage_requirement": "检查材料规格、展开图、卷制/接缝证据和全部截面；区分板料厚度与标准管材壁厚。",
-      "evidence_requirement": "提供板材规格或展开/卷制来源证据；若为管材，提供管材规格及闭合空心截面。",
-      "judgement_definition": "只判断制造前板料厚度。80×50×5、φ80×5等标准管材规格中的5是管壁厚度，不得作为sheet_thickness_mm命中依据。"
-    },
-    {
-      "label": "板类零件",
-      "fact_key": "is_plate_part",
-      "reader_key": "geometry_dimension_reader",
-      "value_type": "boolean",
-      "description": "当前对象是否由板料下料后成形；标准方管、矩形管、圆管等管材即使壁厚均匀也不是板类零件。",
-      "source_kind": "observed_drawing",
-      "hit_criteria": "存在明确板材规格、T/t板厚、展开轮廓，或圆筒/圆锥壳体同时具有板料来源、卷制接缝或展开/下料证据。仅有均匀壁厚不得命中。",
-      "subject_scope": "current_object",
-      "not_hit_criteria": "材料栏明确方管、矩形管、圆管、无缝管等管材，或主要视图显示沿长度连续的闭合空心截面且没有展开、卷制接缝或板料来源证据；棒材、铸件和锻件同样不得命中。",
-      "coverage_requirement": "检查材料栏、全部主要视图、闭合截面、展开图、接缝及板料规格；管材证据优先于“均匀薄壁”外观。",
-      "evidence_requirement": "命中时提供板材规格、展开或卷制接缝证据；未命中时提供管材规格或连续闭合空心截面。",
-      "judgement_definition": "判断制造原始形态，不按薄壁外观猜测。304方管80×50×5等明确管材必须返回NOT_HIT；只有可观察的板料来源、展开或卷制证据才能判为板类。"
-    },
-    {
       "label": "原始形态",
       "fact_key": "raw_form",
       "reader_key": "geometry_dimension_reader",
       "value_type": "text",
       "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局截面共同决定，局部后加工特征不得改变原材料形态。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局截面复核。明确管材规格或沿长度连续的闭合空心截面归一化为tube；明确板料规格、展开或卷制板壳证据归一化为plate。若材料栏只给牌号或形态文字缺失，但整件具有同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单/阶梯实体外轮廓且无连续管腔，则归一化为bar。必须检查全部阶梯段：最大段以M外螺纹标注时，较小段的外径φ/Ø仍可证明实体圆棒；不得只检查最大横向标注。",
+      "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局截面复核。明确管材规格或沿长度连续的闭合空心截面归一化为tube；明确板料规格、展开或卷制板壳证据归一化为plate。若材料栏只给牌号或形态文字缺失，但整件具有同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓且无连续管腔，则必须归一化为bar，不受总长和最大外径阈值限制，也不得返回UNABLE_TO_JUDGE。",
       "subject_scope": "current_object",
       "allowed_values": [
         "plate",
@@ -162,13 +134,13 @@
       ],
       "not_hit_criteria": null,
       "coverage_requirement": "检查材料规格、全部主要视图、整个阶梯外轮廓、中心线、每个绑定外部轮廓的φ/Ø外径和外螺纹、轴向长度、闭合截面、内外尺寸、壁厚、展开图和卷制接缝；不得只检查最大横向尺寸，也不得忽略材料中的方管/矩形管/圆管字样。",
-      "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定bar，必须提供中心线、至少一个绑定外部主体的φ/Ø外径或外螺纹、阶梯实体外轮廓以及无连续管腔证据。最大段为M外螺纹时，应继续引用其他外径段；若材料与几何冲突则返回UNABLE_TO_JUDGE。",
-      "judgement_definition": "判断制造前原材料形态。304方管80×50×5等标准方管、矩形管和圆管归一化为tube；板料展开或卷制壳体归一化为plate。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形/平行直边；当同一中心轴、绑定外部主体的φ/Ø外径或外螺纹以及无连续管腔共同证明实体外圆时归一化为bar，即使材料栏只给牌号。外螺纹M标注不等于内孔：最大阶梯段只标M螺纹时，必须继续检查其余外径段，不得因此返回UNABLE_TO_JUDGE。局部后加工孔不改变该判断。"
+      "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定bar，必须提供中心线、至少一个绑定外部主体的φ/Ø外径或外螺纹、阶梯实体外轮廓以及无连续管腔证据。若材料与几何冲突则返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "判断制造前原材料形态。304方管80×50×5等标准方管、矩形管和圆管归一化为tube；板料展开或卷制壳体归一化为plate。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形或平行直边；同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓以及无连续管腔共同成立时必须归一化为bar，即使材料栏只给牌号。短轴、长细轴和小直径阶梯轴同样适用；长大轴阈值只控制后续路线细分，不控制棒料事实。局部后加工孔不改变该判断。"
     },
     {
       "label": "存在折弯特征",
       "fact_key": "has_bend_feature",
-      "reader_key": "geometry_dimension_reader",
+      "reader_key": "geometry_feature_reader",
       "value_type": "boolean",
       "description": "是否存在明确折弯线、折角、折弯半径或钣金展开图中的折线。",
       "source_kind": "observed_drawing",
@@ -195,9 +167,24 @@
       "judgement_definition": "连续回转曲面在此指圆形空心管壁或薄壁卷制壳面，不泛指所有数学上的回转表面。圆管可命中且raw_form独立为tube；矩形方管必须返回NOT_HIT。围绕中心线的实体外圆属于单轴外圆实体轮廓，不得命中本事实。"
     },
     {
+      "label": "连续卷制板壳曲面",
+      "fact_key": "continuous_rolled_shell_surface_present",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否为由均匀板厚形成、沿主体大范围保持连续曲率的薄壁板壳；截面可以是圆形、非圆闭合或开放曲线，主体轴线也可以弯曲。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "主要视图或剖视图显示成对内外轮廓或明确板厚，主体壳面沿显著长度连续弯曲，并有大半径、圆弧、曲率或实配弧形尺寸约束。非圆截面和弯曲主体轴线不否定；关键是连续曲率而非若干离散直线折弯。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后仅有平板、标准成品管材，或仅由明确折弯线、折角、短翻边和直线板段组成的离散钣金折弯件；局部倒圆或单个折弯圆角不得命中。",
+      "coverage_requirement": "检查全部主要视图、端视图、剖视图、成对内外轮廓、板厚、曲率半径、圆弧尺寸、展开线和离散折弯线；区分连续卷制壳面、标准管材和折弯板件。",
+      "evidence_requirement": "提供均匀板厚或成对内外轮廓、连续弯曲主体，以及大半径/圆弧/曲率尺寸之一；未命中时提供平板、标准管材或离散折弯线证据。",
+      "judgement_definition": "这是连续卷制形态事实，不是工序答案。圆筒圆锥可命中，非圆闭合截面、开放曲线截面和弯曲轴线薄壁壳也可命中；仅15°等截面开口角不能单独证明折弯，必须寻找独立折弯线或短翻边。"
+    },
+    {
       "label": "存在孔特征",
       "fact_key": "has_hole_feature",
-      "reader_key": "geometry_dimension_reader",
+      "reader_key": "geometry_feature_reader",
       "value_type": "boolean",
       "description": "当前对象是否存在孔。",
       "source_kind": "observed_drawing",
@@ -211,7 +198,7 @@
     {
       "label": "存在槽特征",
       "fact_key": "has_slot_feature",
-      "reader_key": "geometry_dimension_reader",
+      "reader_key": "geometry_feature_reader",
       "value_type": "boolean",
       "description": "当前对象是否存在槽或缺口加工特征。",
       "source_kind": "observed_drawing",
@@ -225,16 +212,17 @@
     {
       "label": "存在精密公差",
       "fact_key": "precision_tolerance_present",
-      "reader_key": "geometry_dimension_reader",
+      "reader_key": "geometry_feature_reader",
       "value_type": "boolean",
-      "description": "几何尺寸是否带需要精加工保证的明确公差。",
+      "description": "当前对象是否存在绑定具体尺寸、需要加工保证的明确数值公差、形位公差或精密配合。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "关键尺寸存在明确尺寸公差、形位公差或精密配合。",
+      "hit_criteria": "任一具体尺寸带明确单边或双边数值公差，例如φ78−0.046、φ60±0.5、上/下偏差，或存在形位公差、配合代号时命中；不要求全部尺寸均带公差。",
       "subject_scope": "current_object",
-      "not_hit_criteria": "完整检查后仅有普通尺寸或未注公差。",
-      "coverage_requirement": "检查全部尺寸和形位公差。",
-      "evidence_requirement": "提供公差原文和作用尺寸。",
-      "judgement_definition": "普通未注公差不单独视为精密公差。"
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查全部尺寸后，仅有普通尺寸和未注公差说明，没有任何绑定具体尺寸的数值偏差、形位公差或精密配合。",
+      "coverage_requirement": "检查全部尺寸、上下偏差、±公差、形位公差框、配合代号和未注公差说明。",
+      "evidence_requirement": "命中时逐字提供至少一个具体尺寸及其公差；未命中时说明只见普通尺寸和未注公差。",
+      "judgement_definition": "逐尺寸标注优先于未注公差说明。只要一个具体尺寸明确标有单边/双边偏差、±公差、形位公差或配合代号，就必须返回HIT；不得因为其他尺寸普通、没有配合代号或同时存在ISO未注公差而返回NOT_HIT。"
     },
     {
       "label": "存在焊接符号",
@@ -307,18 +295,18 @@
       "judgement_definition": "只读取技术要求和文字标注。"
     },
     {
-      "label": "要求外表面抛光",
+      "label": "要求整体外表面抛光",
       "fact_key": "outer_surface_polish_required",
       "reader_key": "requirement_annotation_reader",
       "value_type": "boolean",
-      "description": "图纸是否明确要求当前对象外表面抛光。",
+      "description": "图纸是否明确要求当前对象整体外表面或全部外表面进行抛光。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "明确写有外表面抛光。",
+      "hit_criteria": "明确写有当前对象外表面抛光、全部外表面抛光、整体表面抛光或等价的全局表面要求。",
       "subject_scope": "current_object",
-      "not_hit_criteria": "完整检查全部要求后未发现。",
-      "coverage_requirement": "检查全部技术要求和表面标注。",
-      "evidence_requirement": "提供要求原文。",
-      "judgement_definition": "读取技术要求和表面文字，不判断工艺承担层级。"
+      "not_hit_criteria": "完整检查全部要求后没有整体外表面抛光要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。",
+      "coverage_requirement": "检查全部技术要求和表面标注，逐项区分当前对象整体外表面与焊缝、焊道、焊接处等局部对象。",
+      "evidence_requirement": "提供要求原文，并明确其对象范围是整体外表面还是局部焊缝。",
+      "judgement_definition": "只读取当前对象整体外表面抛光要求，不判断工艺承担层级。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达。"
     },
     {
       "label": "要求锐边倒钝",
@@ -452,7 +440,7 @@
     {
       "label": "相对本体的小孔特征",
       "fact_key": "small_hole_relative_to_body_present",
-      "reader_key": "geometry_dimension_reader",
+      "reader_key": "geometry_feature_reader",
       "value_type": "boolean",
       "description": "当前对象是否有孔径或螺纹公称直径显著小于本体最大外径的小型轴向、横向、通孔、盲孔或螺纹底孔。",
       "source_kind": "observed_drawing",
@@ -469,15 +457,15 @@
       "fact_key": "large_precision_internal_cylindrical_surface_present",
       "reader_key": "symbol_relation_reader",
       "value_type": "boolean",
-      "description": "当前对象是否有相对局部结构截面较大的内圆柱面，并由直径公差、配合、粗糙度或明确检验尺寸控制。",
+      "description": "当前对象是否存在具有可见内边界、相对局部结构截面较大且受精度控制的内圆柱面。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "内圆柱直径明确且不小于其所在局部结构高度/外径的三分之一；只要该内圆柱自身具有直径公差、配合、粗糙度或“检”尺寸中的任意一项就必须命中，不要求跨越多个BOM构件。",
+      "hit_criteria": "必须先看到区别于外轮廓的明确内孔或内圆柱边界，并确认直径引出线绑定该内边界；随后内圆直径不小于所在局部结构高度或外径的三分之一，且该内圆自身具有直径公差、配合、粗糙度或明确检验尺寸中的至少一项。",
       "subject_scope": "current_object",
       "allowed_values": null,
-      "not_hit_criteria": "完整检查后没有内圆柱面，或只有相对本体很小的普通孔且无精密控制。",
-      "coverage_requirement": "在几何裁剪和整页总览中检查全部内圆轮廓、直径、局部外部尺度、公差、粗糙度和检验标注，并结合焊接/BOM关系；不得只检查单一剖视。",
-      "evidence_requirement": "提供内圆直径、局部结构尺度，以及该内圆自身的公差/粗糙度/检验标注之一。",
-      "judgement_definition": "这是几何与精度事实，不是镗削答案。满足“大内圆相对尺度 + 任一明确精度控制”即返回HIT；不得因缺少第二种精度标注或跨BOM边界证据返回UNABLE_TO_JUDGE。"
+      "not_hit_criteria": "完整检查后没有区别于外轮廓的内孔或内圆柱边界，或只有相对本体很小且无精密控制的普通孔。实体轴上的Ø外径、外径公差、中心线和外圆粗糙度不得解释成内圆；孔特征明确为NOT_HIT时本事实也必须为NOT_HIT。",
+      "coverage_requirement": "在几何裁剪和整页总览中检查全部内外轮廓、尺寸引出线、局部外部尺度、公差、粗糙度和检验标注；必须确认尺寸绑定内边界而非实体轴外轮廓。",
+      "evidence_requirement": "提供可见内边界、绑定该内边界的内圆直径、局部结构尺度，以及该内圆自身的公差、粗糙度或检验标注之一；只复述一个Ø尺寸或声称其为内圆不构成证据。",
+      "judgement_definition": "这是几何与精度事实，不是镗削答案。先证明存在内圆边界，再判断相对尺度和精度；不得把实体轴阶梯外径或外圆公差误判为大型精密内圆。"
     },
     {
       "label": "长大整体轴对称棒料轮廓",
@@ -495,19 +483,19 @@
       "judgement_definition": "判定整件的全局轴类棒料轮廓，而不是要求最终零件绝对无孔。满足单一主轴、连续整体外圆、总长和最大外径阈值，且没有连续管壁或贯穿大型内腔时返回HIT；M10等局部后加工孔不否定整体棒料。局部套筒、局部圆柱或板壳上的孔也不得反向把非轴类整件判为HIT。"
     },
     {
-      "label": "外表面机械整饰要求",
+      "label": "整体外表面机械整饰要求",
       "fact_key": "external_mechanical_surface_finish_required",
       "reader_key": "requirement_annotation_reader",
       "value_type": "boolean",
-      "description": "技术要求是否明确要求当前对象外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
+      "description": "技术要求是否明确要求当前对象整体外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "明确出现外表面拉丝、亚光、抛光、磨光、抛丸或等价机械整饰要求。若初次转写为工艺上无意义且字形接近的“盐处理”等，必须回看原图辨认“拉丝/亚光/抛丸”，不得直接按无要求处理。",
+      "hit_criteria": "明确出现当前对象外表面拉丝、外表面亚光、外表面抛光、全部表面磨光、整体表面抛丸或等价的全局机械整饰要求。",
       "subject_scope": "current_object",
       "allowed_values": null,
-      "not_hit_criteria": "完整技术要求清晰可读，且没有外表面拉丝、亚光、抛光、磨光、抛丸等机械整饰要求。出现“外表面…处理”但关键字模糊、转写无工艺意义或相互矛盾时不得返回NOT_HIT，必须返回UNABLE_TO_JUDGE。",
-      "coverage_requirement": "检查全部表面技术要求，区分内/外表面及机械整饰与化学处理；对“外表面…处理”的关键字逐字目视复核。",
+      "not_hit_criteria": "完整技术要求清晰可读且没有整体外表面机械整饰要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。仅内表面酸洗、钝化等化学处理也不得命中。",
+      "coverage_requirement": "检查全部表面技术要求，区分整体外表面、内表面和焊缝等局部对象，并区分机械整饰与化学处理。",
       "evidence_requirement": "提供要求原文、对象范围和表面效果。",
-      "judgement_definition": "这是外表面要求事实。有效机械整饰词命中；仅内表面酸洗/钝化不命中；外表面处理关键字模糊或转写成无意义词时返回UNABLE_TO_JUDGE。"
+      "judgement_definition": "这是当前对象整体外表面要求事实。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达；外表面处理关键字模糊或对象范围不清时返回UNABLE_TO_JUDGE。"
     },
     {
       "label": "单轴外圆实体轮廓",
@@ -523,6 +511,49 @@
       "coverage_requirement": "检查全部主要视图、剖视图和端视图，区分轴向投影的圆柱平行直边、外部主体轮廓与内孔/局部圆柱；核对中心线、绑定外轮廓的φ/Ø外径、外螺纹、总长、外部方形或矩形尺寸以及连续管壁。",
       "evidence_requirement": "命中时提供同一中心轴、外部轮廓以及明确绑定外轮廓的φ/Ø外径、外螺纹或圆形端视证据；若轴向投影为矩形，须说明横向尺寸为何是外径。未命中时引用不带φ/Ø的外部方/矩形尺寸、板壳/管壁或仅有内孔圆柱的证据。",
       "judgement_definition": "这是几何事实，不是‘需要车削’的工艺答案。简单圆柱在轴向主视图中显示为矩形或两条平行直边；只要中心线和绑定外部主体的φ/Ø外径或外螺纹证明其为圆柱实体，就应命中。阶梯轴、销和带局部孔的外圆实体同样可命中。外方内圆块的外部尺寸不带φ/Ø，只有内部孔径，不得命中；板壳、管材和局部套筒也不得命中。图号、名称和历史路线不得参与判断。"
+    },
+    {
+      "label": "表面防锈义务",
+      "fact_key": "surface_corrosion_protection_required",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
+      "description": "当前对象的图纸是否明确要求表面防锈、防腐或耐腐蚀处理；只确认制造义务，不推断具体处理方法。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "技术要求、标题栏或表面标注明确出现“表面防锈处理”“防腐处理”“耐腐蚀处理”或等价要求。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查全部技术要求、标题栏和表面标注后，没有任何防锈、防腐或耐腐蚀处理要求。",
+      "coverage_requirement": "检查全部技术要求、标题栏表面处理字段和局部表面标注；区分防锈义务与机械抛光、清洗或普通去毛刺。",
+      "evidence_requirement": "提供防锈、防腐或耐腐蚀要求原文、条款和对象范围。",
+      "judgement_definition": "这是表面保护义务事实，不是喷塑、喷漆、发黑、镀层或涂油等工序答案。仅按PDF原文判断是否存在防锈/防腐义务。"
+    },
+    {
+      "label": "明确表面保护方法",
+      "fact_key": "surface_protection_method",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "text",
+      "description": "PDF是否明确给出当前规则库可直接映射的具体表面保护方法；当前只支持逐字明确的喷塑/粉末涂层。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "技术要求或表面标注明确写有“喷塑”“粉末喷涂”“粉末涂层”或等价粉末涂装方法时，归一化为powder_coating。必须逐字可见，不能由“防锈处理”推断。",
+      "subject_scope": "current_object",
+      "allowed_values": [
+        "powder_coating"
+      ],
+      "not_hit_criteria": "完整检查全部技术要求和表面标注，且不存在任何防锈、防腐、涂层或表面保护要求。",
+      "coverage_requirement": "检查全部技术要求、标题栏表面处理字段和局部表面标注；若只写“防锈处理/防腐处理”而未给具体方法，返回UNABLE_TO_JUDGE并引用原文。",
+      "evidence_requirement": "命中时提供明确喷塑/粉末涂层原文；无法判断时提供只有通用防锈义务而无方法的原文。",
+      "judgement_definition": "只提取PDF明确写出的保护方法，不选择工艺。通用“表面防锈处理”无法确定喷塑、喷漆、发黑、镀层或涂油中的哪一种，必须返回UNABLE_TO_JUDGE；不得读取历史路线补全。"
+    },
+    {
+      "label": "焊缝修平与精密加工顺序已有通用依据",
+      "fact_key": "weld_finish_precision_order_supported",
+      "reader_key": null,
+      "value_type": "boolean",
+      "description": "焊缝修平与大型精密内圆加工的相对顺序是否已由PDF可观察特征和经正反例审查的通用规则确定。",
+      "source_kind": "derived",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "judgement_definition": "仅可由不引用图号、名称或历史答案的通用特征顺序规则派生；当前没有经过正反例验证的规则时保持缺失。"
     }
   ],
   "nodes": [
@@ -730,6 +761,38 @@
     {
       "clauses": [
         {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "single_axis_external_cylindrical_profile",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "precision_tolerance_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 120,
+      "question": "单轴实体外圆的明确尺寸公差是否需要精加工？",
+      "rule_key": "precision_by_external_cylindrical_tolerance",
+      "branch_key": "5.5",
+      "option_key": "external_cylindrical_tolerance",
+      "description": "零件具有单轴实体外圆轮廓，且至少一个绑定该外圆的尺寸带明确数值公差时，派生精加工需求。",
+      "outcome_key": "requires_precision_machining",
+      "result_kind": "resolved",
+      "decision_key": "precision_need",
+      "option_label": "需要",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
           "fact_key": "has_hole_feature",
           "operator": "eq",
           "expected_value": true
@@ -787,9 +850,41 @@
           "expected_value": "part"
         },
         {
-          "fact_key": "is_plate_part",
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "plate"
+        },
+        {
+          "fact_key": "continuous_rolled_shell_surface_present",
           "operator": "eq",
           "expected_value": true
+        }
+      ],
+      "priority": 55,
+      "question": "连续曲率薄壁板壳属于哪个基础路线族？",
+      "rule_key": "continuous_rolled_shell_family",
+      "branch_key": "5.3",
+      "option_key": "continuous_rolled_shell",
+      "description": "板料形成大范围连续曲率薄壁壳面时选择卷制板件路线族，不要求固定回转轴或圆形截面。",
+      "outcome_key": "route_family",
+      "result_kind": "resolved",
+      "decision_key": "route_family",
+      "option_label": "卷制板件",
+      "outcome_type": "fact",
+      "outcome_value": "rolled_sheet_part",
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "plate"
         },
         {
           "fact_key": "continuous_revolved_surface",
@@ -823,9 +918,9 @@
           "expected_value": "part"
         },
         {
-          "fact_key": "is_plate_part",
+          "fact_key": "raw_form",
           "operator": "eq",
-          "expected_value": true
+          "expected_value": "plate"
         },
         {
           "fact_key": "has_bend_feature",
@@ -836,6 +931,11 @@
           "fact_key": "continuous_revolved_surface",
           "operator": "eq",
           "expected_value": false
+        },
+        {
+          "fact_key": "continuous_rolled_shell_surface_present",
+          "operator": "eq",
+          "expected_value": false
         }
       ],
       "priority": 40,
@@ -843,7 +943,7 @@
       "rule_key": "bent_sheet_family",
       "branch_key": "5.2",
       "option_key": "bent_sheet",
-      "description": "板件存在折弯特征选择折弯路线族",
+      "description": "板件存在离散折弯特征且不存在连续卷制壳面时选择折弯路线族",
       "outcome_key": "route_family",
       "result_kind": "resolved",
       "decision_key": "route_family",
@@ -859,9 +959,9 @@
           "expected_value": "part"
         },
         {
-          "fact_key": "is_plate_part",
+          "fact_key": "raw_form",
           "operator": "eq",
-          "expected_value": true
+          "expected_value": "plate"
         },
         {
           "fact_key": "has_bend_feature",
@@ -872,6 +972,11 @@
           "fact_key": "continuous_revolved_surface",
           "operator": "eq",
           "expected_value": false
+        },
+        {
+          "fact_key": "continuous_rolled_shell_surface_present",
+          "operator": "eq",
+          "expected_value": false
         }
       ],
       "priority": 10,
@@ -879,7 +984,7 @@
       "rule_key": "flat_sheet_family",
       "branch_key": "5.1",
       "option_key": "flat_sheet",
-      "description": "无成形和精加工特征选择平板路线族",
+      "description": "无连续卷制壳面、无回转曲面且无离散折弯特征时选择平板路线族",
       "outcome_key": "route_family",
       "result_kind": "resolved",
       "decision_key": "route_family",
@@ -895,9 +1000,9 @@
           "expected_value": "part"
         },
         {
-          "fact_key": "is_plate_part",
+          "fact_key": "raw_form",
           "operator": "eq",
-          "expected_value": true
+          "expected_value": "plate"
         },
         {
           "fact_key": "has_welding_feature",
@@ -927,9 +1032,9 @@
           "expected_value": "part"
         },
         {
-          "fact_key": "is_plate_part",
+          "fact_key": "raw_form",
           "operator": "eq",
-          "expected_value": true
+          "expected_value": "plate"
         },
         {
           "fact_key": "requires_precision_machining",
@@ -1577,6 +1682,11 @@
           "fact_key": "route_family",
           "operator": "eq",
           "expected_value": "rolled_sheet_part"
+        },
+        {
+          "fact_key": "continuous_rolled_shell_surface_present",
+          "operator": "neq",
+          "expected_value": true
         }
       ],
       "priority": 240,
@@ -1584,7 +1694,7 @@
       "rule_key": "rolled_sheet_feature_sequence_incomplete",
       "branch_key": "3.6",
       "option_key": "rolled_sequence_incomplete",
-      "description": "当前特征规则只确定板材下料和卷制；纵缝连接、校圆及阶段表面处理尚无足够通用PDF特征规则，因此不得报告完整路线。",
+      "description": "传统圆筒或圆锥卷制板件若未建立纵缝连接、校圆及阶段表面处理规则，则保持部分结果；连续非回转板壳不触发本守卫。",
       "outcome_key": "rolled_sheet_feature_sequence_missing",
       "result_kind": "error",
       "decision_key": "route_completeness",
@@ -1778,11 +1888,6 @@
           "expected_value": "tube"
         },
         {
-          "fact_key": "is_plate_part",
-          "operator": "eq",
-          "expected_value": false
-        },
-        {
           "fact_key": "has_bend_feature",
           "operator": "eq",
           "expected_value": false
@@ -1893,6 +1998,101 @@
         "operation_key": "compact_axisymmetric_bar_turning"
       },
       "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "surface_corrosion_protection_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "surface_protection_method",
+          "operator": "eq",
+          "expected_value": "powder_coating"
+        }
+      ],
+      "priority": 233,
+      "question": "当前对象的防锈义务是否已由PDF明确到具体保护方法？",
+      "rule_key": "surface_protection_method_required",
+      "branch_key": "3.4",
+      "option_key": "surface_protection_method_ready",
+      "description": "PDF明确防锈/防腐义务时必须同时给出可验证的具体方法；只有“防锈处理”时保持部分结果，禁止按历史路线补成喷塑。",
+      "outcome_key": "surface_protection_method_ready",
+      "result_kind": "resolved",
+      "decision_key": "surface_protection_completeness",
+      "option_label": "表面保护方法已明确",
+      "outcome_type": "stage",
+      "outcome_value": true,
+      "missing_behavior": "error"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "surface_corrosion_protection_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "surface_protection_method",
+          "operator": "eq",
+          "expected_value": "powder_coating"
+        }
+      ],
+      "priority": 150,
+      "question": "PDF明确的粉末涂层要求如何形成？",
+      "rule_key": "explicit_powder_coating",
+      "branch_key": "3.4",
+      "option_key": "explicit_powder_coating",
+      "description": "仅当PDF逐字明确喷塑或粉末涂层时生成喷塑工序；通用防锈要求不命中。",
+      "outcome_key": "explicit_powder_coating",
+      "result_kind": "resolved",
+      "decision_key": "surface_protection_process",
+      "option_label": "喷塑",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 90,
+        "process_name": "喷塑",
+        "operation_key": "explicit_powder_coating"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "surface_corrosion_protection_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "weld_seam_finishing_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "large_precision_internal_cylindrical_surface_present",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "weld_finish_precision_order_supported",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 234,
+      "question": "防锈焊接部件中焊缝修平与精密内圆加工的相对顺序是否已有通用依据？",
+      "rule_key": "weld_finish_precision_order_required",
+      "branch_key": "3.6",
+      "option_key": "weld_finish_precision_order_ready",
+      "description": "同时存在防锈义务、焊缝修平和大型精密内圆时，必须由经正反例审查的可观察特征规则确定修平与精密加工顺序；当前无依据时保持部分结果。",
+      "outcome_key": "weld_finish_precision_order_ready",
+      "result_kind": "resolved",
+      "decision_key": "operation_order_completeness",
+      "option_label": "焊缝修平与精密加工顺序已确定",
+      "outcome_type": "stage",
+      "outcome_value": true,
+      "missing_behavior": "error"
     }
   ],
   "readers": [
@@ -1903,22 +2103,28 @@
       "capability_definition": "读取主标题栏图号、名称、材料和数量及BOM结构；图号和名称只作非决策元数据，Reader不得由身份推断路线。"
     },
     {
-      "label": "几何尺寸读取器",
+      "label": "全局形态几何读取器",
       "sequence": 2,
       "reader_key": "geometry_dimension_reader",
-      "capability_definition": "读取全局材料形态、整体轴类轮廓、总长/最大外径、孔槽拓扑、内部轮廓、尺寸公差和粗糙度；必须读取材料栏中的方管/矩形管/圆管规格，严格区分标准管材壁厚、板料厚度、真正轴对称回转曲面和非圆闭合管截面。"
+      "capability_definition": "读取材料规格、全局截面、中心轴、实体或空心主体和整体轴类轮廓；判定原始形态、连续回转曲面和外圆主体，严格区分局部圆柱、实体外圆和连续空心壁。"
     },
     {
       "label": "符号关系读取器",
-      "sequence": 3,
+      "sequence": 4,
       "reader_key": "symbol_relation_reader",
       "capability_definition": "读取焊接符号、焊缝标注和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
     },
     {
       "label": "技术要求读取器",
-      "sequence": 4,
+      "sequence": 5,
       "reader_key": "requirement_annotation_reader",
-      "capability_definition": "读取技术要求、公差、表面、清洁、检验、焊缝修平和定向拉丝要求；逐字提供原文，不将要求直接改写成路线。"
+      "capability_definition": "读取技术要求、公差、表面、清洁、检验、焊缝修平、定向拉丝及防锈/防腐义务；逐字区分通用防锈要求与明确喷塑/粉末涂层，不将要求直接改写成路线。"
+    },
+    {
+      "label": "局部特征尺寸读取器",
+      "sequence": 3,
+      "reader_key": "geometry_feature_reader",
+      "capability_definition": "读取折弯、孔槽、尺寸公差和局部孔相对本体比例；区分局部加工特征与整体主体轮廓，并完整检查全部主要视图和局部详图。"
     }
   ],
   "branches": [
@@ -2059,6 +2265,6 @@
     }
   ],
   "tree_key": "drawing-process-tree",
-  "description": "在阶梯棒料守卫后保留标准方管材料规格示例，使管材识别和后续迁移幂等合同不回退。",
+  "description": "明确逐尺寸单边或双边数值公差属于精密公差，避免Reader引用公差原文后仍返回NOT_HIT。",
   "schema_version": 2
 }

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "连续卷制板壳不得同时落入平板或离散折弯路线族。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "bent_sheet_family",
+      "value": {
+        "branch_key": "5.2",
+        "rule_key": "bent_sheet_family",
+        "description": "板件存在离散折弯特征且不存在连续卷制壳面时选择折弯路线族。",
+        "decision_key": "route_family",
+        "question": "选择哪个基础路线族？",
+        "option_key": "bent_sheet",
+        "option_label": "折弯板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "bent_sheet_part",
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "has_bend_feature", "operator": "eq", "expected_value": true},
+          {"fact_key": "continuous_revolved_surface", "operator": "eq", "expected_value": false},
+          {"fact_key": "continuous_rolled_shell_surface_present", "operator": "eq", "expected_value": false}
+        ],
+        "missing_behavior": "not_match",
+        "priority": 40
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "flat_sheet_family",
+      "value": {
+        "branch_key": "5.1",
+        "rule_key": "flat_sheet_family",
+        "description": "无连续卷制壳面、无回转曲面且无离散折弯特征时选择平板路线族。",
+        "decision_key": "route_family",
+        "question": "选择哪个基础路线族？",
+        "option_key": "flat_sheet",
+        "option_label": "平板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "flat_cut_plate_part",
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "has_bend_feature", "operator": "eq", "expected_value": false},
+          {"fact_key": "continuous_revolved_surface", "operator": "eq", "expected_value": false},
+          {"fact_key": "continuous_rolled_shell_surface_present", "operator": "eq", "expected_value": false}
+        ],
+        "missing_behavior": "not_match",
+        "priority": 10
+      }
+    }
+  ]
+}

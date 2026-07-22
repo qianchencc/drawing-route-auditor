@@ -74,7 +74,7 @@ class FactObservation(BaseModel):
         if self.status == "not_hit":
             if not self.coverage_complete:
                 raise ValueError("NOT_HIT 要求观察范围已完整覆盖")
-            if self.value == 0:
+            if self.value is None or self.value == 0:
                 self.value = False
             if self.value is not False:
                 raise ValueError("NOT_HIT 的 value 必须为 false")

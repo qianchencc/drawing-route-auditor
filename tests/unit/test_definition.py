@@ -14,9 +14,13 @@ def test_tree_definition_is_the_single_reader_fact_rule_source() -> None:
     definition = load_tree_definition(SOURCE)
 
     assert definition.tree_key == "drawing-process-tree"
-    assert [item.reader_key for item in definition.readers] == [
+    assert [
+        item.reader_key
+        for item in sorted(definition.readers, key=lambda item: item.sequence)
+    ] == [
         "document_structure_reader",
         "geometry_dimension_reader",
+        "geometry_feature_reader",
         "symbol_relation_reader",
         "requirement_annotation_reader",
     ]

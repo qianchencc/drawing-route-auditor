@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "识别PDF中的防锈义务，只有明确粉末涂层时生成喷塑；通用防锈方法和焊缝修平/精密加工顺序无法确定时返回部分结果。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "surface_corrosion_protection_required",
+      "value": {
+        "label": "表面防锈义务",
+        "fact_key": "surface_corrosion_protection_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "当前对象的图纸是否明确要求表面防锈、防腐或耐腐蚀处理；只确认制造义务，不推断具体处理方法。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "技术要求、标题栏或表面标注明确出现“表面防锈处理”“防腐处理”“耐腐蚀处理”或等价要求。",
+        "not_hit_criteria": "完整检查全部技术要求、标题栏和表面标注后，没有任何防锈、防腐或耐腐蚀处理要求。",
+        "coverage_requirement": "检查全部技术要求、标题栏表面处理字段和局部表面标注；区分防锈义务与机械抛光、清洗或普通去毛刺。",
+        "evidence_requirement": "提供防锈、防腐或耐腐蚀要求原文、条款和对象范围。",
+        "judgement_definition": "这是表面保护义务事实，不是喷塑、喷漆、发黑、镀层或涂油等工序答案。仅按PDF原文判断是否存在防锈/防腐义务。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "surface_protection_method",
+      "value": {
+        "label": "明确表面保护方法",
+        "fact_key": "surface_protection_method",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "text",
+        "description": "PDF是否明确给出当前规则库可直接映射的具体表面保护方法；当前只支持逐字明确的喷塑/粉末涂层。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "powder_coating"
+        ],
+        "hit_criteria": "技术要求或表面标注明确写有“喷塑”“粉末喷涂”“粉末涂层”或等价粉末涂装方法时，归一化为powder_coating。必须逐字可见，不能由“防锈处理”推断。",
+        "not_hit_criteria": "完整检查全部技术要求和表面标注，且不存在任何防锈、防腐、涂层或表面保护要求。",
+        "coverage_requirement": "检查全部技术要求、标题栏表面处理字段和局部表面标注；若只写“防锈处理/防腐处理”而未给具体方法，返回UNABLE_TO_JUDGE并引用原文。",
+        "evidence_requirement": "命中时提供明确喷塑/粉末涂层原文；无法判断时提供只有通用防锈义务而无方法的原文。",
+        "judgement_definition": "只提取PDF明确写出的保护方法，不选择工艺。通用“表面防锈处理”无法确定喷塑、喷漆、发黑、镀层或涂油中的哪一种，必须返回UNABLE_TO_JUDGE；不得读取历史路线补全。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "weld_finish_precision_order_supported",
+      "value": {
+        "label": "焊缝修平与精密加工顺序已有通用依据",
+        "fact_key": "weld_finish_precision_order_supported",
+        "reader_key": null,
+        "value_type": "boolean",
+        "description": "焊缝修平与大型精密内圆加工的相对顺序是否已由PDF可观察特征和经正反例审查的通用规则确定。",
+        "source_kind": "derived",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "judgement_definition": "仅可由不引用图号、名称或历史答案的通用特征顺序规则派生；当前没有经过正反例验证的规则时保持缺失。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "requirement_annotation_reader",
+      "value": {
+        "label": "技术要求读取器",
+        "sequence": 4,
+        "reader_key": "requirement_annotation_reader",
+        "capability_definition": "读取技术要求、公差、表面、清洁、检验、焊缝修平、定向拉丝及防锈/防腐义务；逐字区分通用防锈要求与明确喷塑/粉末涂层，不将要求直接改写成路线。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "surface_protection_method_required",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "surface_corrosion_protection_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_protection_method",
+            "operator": "eq",
+            "expected_value": "powder_coating"
+          }
+        ],
+        "priority": 233,
+        "question": "当前对象的防锈义务是否已由PDF明确到具体保护方法？",
+        "rule_key": "surface_protection_method_required",
+        "branch_key": "3.4",
+        "option_key": "surface_protection_method_ready",
+        "description": "PDF明确防锈/防腐义务时必须同时给出可验证的具体方法；只有“防锈处理”时保持部分结果，禁止按历史路线补成喷塑。",
+        "outcome_key": "surface_protection_method_ready",
+        "result_kind": "resolved",
+        "decision_key": "surface_protection_completeness",
+        "option_label": "表面保护方法已明确",
+        "outcome_type": "stage",
+        "outcome_value": true,
+        "missing_behavior": "error"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "explicit_powder_coating",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "surface_corrosion_protection_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_protection_method",
+            "operator": "eq",
+            "expected_value": "powder_coating"
+          }
+        ],
+        "priority": 150,
+        "question": "PDF明确的粉末涂层要求如何形成？",
+        "rule_key": "explicit_powder_coating",
+        "branch_key": "3.4",
+        "option_key": "explicit_powder_coating",
+        "description": "仅当PDF逐字明确喷塑或粉末涂层时生成喷塑工序；通用防锈要求不命中。",
+        "outcome_key": "explicit_powder_coating",
+        "result_kind": "resolved",
+        "decision_key": "surface_protection_process",
+        "option_label": "喷塑",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 90,
+          "process_name": "喷塑",
+          "operation_key": "explicit_powder_coating"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "weld_finish_precision_order_required",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "surface_corrosion_protection_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_seam_finishing_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "large_precision_internal_cylindrical_surface_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_finish_precision_order_supported",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 234,
+        "question": "防锈焊接部件中焊缝修平与精密内圆加工的相对顺序是否已有通用依据？",
+        "rule_key": "weld_finish_precision_order_required",
+        "branch_key": "3.6",
+        "option_key": "weld_finish_precision_order_ready",
+        "description": "同时存在防锈义务、焊缝修平和大型精密内圆时，必须由经正反例审查的可观察特征规则确定修平与精密加工顺序；当前无依据时保持部分结果。",
+        "outcome_key": "weld_finish_precision_order_ready",
+        "result_kind": "resolved",
+        "decision_key": "operation_order_completeness",
+        "option_label": "焊缝修平与精密加工顺序已确定",
+        "outcome_type": "stage",
+        "outcome_value": true,
+        "missing_behavior": "error"
+      }
+    }
+  ]
+}

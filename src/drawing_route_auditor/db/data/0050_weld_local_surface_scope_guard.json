@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "区分当前对象整体外表面机械整饰与局部焊缝修平；外露焊缝磨平抛光只属于焊缝整饰事实。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "outer_surface_polish_required",
+      "value": {
+        "label": "要求整体外表面抛光",
+        "fact_key": "outer_surface_polish_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "图纸是否明确要求当前对象整体外表面或全部外表面进行抛光。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "明确写有当前对象外表面抛光、全部外表面抛光、整体表面抛光或等价的全局表面要求。",
+        "not_hit_criteria": "完整检查全部要求后没有整体外表面抛光要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。",
+        "coverage_requirement": "检查全部技术要求和表面标注，逐项区分当前对象整体外表面与焊缝、焊道、焊接处等局部对象。",
+        "evidence_requirement": "提供要求原文，并明确其对象范围是整体外表面还是局部焊缝。",
+        "judgement_definition": "只读取当前对象整体外表面抛光要求，不判断工艺承担层级。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "external_mechanical_surface_finish_required",
+      "value": {
+        "label": "整体外表面机械整饰要求",
+        "fact_key": "external_mechanical_surface_finish_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "技术要求是否明确要求当前对象整体外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "明确出现当前对象外表面拉丝、外表面亚光、外表面抛光、全部表面磨光、整体表面抛丸或等价的全局机械整饰要求。",
+        "not_hit_criteria": "完整技术要求清晰可读且没有整体外表面机械整饰要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。仅内表面酸洗、钝化等化学处理也不得命中。",
+        "coverage_requirement": "检查全部表面技术要求，区分整体外表面、内表面和焊缝等局部对象，并区分机械整饰与化学处理。",
+        "evidence_requirement": "提供要求原文、对象范围和表面效果。",
+        "judgement_definition": "这是当前对象整体外表面要求事实。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达；外表面处理关键字模糊或对象范围不清时返回UNABLE_TO_JUDGE。"
+      }
+    }
+  ]
+}

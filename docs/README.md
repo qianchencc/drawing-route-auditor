@@ -21,7 +21,7 @@
 ```text
 PDF
 → Poppler 渲染与职责视图
-→ 4 个 Reader 并发提取图纸事实
+→ 5 个 Reader 并发提取图纸事实
 → 合并观察并检查冲突/覆盖
 → PostgreSQL 当前决策树执行事实闭包
 → 组装 complete / complete_with_candidates / partial / error
@@ -29,12 +29,13 @@ PDF
 → 推荐完成后，才可加载历史 CSV 做开发评估
 ```
 
-四个 Reader 的固定职责：
+五个 Reader 的固定职责：
 
 1. `document_structure_reader`：标题栏、材料、数量和 BOM；
-2. `geometry_dimension_reader`：原始形态、全局几何、尺寸、孔槽、板厚/管壁和加工特征；
-3. `symbol_relation_reader`：焊接符号、焊缝、装配关系和大型精密内圆；
-4. `requirement_annotation_reader`：技术要求、公差、表面、清洁、检验和焊缝修平。
+2. `geometry_dimension_reader`：原始形态、连续回转曲面和整体轴类/外圆主体；
+3. `geometry_feature_reader`：折弯、孔槽、精密公差和相对本体的小孔；
+4. `symbol_relation_reader`：焊接符号、焊缝、装配关系和大型精密内圆；
+5. `requirement_annotation_reader`：技术要求、表面、清洁、检验、防腐义务和焊缝修平。
 
 图号、名称和 PDF 文件名可以保存为审计元数据，但决策规则不得引用它们。材料栏中的“方管”“圆管”“板”等属于 PDF 可观察的制造形态，不是身份键。
 
@@ -96,7 +97,7 @@ src/drawing_route_auditor/db/data/NNNN_description.json
    .venv/bin/draw-route route /path/to/drawing.pdf
    ```
 
-2. 记录运行编号、状态、总耗时、四个 Reader 状态和预测工序序列。
+2. 记录运行编号、状态、总耗时、五个 Reader 状态和预测工序序列。
 3. 检查每道工序是否能追溯到 PDF 页码、区域和原文证据。
 4. 推荐和证据全部持久化后，才加载 `golden_route.json` 或历史 CSV。
 5. 历史答案有额外工序时，先寻找可泛化的 PDF 特征和负例；找不到则保持 `partial`，不能复制答案。

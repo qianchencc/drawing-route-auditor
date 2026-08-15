@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "从焊缝轮廓附加符号派生焊后整饰，并用右上高分辨率视图逐字读取全局粗糙度；Ra数值自身仍不选择工艺。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "symbol_relation_reader",
+      "value": {
+        "label": "符号关系读取器",
+        "sequence": 4,
+        "reader_key": "symbol_relation_reader",
+        "capability_definition": "读取焊接符号、焊缝标注、焊缝轮廓附加符号和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "surface_texture_reader",
+      "value": {
+        "label": "表面纹理读取器",
+        "sequence": 6,
+        "reader_key": "surface_texture_reader",
+        "capability_definition": "只读取表面纹理符号的作用范围和逐字Ra数值。优先检查右上通用表面纹理高分辨率图，再以整页核对；同时检查标题栏附近、技术要求区和其他通用标注区。严格区分‘其余/全部’或通用区独立符号与通过额外引出线连接具体几何面的局部符号。符号自身的短斜线、横线、小圆圈不是局部引出线。只报告图纸事实，不输出抛光、磨削、车削、铣削或其他工序答案。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "weld_contour_symbol_present",
+      "value": {
+        "label": "焊缝轮廓附加符号",
+        "fact_key": "weld_contour_symbol_present",
+        "reader_key": "symbol_relation_reader",
+        "value_type": "boolean",
+        "description": "焊接符号是否带有直接附着于基本焊缝符号的平直、凸形或凹形轮廓附加符号。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "occurrence",
+        "allowed_values": null,
+        "hit_criteria": "至少一个可定位焊接符号带有直接附着的平直线、凸弧或凹弧轮廓附加符号；必须能把附加轮廓与同一基准线上的基本焊缝符号绑定。",
+        "not_hit_criteria": "完整检查全部焊接标注后，只见基本角焊缝、对接焊缝、全周圆圈、焊脚尺寸或数量标注，未见直接附着的平直、凸形或凹形轮廓附加符号。",
+        "coverage_requirement": "检查每个焊接符号的基准线两侧、基本焊缝符号邻近区域及局部放大图；不得把零件轮廓、表面纹理符号、全周焊圆圈或普通尺寸线当作焊缝轮廓附加符号。",
+        "evidence_requirement": "提供附加轮廓的形状、其绑定的基本焊缝符号、页面和连接位置；若分辨率不足以区分轮廓弧线与零件线，返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "只记录焊接符号上的轮廓要求，不输出磨削、抛光或其他工艺答案。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_surface_roughness_required",
+      "value": {
+        "label": "整体表面粗糙度要求",
+        "fact_key": "global_surface_roughness_required",
+        "reader_key": "surface_texture_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在作用于其余表面、全部表面或整体未单独标注表面的全局粗糙度要求。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "右上或其他通用标注区出现‘其余’、‘全部表面’或等价文字绑定的表面纹理符号；或者出现独立放置且符号之外没有额外引出线连接具体几何面的通用表面纹理符号。符号自身的短斜线、横线、小圆圈属于符号组成，不算局部引出线。",
+        "not_hit_criteria": "完整检查右上高分辨率图、整页和其他通用标注区后没有全局粗糙度要求；仅有通过符号之外的额外引出线、箭头或尺寸界线连接具体几何面的局部符号时返回NOT_HIT。",
+        "coverage_requirement": "先逐字检查右上通用表面纹理高分辨率图，再核对整页、标题栏附近、全部视图和技术要求；必须覆盖‘其余’、‘全部’及独立通用符号。",
+        "evidence_requirement": "提供全局文字或独立符号、逐字数值、页面和区域，并明确说明符号之外是否存在连接具体几何面的额外引出线；范围模糊时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "这是最终表面质量及作用范围事实，不是工序答案；不得由全局粗糙度或Ra数值单独选择磨、铣、车或抛光。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_surface_roughness_ra_um",
+      "value": {
+        "label": "整体表面粗糙度数值",
+        "fact_key": "global_surface_roughness_ra_um",
+        "reader_key": "surface_texture_reader",
+        "value_type": "number",
+        "description": "全局粗糙度要求明确印刷的Ra数值，单位为微米。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "全局、‘其余’或‘全部’表面纹理符号旁存在清晰可读数值；必须从右上高分辨率图逐字符抄录，并用整页核对，禁止按常见值猜测。",
+        "not_hit_criteria": "完整检查后没有全局表面纹理符号；仅有通过额外引出线绑定局部面的Ra数值时返回NOT_HIT。若全局符号存在但数字模糊、例如无法区分1.6、3.2、6.3或其他数值，返回UNABLE_TO_JUDGE而不是NOT_HIT。",
+        "coverage_requirement": "优先检查右上通用表面纹理高分辨率图中的全部数字，再核对整页、标题栏附近、技术要求和局部表面纹理符号，区分全局与局部数值。",
+        "evidence_requirement": "逐字提供全局符号旁印刷数值、作用范围文字、页面和区域；高分辨率图与整页读数冲突时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "只记录全局Ra数值，不据此选择制造工序；数值必须被实际读取，不能由历史路线、文件名或常见默认值补全。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "weld_contour_finish_polish",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_contour_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 151,
+        "question": "带轮廓附加符号的焊缝如何完成规定轮廓？",
+        "rule_key": "weld_contour_finish_polish",
+        "branch_key": "3.6",
+        "option_key": "weld_contour_finish_polish",
+        "description": "焊接部件的基本焊缝符号带有明确平直、凸形或凹形轮廓附加符号时，按企业工序语义形成焊后抛光整饰；该判断来自焊缝符号，不来自Ra数值。",
+        "outcome_key": "weld_contour_finish_polish",
+        "result_kind": "resolved",
+        "decision_key": "weld_contour_finish_stage",
+        "option_label": "抛光",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "抛光",
+          "operation_key": "weld_seam_finish_polish"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "global_roughness_method_from_weld_contour",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "global_surface_roughness_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "global_surface_roughness_ra_um",
+            "operator": "gt",
+            "expected_value": 0
+          },
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "weld_contour_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 242,
+        "question": "全局粗糙度是否由已明确的焊缝轮廓整饰阶段承担？",
+        "rule_key": "global_roughness_method_from_weld_contour",
+        "branch_key": "3.4",
+        "option_key": "global_roughness_polishing_from_weld_contour",
+        "description": "全局Ra数值已实际读出，且焊接符号独立要求焊缝轮廓整饰时，将已由焊缝符号确定的抛光阶段登记为粗糙度承担方法；Ra数值自身不产生抛光。",
+        "outcome_key": "surface_roughness_process_method",
+        "result_kind": "resolved",
+        "decision_key": "surface_roughness_method_from_weld_contour",
+        "option_label": "焊缝轮廓抛光承担",
+        "outcome_type": "fact",
+        "outcome_value": "polishing",
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "global_roughness_method_from_explicit_weld_finish",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "global_surface_roughness_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "global_surface_roughness_ra_um",
+            "operator": "gt",
+            "expected_value": 0
+          },
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "weld_seam_finishing_required",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 243,
+        "question": "全局粗糙度是否由图纸明示的焊后整饰阶段承担？",
+        "rule_key": "global_roughness_method_from_explicit_weld_finish",
+        "branch_key": "3.4",
+        "option_key": "global_roughness_polishing_from_explicit_weld_finish",
+        "description": "全局Ra数值已实际读出，且技术要求明确焊缝磨平、抛光或清除焊接痕迹时，将已由文字确定的抛光阶段登记为粗糙度承担方法；Ra数值自身不产生抛光。",
+        "outcome_key": "surface_roughness_process_method",
+        "result_kind": "resolved",
+        "decision_key": "surface_roughness_method_from_explicit_weld_finish",
+        "option_label": "明示焊后抛光承担",
+        "outcome_type": "fact",
+        "outcome_value": "polishing",
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

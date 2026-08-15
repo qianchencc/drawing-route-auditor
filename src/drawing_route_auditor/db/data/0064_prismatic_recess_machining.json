@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "以非贯通棱柱凹槽的平面边界和有限深度事实建立厚板实体铣削路线。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "prismatic_recess_present",
+      "value": {
+        "label": "棱柱非贯通凹槽",
+        "fact_key": "prismatic_recess_present",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "板状或块状实心对象是否存在具有明确宽度和有限深度、底部或背后仍保留材料的非贯通槽、口袋、台阶凹腔或开口凹槽。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "主要视图显示由平行边、封闭边或台阶边界定义的槽/口袋/凹腔，且剖视图或侧视图给出小于本体厚度的明确深度，证明凹槽非贯通并在底部或背后保留实体材料；槽可在外周一端开口。",
+        "not_hit_criteria": "完整检查后仅有贯穿孔、贯穿轮廓切口、外周缺口、倒角、圆角、折弯线、板材平面外形或没有有限深度的槽腔；只有槽形轮廓但无法证明非贯通深度时不得命中。",
+        "coverage_requirement": "检查全部主视图、剖视图和侧视图，关联槽宽、口袋边界、本体总厚度、凹槽深度及剩余实体厚度；区分非贯通凹槽与贯穿切口。",
+        "evidence_requirement": "命中时同时提供槽/口袋平面边界与有限深度证据，并说明深度小于本体厚度或底部仍保留材料；缺少深度或视图对应关系时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "这是实体材料中的三维凹入拓扑事实，不是铣削工序答案。斜向槽、直槽、台阶口袋和开口凹槽均可命中，但必须由两个视图或剖面证明其非贯通深度。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "machining_by_prismatic_recess",
+      "value": {
+        "branch_key": "5.5",
+        "rule_key": "machining_by_prismatic_recess",
+        "description": "板状实心对象具有明确宽度和有限深度的非贯通槽、口袋或台阶凹腔时，派生实体精加工需求。",
+        "decision_key": "precision_need",
+        "question": "厚板或块状板件的非贯通凹槽是否需要实体加工？",
+        "option_key": "prismatic_recess_machining",
+        "option_label": "需要",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "requires_precision_machining",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "plate"
+          },
+          {
+            "fact_key": "prismatic_recess_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 125
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "flat_sheet_family",
+      "value": {
+        "branch_key": "5.1",
+        "rule_key": "flat_sheet_family",
+        "description": "无连续卷制壳面、无回转曲面、无离散折弯、无厚板内螺纹组合特征且无非贯通凹槽时选择普通平板路线族。",
+        "decision_key": "route_family",
+        "question": "选择哪个基础路线族？",
+        "option_key": "flat_sheet",
+        "option_label": "平板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "flat_cut_plate_part",
+        "clauses": [
+          {"fact_key": "object_kind", "operator": "eq", "expected_value": "part"},
+          {"fact_key": "raw_form", "operator": "eq", "expected_value": "plate"},
+          {"fact_key": "has_bend_feature", "operator": "eq", "expected_value": false},
+          {"fact_key": "continuous_revolved_surface", "operator": "eq", "expected_value": false},
+          {"fact_key": "continuous_rolled_shell_surface_present", "operator": "eq", "expected_value": false},
+          {"fact_key": "thick_plate_threaded_hole_present", "operator": "eq", "expected_value": false},
+          {"fact_key": "prismatic_recess_present", "operator": "eq", "expected_value": false}
+        ],
+        "missing_behavior": "not_match",
+        "priority": 10
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "machined_plate_milling",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "machined_plate_milling",
+        "description": "板件已由内螺纹孔、非贯通凹槽或其他PDF特征建立精加工路线族时，在下料后以铣工序形成对应实体特征。",
+        "decision_key": "plate_precision_operation",
+        "question": "精加工板件采用哪种精工工序？",
+        "option_key": "machined_plate_milling",
+        "option_label": "铣",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "machined_plate_milling",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "铣",
+          "operation_key": "machined_plate_milling"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 140
+      }
+    }
+  ]
+}

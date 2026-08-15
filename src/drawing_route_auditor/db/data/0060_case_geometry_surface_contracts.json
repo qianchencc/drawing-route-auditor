@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "校准实心平板原始形态、连续卷制壳面与无局部限定表面整饰要求的PDF事实合同。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "raw_form",
+      "value": {
+        "label": "原始材料形态",
+        "fact_key": "raw_form",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "text",
+        "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局几何共同决定，局部后加工特征不得改变原材料形态。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "plate",
+          "tube",
+          "bar",
+          "casting",
+          "forging",
+          "other"
+        ],
+        "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局几何复核。明确管材规格或沿长度连续的闭合空心截面归一化为tube；明确板料规格、展开或卷制板壳证据，或当前零件呈两个大平行面、厚度为最小尺寸且整体实心无连续管腔的平板/板状棱柱，归一化为plate。若材料栏只给牌号或形态文字缺失，但整件具有同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓且无连续管腔，则必须归一化为bar，不受总长和最大外径阈值限制，也不得返回UNABLE_TO_JUDGE。",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查材料规格、全部主要视图、整个阶梯外轮廓、中心线、每个绑定外部轮廓的φ/Ø外径和外螺纹、轴向长度、闭合截面、内外尺寸、两个主要平面尺寸、厚度、实体或空心状态、展开图和卷制接缝；不得只检查最大横向尺寸，也不得忽略材料中的方管/矩形管/圆管字样。",
+        "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定plate，必须提供两个大平行面、明确厚度以及无连续管腔证据；若用几何判定bar，必须提供中心线、至少一个绑定外部主体的φ/Ø外径或外螺纹、阶梯实体外轮廓以及无连续管腔证据。若材料与几何冲突则返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "判断制造前原材料形态。304方管80×50×5等标准方管、矩形管和圆管归一化为tube；板料展开或卷制壳体归一化为plate。材料形态文字缺失时，当前零件若具有两个明显大于厚度的平面尺寸、两个大平行面且整体实心无连续管腔，也必须归一化为plate；零件标题只可确认对象范围，不得单独决定形态。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形或平行直边；同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓以及无连续管腔共同成立时必须归一化为bar，即使材料栏只给牌号。短轴、长细轴和小直径阶梯轴同样适用；长大轴阈值只控制后续路线细分，不控制棒料事实。局部后加工孔不改变该判断。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "continuous_rolled_shell_surface_present",
+      "value": {
+        "label": "连续卷制板壳曲面",
+        "fact_key": "continuous_rolled_shell_surface_present",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否为由均匀板厚形成、沿主体大范围保持连续曲率的薄壁板壳；截面可以是圆形、非圆闭合或开放曲线，主体轴线也可以弯曲。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "主要视图或剖视图显示成对内外轮廓或明确板厚，主体壳面沿显著长度连续弯曲，并有大半径、圆弧、曲率或实配弧形尺寸约束。非圆截面和弯曲主体轴线不否定；关键是主体大范围连续曲率而非若干离散直线折弯。",
+        "not_hit_criteria": "完整检查后仅有平板、标准成品管材，或主体为长直板段而只在端部形成明确折弯线、折角、短翻边或局部圆弧过渡；局部倒圆、单个折弯圆角和端部翻边不得命中。没有绑定主体曲面的曲率半径、圆弧或实配尺寸时，不得仅凭连续弯曲措辞命中。",
+        "coverage_requirement": "检查全部主要视图、端视图、剖视图、成对内外轮廓、板厚、曲率半径、圆弧尺寸、实配尺寸、主体直线段、端部翻边、展开线和离散折弯线；区分主体连续卷制壳面、标准管材和直板加局部折弯。",
+        "evidence_requirement": "命中时同时提供均匀板厚或成对内外轮廓、主体大范围连续弯曲，以及绑定该主体曲面的曲率半径、圆弧或实配尺寸之一；未命中时提供平板、标准管材、主体长直段、端部翻边或离散折弯线证据。",
+        "judgement_definition": "这是连续卷制形态事实，不是工序答案。圆筒圆锥可命中，非圆闭合截面、开放曲线截面和弯曲轴线薄壁壳也可命中；仅15°等截面开口角不能单独证明折弯，必须寻找独立折弯线或短翻边。主体为长直板段、仅两端折弯或翻边且没有绑定主体曲面的明确大半径/曲率/实配尺寸时，必须返回NOT_HIT，不得把端部圆弧过渡泛化为连续卷制。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "external_mechanical_surface_finish_required",
+      "value": {
+        "label": "外表面机械整饰要求",
+        "fact_key": "external_mechanical_surface_finish_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "技术要求是否明确要求当前对象整体外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "明确出现当前对象外表面拉丝、外表面亚光、外表面抛光、全部表面磨光、整体表面抛丸或等价的全局机械整饰要求。技术要求中无焊缝、焊道、局部区域等限定的“镜面抛光处理”“抛光处理”“机械抛光”或“拉丝处理”，默认约束当前图纸对象整体，也必须命中。",
+        "not_hit_criteria": "完整技术要求清晰可读且没有整体外表面机械整饰要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。仅内表面酸洗、钝化等化学处理也不得命中。",
+        "coverage_requirement": "检查全部表面技术要求，区分当前图纸对象整体、外表面、内表面和焊缝等局部对象，并区分机械整饰与化学处理；无局部限定的处理要求不得因省略“外表面”字样而返回UNABLE_TO_JUDGE。",
+        "evidence_requirement": "提供要求原文、对象范围和表面效果；若要求没有显式对象词，必须同时证明该文字位于当前图纸技术要求且没有焊缝、焊道或局部区域限定。",
+        "judgement_definition": "这是当前对象整体外表面要求事实。当前图纸技术要求中的无限定处理语句默认约束当前对象；“镜面抛光处理”等完整要求即使省略“外表面”也可命中。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达；只有确有局部对象限定冲突或文字无法读清时才返回UNABLE_TO_JUDGE。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "outer_surface_polish_required",
+      "value": {
+        "label": "外表面抛光要求",
+        "fact_key": "outer_surface_polish_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "图纸是否明确要求当前对象整体外表面或全部外表面进行抛光。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "明确写有当前对象外表面抛光、全部外表面抛光、整体表面抛光或等价的全局表面要求。技术要求中无焊缝、焊道、局部区域等限定的“镜面抛光处理”“抛光处理”或“机械抛光”，默认约束当前图纸对象整体，也必须命中。",
+        "not_hit_criteria": "完整检查全部要求后没有整体外表面抛光要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。",
+        "coverage_requirement": "检查全部技术要求和表面标注，逐项区分当前图纸对象整体外表面与焊缝、焊道、焊接处等局部对象；无局部限定的抛光要求不得因省略“外表面”字样而返回UNABLE_TO_JUDGE。",
+        "evidence_requirement": "提供要求原文，并明确其对象范围是当前图纸对象整体还是局部焊缝；若要求没有显式对象词，必须同时证明该文字位于当前图纸技术要求且没有局部限定。",
+        "judgement_definition": "只读取当前对象整体外表面抛光要求，不判断工艺承担层级。当前图纸技术要求中的无限定抛光语句默认约束当前对象；“镜面抛光处理”等完整要求即使省略“外表面”也可命中。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达。"
+      }
+    }
+  ]
+}

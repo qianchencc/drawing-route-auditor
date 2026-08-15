@@ -58,6 +58,24 @@ _KNOWLEDGE_DATA = {
     "0054": "0054_continuous_rolled_shell_route.json",
     "0055": "0055_exclude_rolled_shell_from_flat_bent.json",
     "0056": "0056_scope_rolled_shell_completion.json",
+    "0057": "0057_rolled_shell_weld_calibration.json",
+    "0058": "0058_planar_curved_profile.json",
+    "0059": "0059_curved_profile_sheet_scope.json",
+    "0060": "0060_case_geometry_surface_contracts.json",
+    "0061": "0061_thick_plate_threaded_machining.json",
+    "0062": "0062_generalize_thick_plate_threaded_contract.json",
+    "0063": "0063_technical_requirements_presence.json",
+    "0064": "0064_prismatic_recess_machining.json",
+    "0065": "0065_prismatic_recess_depth_contract.json",
+    "0066": "0066_global_surface_roughness_guard.json",
+    "0090": "0090_global_roughness_numeric_contract.json",
+    "0092": "0092_global_roughness_scope_contract.json",
+    "0093": "0093_surface_texture_symbol_boundary.json",
+    "0094": "0094_surface_texture_reader.json",
+    "0095": "0095_weld_contour_surface_method.json",
+    "0096": "0096_weld_curved_contour_guard.json",
+    "0110": "0110_staged_prismatic_machining.json",
+    "0190": "0190_staged_prismatic_family_guard.json",
 }
 
 
@@ -125,15 +143,21 @@ def _ensure_migration_table(connection: Connection) -> None:
 
 def _apply_python_migration(connection: Connection, version: str) -> None:
     if version == "0008":
-        from drawing_route_auditor.db.knowledge_migrations import apply_current_tree_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_current_tree_upgrade,
+        )
 
         apply_current_tree_upgrade(connection)
     elif version == "0009":
-        from drawing_route_auditor.db.knowledge_migrations import apply_cover_shell_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_cover_shell_upgrade,
+        )
 
         apply_cover_shell_upgrade(connection)
     elif version == "0010":
-        from drawing_route_auditor.db.knowledge_migrations import apply_five_sample_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_five_sample_upgrade,
+        )
 
         apply_five_sample_upgrade(connection)
     elif version == "0011":
@@ -141,115 +165,171 @@ def _apply_python_migration(connection: Connection, version: str) -> None:
 
         apply_pdf_only_upgrade(connection)
     elif version == "0012":
-        from drawing_route_auditor.db.knowledge_migrations import apply_oriented_facts_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_oriented_facts_upgrade,
+        )
 
         apply_oriented_facts_upgrade(connection)
     elif version == "0013":
-        from drawing_route_auditor.db.knowledge_migrations import apply_robust_family_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_robust_family_upgrade,
+        )
 
         apply_robust_family_upgrade(connection)
     elif version == "0014":
-        from drawing_route_auditor.db.knowledge_migrations import apply_strict_geometry_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_strict_geometry_upgrade,
+        )
 
         apply_strict_geometry_upgrade(connection)
     elif version == "0015":
-        from drawing_route_auditor.db.knowledge_migrations import apply_pdf_only_metadata_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_pdf_only_metadata_upgrade,
+        )
 
         apply_pdf_only_metadata_upgrade(connection)
     elif version == "0016":
-        from drawing_route_auditor.db.knowledge_migrations import apply_cover_pdf_family_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_cover_pdf_family_upgrade,
+        )
 
         apply_cover_pdf_family_upgrade(connection)
     elif version == "0017":
-        from drawing_route_auditor.db.knowledge_migrations import apply_local_flange_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_local_flange_upgrade,
+        )
 
         apply_local_flange_upgrade(connection)
     elif version == "0018":
-        from drawing_route_auditor.db.knowledge_migrations import apply_hopper_geometry_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_hopper_geometry_upgrade,
+        )
 
         apply_hopper_geometry_upgrade(connection)
     elif version == "0019":
-        from drawing_route_auditor.db.knowledge_migrations import apply_geometry_guard_cleanup
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_geometry_guard_cleanup,
+        )
 
         apply_geometry_guard_cleanup(connection)
     elif version == "0020":
-        from drawing_route_auditor.db.knowledge_migrations import apply_feature_derived_routes_upgrade
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_feature_derived_routes_upgrade,
+        )
 
         apply_feature_derived_routes_upgrade(connection)
     elif version == "0021":
-        from drawing_route_auditor.db.knowledge_migrations import apply_feature_metadata_cleanup
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_feature_metadata_cleanup,
+        )
 
         apply_feature_metadata_cleanup(connection)
     elif version == "0022":
-        from drawing_route_auditor.db.knowledge_migrations import apply_rolled_feature_completeness
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_rolled_feature_completeness,
+        )
 
         apply_rolled_feature_completeness(connection)
     elif version == "0023":
-        from drawing_route_auditor.db.knowledge_migrations import apply_derived_prerequisite_closure
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_derived_prerequisite_closure,
+        )
 
         apply_derived_prerequisite_closure(connection)
     elif version == "0024":
-        from drawing_route_auditor.db.knowledge_migrations import apply_reader_feature_guards
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_reader_feature_guards,
+        )
 
         apply_reader_feature_guards(connection)
     elif version == "0025":
-        from drawing_route_auditor.db.knowledge_migrations import apply_small_hole_drilling
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_small_hole_drilling,
+        )
 
         apply_small_hole_drilling(connection)
     elif version == "0026":
-        from drawing_route_auditor.db.knowledge_migrations import apply_large_precision_boring
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_large_precision_boring,
+        )
 
         apply_large_precision_boring(connection)
     elif version == "0027":
-        from drawing_route_auditor.db.knowledge_migrations import apply_directional_surface_finish
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_directional_surface_finish,
+        )
 
         apply_directional_surface_finish(connection)
     elif version == "0028":
-        from drawing_route_auditor.db.knowledge_migrations import apply_large_bore_reader_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_large_bore_reader_guard,
+        )
 
         apply_large_bore_reader_guard(connection)
     elif version == "0029":
-        from drawing_route_auditor.db.knowledge_migrations import apply_multi_joint_access_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_multi_joint_access_guard,
+        )
 
         apply_multi_joint_access_guard(connection)
     elif version == "0030":
-        from drawing_route_auditor.db.knowledge_migrations import apply_compact_geometry_features
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_compact_geometry_features,
+        )
 
         apply_compact_geometry_features(connection)
     elif version == "0031":
-        from drawing_route_auditor.db.knowledge_migrations import apply_welded_multi_joint_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_welded_multi_joint_guard,
+        )
 
         apply_welded_multi_joint_guard(connection)
     elif version == "0032":
-        from drawing_route_auditor.db.knowledge_migrations import apply_precision_weldment_access
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_precision_weldment_access,
+        )
 
         apply_precision_weldment_access(connection)
     elif version == "0033":
-        from drawing_route_auditor.db.knowledge_migrations import apply_large_bore_reader_ownership
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_large_bore_reader_ownership,
+        )
 
         apply_large_bore_reader_ownership(connection)
     elif version == "0034":
-        from drawing_route_auditor.db.knowledge_migrations import apply_remove_unvalidated_weld_stages
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_remove_unvalidated_weld_stages,
+        )
 
         apply_remove_unvalidated_weld_stages(connection)
     elif version == "0035":
-        from drawing_route_auditor.db.knowledge_migrations import apply_external_mechanical_finish
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_external_mechanical_finish,
+        )
 
         apply_external_mechanical_finish(connection)
     elif version == "0036":
-        from drawing_route_auditor.db.knowledge_migrations import apply_weld_presence_routes
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_weld_presence_routes,
+        )
 
         apply_weld_presence_routes(connection)
     elif version == "0037":
-        from drawing_route_auditor.db.knowledge_migrations import apply_external_finish_reader_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_external_finish_reader_guard,
+        )
 
         apply_external_finish_reader_guard(connection)
     elif version == "0038":
-        from drawing_route_auditor.db.knowledge_migrations import apply_large_bore_judgement_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_large_bore_judgement_guard,
+        )
 
         apply_large_bore_judgement_guard(connection)
     elif version == "0039":
-        from drawing_route_auditor.db.knowledge_migrations import apply_surface_stage_ownership_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_surface_stage_ownership_guard,
+        )
 
         apply_surface_stage_ownership_guard(connection)
     elif version == "0040":
@@ -259,27 +339,39 @@ def _apply_python_migration(connection: Connection, version: str) -> None:
 
         apply_shaft_local_hole_geometry_guard(connection)
     elif version == "0041":
-        from drawing_route_auditor.db.knowledge_migrations import apply_surface_branch_metadata
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_surface_branch_metadata,
+        )
 
         apply_surface_branch_metadata(connection)
     elif version == "0042":
-        from drawing_route_auditor.db.knowledge_migrations import apply_tube_stock_cut_route
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_tube_stock_cut_route,
+        )
 
         apply_tube_stock_cut_route(connection)
     elif version == "0043":
-        from drawing_route_auditor.db.knowledge_migrations import apply_compact_axisymmetric_turning
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_compact_axisymmetric_turning,
+        )
 
         apply_compact_axisymmetric_turning(connection)
     elif version == "0044":
-        from drawing_route_auditor.db.knowledge_migrations import apply_cylindrical_projection_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_cylindrical_projection_guard,
+        )
 
         apply_cylindrical_projection_guard(connection)
     elif version == "0045":
-        from drawing_route_auditor.db.knowledge_migrations import apply_stepped_bar_evidence_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_stepped_bar_evidence_guard,
+        )
 
         apply_stepped_bar_evidence_guard(connection)
     elif version == "0046":
-        from drawing_route_auditor.db.knowledge_migrations import apply_preserve_tube_stock_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_preserve_tube_stock_guard,
+        )
 
         apply_preserve_tube_stock_guard(connection)
     elif version == "0047":
@@ -289,7 +381,9 @@ def _apply_python_migration(connection: Connection, version: str) -> None:
 
         apply_surface_protection_and_order_guards(connection)
     elif version == "0048":
-        from drawing_route_auditor.db.knowledge_migrations import apply_split_geometry_readers
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_split_geometry_readers,
+        )
 
         apply_split_geometry_readers(connection)
     elif version == "0049":
@@ -311,7 +405,9 @@ def _apply_python_migration(connection: Connection, version: str) -> None:
 
         apply_axis_stock_and_internal_surface_consistency(connection)
     elif version == "0052":
-        from drawing_route_auditor.db.knowledge_migrations import apply_general_axis_stock_guard
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_general_axis_stock_guard,
+        )
 
         apply_general_axis_stock_guard(connection)
     elif version == "0053":
@@ -321,7 +417,9 @@ def _apply_python_migration(connection: Connection, version: str) -> None:
 
         apply_external_cylindrical_precision_route(connection)
     elif version == "0054":
-        from drawing_route_auditor.db.knowledge_migrations import apply_continuous_rolled_shell_route
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_continuous_rolled_shell_route,
+        )
 
         apply_continuous_rolled_shell_route(connection)
     elif version == "0055":
@@ -336,6 +434,114 @@ def _apply_python_migration(connection: Connection, version: str) -> None:
         )
 
         apply_scope_rolled_shell_completion(connection)
+    elif version == "0057":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_rolled_shell_weld_calibration,
+        )
+
+        apply_rolled_shell_weld_calibration(connection)
+    elif version == "0058":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_planar_curved_profile,
+        )
+
+        apply_planar_curved_profile(connection)
+    elif version == "0059":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_curved_profile_sheet_scope,
+        )
+
+        apply_curved_profile_sheet_scope(connection)
+    elif version == "0060":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_case_geometry_surface_contracts,
+        )
+
+        apply_case_geometry_surface_contracts(connection)
+    elif version == "0061":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_thick_plate_threaded_machining,
+        )
+
+        apply_thick_plate_threaded_machining(connection)
+    elif version == "0062":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_generalize_thick_plate_threaded_contract,
+        )
+
+        apply_generalize_thick_plate_threaded_contract(connection)
+    elif version == "0063":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_technical_requirements_presence,
+        )
+
+        apply_technical_requirements_presence(connection)
+    elif version == "0064":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_prismatic_recess_machining,
+        )
+
+        apply_prismatic_recess_machining(connection)
+    elif version == "0065":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_prismatic_recess_depth_contract,
+        )
+
+        apply_prismatic_recess_depth_contract(connection)
+    elif version == "0066":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_global_surface_roughness_guard,
+        )
+
+        apply_global_surface_roughness_guard(connection)
+    elif version == "0090":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_global_roughness_numeric_contract,
+        )
+
+        apply_global_roughness_numeric_contract(connection)
+    elif version == "0092":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_global_roughness_scope_contract,
+        )
+
+        apply_global_roughness_scope_contract(connection)
+    elif version == "0110":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_staged_prismatic_machining,
+        )
+
+        apply_staged_prismatic_machining(connection)
+    elif version == "0190":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_staged_prismatic_family_guard,
+        )
+
+        apply_staged_prismatic_family_guard(connection)
+    elif version == "0093":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_surface_texture_symbol_boundary,
+        )
+
+        apply_surface_texture_symbol_boundary(connection)
+    elif version == "0094":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_surface_texture_reader,
+        )
+
+        apply_surface_texture_reader(connection)
+    elif version == "0095":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_weld_contour_surface_method,
+        )
+
+        apply_weld_contour_surface_method(connection)
+    elif version == "0096":
+        from drawing_route_auditor.db.knowledge_migrations import (
+            apply_weld_curved_contour_guard,
+        )
+
+        apply_weld_curved_contour_guard(connection)
 
 
 def migrate(connection: Connection) -> MigrationResult:

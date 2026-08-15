@@ -1,0 +1,273 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "由图面明确区分的粗加工、精加工/攻丝和最终外形加工标注生成可审计的多阶段棱柱加工路线，并以关键配合公差与基准形位公差的组合触发专项检验。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "staged_prismatic_machining_annotations_present",
+      "value": {
+        "label": "多阶段棱柱加工标注",
+        "fact_key": "staged_prismatic_machining_annotations_present",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "图面是否在不同视图或独立文字区域同时明确区分粗加工状态、精加工并攻丝状态和最终外形加工状态。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "必须同时看到三类彼此独立且绑定当前棱柱板件或块件的原文标注：一处明确粗加工或粗铣；一处明确按工艺卡片精加工/精铣并攻丝；一处另行明确最终外形加工或铣外形。三类文字可分布在不同视图，但必须能确定各自约束的几何区域。",
+        "not_hit_criteria": "完整检查后缺少上述任一独立阶段，或只有泛称加工、单次铣削、单独攻丝、普通尺寸/公差而没有三个被明确区分的加工状态时返回NOT_HIT。",
+        "coverage_requirement": "检查整页全部视图上方、视图内部、工艺图说明、技术要求和局部引出文字；逐项记录粗加工、精加工/攻丝、最终外形三类文字及其所绑定视图。",
+        "evidence_requirement": "分别逐字提供三类原文及页面区域；任一文字模糊、被裁切或无法确认绑定当前对象时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "这只记录PDF明示的三个独立制造状态，不输出工艺路线，也不从物料编码、图号、名称或历史路线补齐阶段。只有三个阶段均被图面文字分别建立时才命中。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "critical_fit_and_geometric_tolerance_present",
+      "value": {
+        "label": "关键配合与基准形位公差组合",
+        "fact_key": "critical_fit_and_geometric_tolerance_present",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否同时具有明确的配合/窄带尺寸公差和引用基准的形位公差。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "必须同时满足：至少一个具体尺寸带配合代号或明确上下偏差形成的窄公差带；至少一个形位公差框引用明确基准字母。两者必须绑定当前对象的可识别几何要素。",
+        "not_hit_criteria": "完整检查后只有未注公差、普通尺寸、单独配合尺寸、单独形位公差或没有基准引用时返回NOT_HIT。",
+        "coverage_requirement": "检查全部尺寸、公差上下偏差、配合代号、形位公差框、基准符号及其引出对象；不得把表面粗糙度数值当作尺寸公差。",
+        "evidence_requirement": "同时提供配合/上下偏差原文、形位公差框原文、基准字母及各自绑定的几何要素。任一关系不可读时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "这是可验证的尺寸与几何控制组合事实，不是检验工序答案。图号、名称和历史检验记录不得参与判断。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "machined_plate_milling",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          },
+          {
+            "fact_key": "staged_prismatic_machining_annotations_present",
+            "operator": "eq",
+            "expected_value": false
+          }
+        ],
+        "priority": 140,
+        "question": "精加工板件采用哪种精工工序？",
+        "rule_key": "machined_plate_milling",
+        "branch_key": "3.6",
+        "option_key": "machined_plate_milling",
+        "description": "板件已由PDF特征建立精加工路线族且图面没有明确拆分多个棱柱加工阶段时，在下料后以一次铣工序形成对应实体特征。",
+        "outcome_key": "machined_plate_milling",
+        "result_kind": "resolved",
+        "decision_key": "plate_precision_operation",
+        "option_label": "铣",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "铣",
+          "operation_key": "machined_plate_milling"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "staged_prismatic_rough_milling",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          },
+          {
+            "fact_key": "staged_prismatic_machining_annotations_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 170,
+        "question": "图面明确拆分多阶段棱柱加工时先形成哪个加工状态？",
+        "rule_key": "staged_prismatic_rough_milling",
+        "branch_key": "3.6",
+        "option_key": "staged_prismatic_rough_milling",
+        "description": "图面独立标出粗加工/粗铣状态时，先以铣去除主要余量，为后续精加工、孔加工和外形加工建立稳定基准。",
+        "outcome_key": "staged_prismatic_rough_milling",
+        "result_kind": "resolved",
+        "decision_key": "staged_prismatic_rough_stage",
+        "option_label": "铣",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "铣",
+          "operation_key": "staged_prismatic_rough_milling"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "staged_prismatic_precision_milling",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          },
+          {
+            "fact_key": "staged_prismatic_machining_annotations_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 170,
+        "question": "粗加工后如何形成图面独立标出的精加工状态？",
+        "rule_key": "staged_prismatic_precision_milling",
+        "branch_key": "3.6",
+        "option_key": "staged_prismatic_precision_milling",
+        "description": "图面在粗加工之外另行标出按工艺卡片精加工/精铣状态时，以第二次铣形成精密平面、台阶或斜面。",
+        "outcome_key": "staged_prismatic_precision_milling",
+        "result_kind": "resolved",
+        "decision_key": "staged_prismatic_precision_stage",
+        "option_label": "铣",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "铣",
+          "operation_key": "staged_prismatic_precision_milling"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "staged_prismatic_thread_drilling",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          },
+          {
+            "fact_key": "staged_prismatic_machining_annotations_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "has_hole_feature",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 170,
+        "question": "精加工标注同时明确攻丝且图面存在孔时如何形成螺纹孔？",
+        "rule_key": "staged_prismatic_thread_drilling",
+        "branch_key": "3.6",
+        "option_key": "staged_prismatic_thread_drilling",
+        "description": "多阶段棱柱加工标注明确包含攻丝且图面建立孔特征时，在精铣后以钻孔工序承担螺纹底孔及攻丝。",
+        "outcome_key": "staged_prismatic_thread_drilling",
+        "result_kind": "resolved",
+        "decision_key": "staged_prismatic_hole_stage",
+        "option_label": "钻孔",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 60,
+          "process_name": "钻孔",
+          "operation_key": "staged_prismatic_thread_drilling"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "staged_prismatic_profile_milling",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          },
+          {
+            "fact_key": "staged_prismatic_machining_annotations_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 170,
+        "question": "孔加工后如何形成图面另行标出的最终外形？",
+        "rule_key": "staged_prismatic_profile_milling",
+        "branch_key": "3.6",
+        "option_key": "staged_prismatic_profile_milling",
+        "description": "图面在粗铣和精铣/攻丝之外另行标出铣外形时，以第三次铣在孔加工后形成最终外周轮廓。",
+        "outcome_key": "staged_prismatic_profile_milling",
+        "result_kind": "resolved",
+        "decision_key": "staged_prismatic_profile_stage",
+        "option_label": "铣",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 70,
+          "process_name": "铣",
+          "operation_key": "staged_prismatic_profile_milling"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "critical_prismatic_special_inspection",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          },
+          {
+            "fact_key": "staged_prismatic_machining_annotations_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "critical_fit_and_geometric_tolerance_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 170,
+        "question": "多阶段精加工件同时具有关键配合和基准形位公差时如何验证？",
+        "rule_key": "critical_prismatic_special_inspection",
+        "branch_key": "3.6",
+        "option_key": "critical_prismatic_special_inspection",
+        "description": "多阶段棱柱精加工完成后，同时存在配合/窄带尺寸公差和引用基准的形位公差时，以专项检验验证组合精度。",
+        "outcome_key": "critical_prismatic_special_inspection",
+        "result_kind": "resolved",
+        "decision_key": "critical_prismatic_inspection_stage",
+        "option_label": "专项检验",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 80,
+          "process_name": "专项检验",
+          "operation_key": "critical_prismatic_special_inspection"
+        },
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

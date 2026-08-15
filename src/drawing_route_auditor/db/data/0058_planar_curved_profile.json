@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "识别具有明确板厚和曲线外周的平面板件，并以该可观察轮廓事实确定激光下料。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "planar_curved_profile_present",
+      "value": {
+        "label": "平面曲边轮廓",
+        "fact_key": "planar_curved_profile_present",
+        "reader_key": "geometry_dimension_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否为具有明确厚度的单一平面板件，且板件平面内的外周轮廓包含至少一段由半径、圆弧或样条定义的非直线切割边界。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "主要视图显示单一平面板件外周，材料栏或视图给出板厚，并且至少一段外周边界由 R 半径、圆弧、曲线或样条尺寸定义；侧视图若存在，应显示恒定板厚而不是成形壳面。",
+        "not_hit_criteria": "完整检查后外周仅由直线段组成，或者所见圆弧属于折弯截面、卷制壳面、圆管/圆筒轮廓、孔、局部倒圆或倒角，而不是平面板件的外周切割边界。",
+        "coverage_requirement": "检查主要视图、侧视图、板厚标注、外周全部直线与曲线边界、R/圆弧/样条尺寸，并区分平面内曲边与出平面的折弯或卷制曲面。",
+        "evidence_requirement": "命中时同时提供平面板厚证据和至少一段绑定外周边界的 R/圆弧/曲线尺寸；未命中时说明外周仅为直线，或圆弧实际属于孔、倒角、折弯或卷制曲面。",
+        "judgement_definition": "这是平面板件外周拓扑事实，不是下料工序答案。平面轮廓中的曲边可命中；仅有斜直边、C 倒角、孔圆、折弯圆角或卷制壳面不得命中。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "flat_plate_curved_profile_laser_blanking",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "flat_plate_curved_profile_laser_blanking",
+        "description": "平面板件外周包含半径、圆弧或样条定义的曲边时，以激光下料一次形成不可由直线剪切完成的轮廓。",
+        "decision_key": "blanking_method",
+        "question": "平面板件的曲线外周采用哪种下料方式？",
+        "option_key": "flat_plate_curved_profile_laser",
+        "option_label": "激光下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "blanking_laser",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "激光下料",
+          "operation_key": "blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "flat_cut_plate_part"
+          },
+          {
+            "fact_key": "planar_curved_profile_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 130
+      }
+    }
+  ]
+}

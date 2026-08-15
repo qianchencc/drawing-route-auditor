@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from PIL import Image, ImageDraw
@@ -11,7 +12,10 @@ from drawing_route_auditor.decision_tree.runtime import (
     observations_to_facts,
 )
 from drawing_route_auditor.workflow.assembler import assemble_recommendation
-from drawing_route_auditor.workflow.golden import evaluate_against_golden, load_golden_routes
+from drawing_route_auditor.workflow.golden import (
+    evaluate_against_golden,
+    load_golden_routes,
+)
 from drawing_route_auditor.workflow.models import (
     EvidenceRef,
     DrawingInput,
@@ -27,12 +31,16 @@ from drawing_route_auditor.workflow.models import (
     RouteRecommendation,
 )
 from drawing_route_auditor.workflow.readers import (
+    OpenAIReaderAdapter,
     build_reader_prompt,
     read_all,
     select_reader_views,
     validate_reader_response,
 )
-from drawing_route_auditor.workflow.render import READER_VIEW_VERSION, prepare_reader_views
+from drawing_route_auditor.workflow.render import (
+    READER_VIEW_VERSION,
+    prepare_reader_views,
+)
 from drawing_route_auditor.workflow.runner import (
     _require_pdf_only_runtime,
     WorkflowConfigurationError,
@@ -330,6 +338,146 @@ def test_weld_local_finish_does_not_become_global_surface_requirement(
     assert {item.value for item in validated.observations} == {expected_status == "hit"}
 
 
+def test_unqualified_mirror_polish_applies_to_current_object() -> None:
+    fact_keys = [
+        "outer_surface_polish_required",
+        "external_mechanical_surface_finish_required",
+    ]
+    plan = ReaderPlan(
+        reader_id=1,
+        reader_key="requirement_annotation_reader",
+        label="技术要求读取器",
+        capability_definition="读取技术要求",
+        sequence=1,
+        requested_features=[
+            RequestedFeature(
+                fact_key=fact_key,
+                label=fact_key,
+                subject_scope="current_object",
+                value_type="boolean",
+                allowed_values=None,
+                judgement_definition="区分当前对象与局部焊缝整饰",
+                hit_criteria="明确要求当前对象机械整饰",
+                not_hit_criteria="仅要求局部焊缝整饰",
+                coverage_requirement="检查全部技术要求",
+                evidence_requirement="提供要求原文",
+            )
+            for fact_key in fact_keys
+        ],
+    )
+    evidence = [EvidenceRef(page=1, region="技术要求第4条", text="镜面抛光处理")]
+    response = ReaderResponse(
+        reader_key=plan.reader_key,
+        observations=[
+            FactObservation(
+                fact_key=fact_key,
+                subject_ref="current_object",
+                status="unable_to_judge",
+                value=None,
+                evidence=evidence,
+                coverage_complete=True,
+            )
+            for fact_key in fact_keys
+        ],
+    )
+
+    validated = validate_reader_response(plan, response, "current_object")
+
+    assert {item.status for item in validated.observations} == {"hit"}
+    assert {item.value for item in validated.observations} == {True}
+
+
+@pytest.mark.parametrize(
+    ("has_bom", "geometry_text", "expected_raw_form"),
+    [
+        (
+            False,
+            "当前对象为200×176的实心矩形平板，厚度14，未见连续管腔。",
+            "plate",
+        ),
+        (
+            True,
+            "当前对象为200×176的实心矩形平板，厚度14，未见连续管腔。",
+            None,
+        ),
+        (
+            False,
+            "当前对象为矩形管，壁厚14，沿长度存在连续闭合管腔。",
+            None,
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_solid_plate_geometry_normalizes_raw_form_only_for_part(
+    has_bom: bool,
+    geometry_text: str,
+    expected_raw_form: str | None,
+) -> None:
+    responses = {
+        "document_structure_reader": [
+            FactObservation(
+                fact_key="object_has_bom",
+                subject_ref="current_object",
+                status="hit" if has_bom else "not_hit",
+                value=has_bom,
+                evidence=[EvidenceRef(page=1, region="明细栏", text="BOM检查结果")],
+                coverage_complete=True,
+            )
+        ],
+        "geometry_dimension_reader": [
+            FactObservation(
+                fact_key="raw_form",
+                subject_ref="current_object",
+                status="unable_to_judge",
+                value=None,
+                evidence=[EvidenceRef(page=1, region="主要视图", text=geometry_text)],
+                coverage_complete=True,
+            )
+        ],
+    }
+
+    class StaticReader:
+        async def read(
+            self,
+            plan: ReaderPlan,
+            pages: tuple[Path, ...],
+            subject_context: str,
+        ) -> ReaderExecution:
+            return ReaderExecution(
+                reader_key=plan.reader_key,
+                reader_label=plan.label,
+                status="succeeded",
+                response=ReaderResponse(
+                    reader_key=plan.reader_key,
+                    observations=responses[plan.reader_key],
+                ),
+                duration_seconds=0.01,
+                prompt_tokens=1,
+                completion_tokens=1,
+            )
+
+    plans = tuple(
+        _plan(sequence).model_copy(update={"reader_key": reader_key})
+        for sequence, reader_key in enumerate(responses, start=1)
+    )
+    executions = await read_all(
+        StaticReader(),
+        plans,
+        (Path("page-1.png"),),
+        "current_object",
+    )
+    raw_form = next(
+        observation
+        for execution in executions
+        if execution.response is not None
+        for observation in execution.response.observations
+        if observation.fact_key == "raw_form"
+    )
+
+    assert raw_form.status == ("hit" if expected_raw_form else "unable_to_judge")
+    assert raw_form.value == expected_raw_form
+
+
 def test_fixed_prompt_uses_tree_features_and_response_has_no_processes() -> None:
     prompt = build_reader_prompt(_plan(1))
     schema = ReaderResponse.model_json_schema()
@@ -551,6 +699,134 @@ def test_continuous_rolled_shell_normalizes_raw_form_to_plate(
         )
 
 
+@pytest.mark.parametrize("profile_present", [True, False])
+def test_planar_curved_profile_normalizes_plate_without_faking_rolled_shell(
+    profile_present: bool,
+) -> None:
+    plan = ReaderPlan(
+        reader_id=1,
+        reader_key="geometry_dimension_reader",
+        label="全局形态几何读取器",
+        capability_definition="读取全局形态",
+        sequence=1,
+        requested_features=[
+            RequestedFeature(
+                fact_key="raw_form",
+                label="原始形态",
+                subject_scope="current_object",
+                value_type="text",
+                allowed_values=["plate", "tube", "bar", "casting", "forging", "other"],
+                judgement_definition="判断制造前原材料形态",
+                hit_criteria="材料或全局几何足以判断",
+                not_hit_criteria=None,
+                coverage_requirement="检查全部主体几何",
+                evidence_requirement="提供全局几何证据",
+            ),
+            RequestedFeature(
+                fact_key="continuous_revolved_surface",
+                label="连续回转曲面",
+                subject_scope="current_object",
+                value_type="boolean",
+                allowed_values=None,
+                judgement_definition="检查回转壳面",
+                hit_criteria="存在连续回转空心壁",
+                not_hit_criteria="不存在连续回转空心壁",
+                coverage_requirement="检查全部主体几何",
+                evidence_requirement="提供回转形态证据",
+            ),
+            RequestedFeature(
+                fact_key="continuous_rolled_shell_surface_present",
+                label="连续卷制板壳曲面",
+                subject_scope="current_object",
+                value_type="boolean",
+                allowed_values=None,
+                judgement_definition="检查连续卷制壳面",
+                hit_criteria="存在连续卷制壳面",
+                not_hit_criteria="不存在连续卷制壳面",
+                coverage_requirement="检查全部主体几何",
+                evidence_requirement="提供卷制形态证据",
+            ),
+            RequestedFeature(
+                fact_key="planar_curved_profile_present",
+                label="平面曲边轮廓",
+                subject_scope="current_object",
+                value_type="boolean",
+                allowed_values=None,
+                judgement_definition="检查平面板外周曲边",
+                hit_criteria="板厚与外周圆弧同时存在",
+                not_hit_criteria="外周只有直线",
+                coverage_requirement="检查外周和板厚",
+                evidence_requirement="提供板厚与曲边证据",
+            ),
+        ],
+    )
+    profile_evidence = [
+        EvidenceRef(
+            page=1,
+            region="主要视图",
+            text="单一平面轮廓具有R526外周圆弧边界，板厚T=10。",
+        )
+    ]
+    negative_shell_evidence = [
+        EvidenceRef(
+            page=1,
+            region="主要视图",
+            text="未见连续弯曲壳面或成对内外轮廓。",
+        )
+    ]
+    response = ReaderResponse(
+        reader_key=plan.reader_key,
+        observations=[
+            FactObservation(
+                fact_key="raw_form",
+                subject_ref="current_object",
+                status="unable_to_judge",
+                value=None,
+                evidence=[],
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="continuous_revolved_surface",
+                subject_ref="current_object",
+                status="not_hit",
+                value=False,
+                evidence=negative_shell_evidence,
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="continuous_rolled_shell_surface_present",
+                subject_ref="current_object",
+                status="hit" if profile_present else "not_hit",
+                value=profile_present,
+                evidence=(
+                    profile_evidence if profile_present else negative_shell_evidence
+                ),
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="planar_curved_profile_present",
+                subject_ref="current_object",
+                status="hit" if profile_present else "not_hit",
+                value=profile_present,
+                evidence=(
+                    profile_evidence if profile_present else negative_shell_evidence
+                ),
+                coverage_complete=True,
+            ),
+        ],
+    )
+
+    validated = validate_reader_response(plan, response, "current_object")
+    observations = {item.fact_key: item for item in validated.observations}
+    if profile_present:
+        assert observations["raw_form"].status == "hit"
+        assert observations["raw_form"].value == "plate"
+    else:
+        assert observations["raw_form"].status == "unable_to_judge"
+    assert observations["continuous_rolled_shell_surface_present"].status == "not_hit"
+    assert observations["continuous_rolled_shell_surface_present"].value is False
+
+
 def test_evidence_removes_postgresql_nul_characters() -> None:
     evidence = EvidenceRef(
         page=1,
@@ -591,6 +867,7 @@ def test_reader_views_include_cached_responsibility_regions(tmp_path: Path) -> N
         f"page-1-title-{READER_VIEW_VERSION}.png",
         f"page-1-geometry-{READER_VIEW_VERSION}.png",
         f"page-1-requirements-{READER_VIEW_VERSION}.png",
+        f"page-1-surface-{READER_VIEW_VERSION}.png",
     ]
     assert second == first
     document_plan = _plan(1).model_copy(
@@ -610,6 +887,11 @@ def test_reader_views_include_cached_responsibility_regions(tmp_path: Path) -> N
     assert [item.name for item in select_reader_views(feature_plan, first)] == [
         f"page-1-geometry-{READER_VIEW_VERSION}.png",
     ]
+    surface_plan = _plan(6).model_copy(update={"reader_key": "surface_texture_reader"})
+    assert [item.name for item in select_reader_views(surface_plan, first)] == [
+        "page-1.png",
+        f"page-1-surface-{READER_VIEW_VERSION}.png",
+    ]
 
 
 def test_portrait_reader_views_include_clockwise_corrections(tmp_path: Path) -> None:
@@ -626,9 +908,11 @@ def test_portrait_reader_views_include_clockwise_corrections(tmp_path: Path) -> 
         f"page-1-title-{READER_VIEW_VERSION}.png",
         f"page-1-geometry-{READER_VIEW_VERSION}.png",
         f"page-1-requirements-{READER_VIEW_VERSION}.png",
+        f"page-1-surface-{READER_VIEW_VERSION}.png",
         f"page-1-title-{READER_VIEW_VERSION}-rotated.png",
         f"page-1-geometry-{READER_VIEW_VERSION}-rotated.png",
         f"page-1-requirements-{READER_VIEW_VERSION}-rotated.png",
+        f"page-1-surface-{READER_VIEW_VERSION}-rotated.png",
     ]
     document_plan = _plan(1).model_copy(
         update={"reader_key": "document_structure_reader"}
@@ -638,6 +922,59 @@ def test_portrait_reader_views_include_clockwise_corrections(tmp_path: Path) -> 
         f"page-1-title-{READER_VIEW_VERSION}.png",
         f"page-1-title-{READER_VIEW_VERSION}-rotated.png",
     ]
+    surface_plan = _plan(6).model_copy(update={"reader_key": "surface_texture_reader"})
+    assert [item.name for item in select_reader_views(surface_plan, views)] == [
+        "page-1.png",
+        f"page-1-surface-{READER_VIEW_VERSION}.png",
+        f"page-1-surface-{READER_VIEW_VERSION}-rotated.png",
+    ]
+
+
+def test_openai_reader_uses_supported_low_reasoning_effort(tmp_path: Path) -> None:
+    page = tmp_path / "page-1.png"
+    Image.new("RGB", (20, 20), "white").save(page)
+    parsed = ReaderResponse(
+        reader_key="reader_1",
+        observations=[
+            FactObservation(
+                fact_key="fact_1",
+                subject_ref="current_object",
+                status="hit",
+                value=True,
+                evidence=[EvidenceRef(page=1, region="整页", text="明确证据")],
+                coverage_complete=True,
+            )
+        ],
+    )
+
+    class CapturingCompletions:
+        def __init__(self) -> None:
+            self.kwargs: dict[str, object] = {}
+
+        async def parse(self, **kwargs: object) -> SimpleNamespace:
+            self.kwargs = kwargs
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(parsed=parsed, refusal=None)
+                    )
+                ],
+                usage=None,
+            )
+
+    completions = CapturingCompletions()
+    adapter = object.__new__(OpenAIReaderAdapter)
+    adapter._model = "reader-model"
+    adapter._client = SimpleNamespace(
+        beta=SimpleNamespace(
+            chat=SimpleNamespace(completions=completions),
+        )
+    )
+
+    execution = asyncio.run(adapter.read(_plan(1), (page,), "current_object"))
+
+    assert execution.status == "succeeded"
+    assert completions.kwargs["reasoning_effort"] == "low"
 
 
 def test_reader_response_is_checked_against_dynamic_plan() -> None:
@@ -808,16 +1145,34 @@ async def test_large_internal_surface_requires_cross_reader_hole_evidence(
 
 
 @pytest.mark.parametrize(
-    ("bend_text", "expected_bend"),
+    ("bend_text", "rolled_text", "expected_bend", "expected_rolled"),
     [
-        ("截面开口角15°，主体为连续薄壁壳面。", False),
-        ("局部短翻边具有明确折弯线和15°折角。", True),
+        (
+            "截面开口角15°，主体为连续薄壁壳面。",
+            "均匀薄壁板壳沿全长形成R903实配连续曲率。",
+            False,
+            True,
+        ),
+        (
+            "局部短翻边具有明确折弯线和15°折角。",
+            "均匀薄壁板壳沿全长形成R903实配连续曲率。",
+            True,
+            True,
+        ),
+        (
+            "主体为600长直板段，仅两端形成翻边，翻边宽度34和44。",
+            "均匀板厚主体被描述为连续弯曲，但没有大半径或曲率尺寸。",
+            True,
+            False,
+        ),
     ],
 )
 @pytest.mark.asyncio
 async def test_continuous_rolled_shell_rejects_false_discrete_bend(
     bend_text: str,
+    rolled_text: str,
     expected_bend: bool,
+    expected_rolled: bool,
 ) -> None:
     responses = {
         "geometry_dimension_reader": [
@@ -830,7 +1185,7 @@ async def test_continuous_rolled_shell_rejects_false_discrete_bend(
                     EvidenceRef(
                         page=1,
                         region="主要视图",
-                        text="均匀薄壁板壳沿全长形成连续曲率。",
+                        text=rolled_text,
                     )
                 ],
                 coverage_complete=True,
@@ -888,6 +1243,260 @@ async def test_continuous_rolled_shell_rejects_false_discrete_bend(
 
     assert bend.status == ("hit" if expected_bend else "not_hit")
     assert bend.value is expected_bend
+    rolled_shell = next(
+        observation
+        for execution in executions
+        if execution.response is not None
+        for observation in execution.response.observations
+        if observation.fact_key == "continuous_rolled_shell_surface_present"
+    )
+    assert rolled_shell.status == ("hit" if expected_rolled else "not_hit")
+    assert rolled_shell.value is expected_rolled
+
+
+@pytest.mark.asyncio
+async def test_weld_finish_reconciles_explicit_annotation_evidence() -> None:
+    responses = {
+        "symbol_relation_reader": [
+            FactObservation(
+                fact_key="weld_annotation_present",
+                subject_ref="current_object",
+                status="hit",
+                value=True,
+                evidence=[
+                    EvidenceRef(
+                        page=1,
+                        region="焊接标注及技术要求",
+                        text="焊缝磨平，焊缝检验按ISO5817-C 100% VT。",
+                    )
+                ],
+                coverage_complete=True,
+            )
+        ],
+        "requirement_annotation_reader": [
+            FactObservation(
+                fact_key="weld_seam_finishing_required",
+                subject_ref="current_object",
+                status="not_hit",
+                value=False,
+                evidence=[
+                    EvidenceRef(
+                        page=1,
+                        region="技术要求",
+                        text="未注焊缝按ISO13920-B级。",
+                    )
+                ],
+                coverage_complete=True,
+            )
+        ],
+    }
+
+    class StaticReader:
+        async def read(
+            self,
+            plan: ReaderPlan,
+            pages: tuple[Path, ...],
+            subject_context: str,
+        ) -> ReaderExecution:
+            return ReaderExecution(
+                reader_key=plan.reader_key,
+                reader_label=plan.label,
+                status="succeeded",
+                response=ReaderResponse(
+                    reader_key=plan.reader_key,
+                    observations=responses[plan.reader_key],
+                ),
+                duration_seconds=0.01,
+                prompt_tokens=1,
+                completion_tokens=1,
+            )
+
+    plans = tuple(
+        _plan(sequence).model_copy(update={"reader_key": reader_key})
+        for sequence, reader_key in enumerate(responses, start=1)
+    )
+    executions = await read_all(
+        StaticReader(),
+        plans,
+        (Path("page-1.png"),),
+        "current_object",
+    )
+    weld_finish = next(
+        observation
+        for execution in executions
+        if execution.response is not None
+        for observation in execution.response.observations
+        if observation.fact_key == "weld_seam_finishing_required"
+    )
+
+    assert weld_finish.status == "hit"
+    assert weld_finish.value is True
+    assert [item.text for item in weld_finish.evidence] == [
+        "焊缝磨平，焊缝检验按ISO5817-C 100% VT。"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_title_plate_stock_and_absent_requirements_reconcile_readers() -> None:
+    absent_requirements = [
+        EvidenceRef(page=1, region="整页", text="完整检查后未见技术要求栏或表面标注。")
+    ]
+    responses = {
+        "document_structure_reader": [
+            FactObservation(
+                fact_key="object_has_bom",
+                subject_ref="current_object",
+                status="not_hit",
+                value=False,
+                evidence=[EvidenceRef(page=1, region="明细栏", text="未见已填写BOM。")],
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="material_grade",
+                subject_ref="current_object",
+                status="hit",
+                value="304 t2",
+                evidence=[EvidenceRef(page=1, region="标题栏材料", text="304 t2")],
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="technical_requirements_present",
+                subject_ref="current_object",
+                status="not_hit",
+                value=False,
+                evidence=absent_requirements,
+                coverage_complete=True,
+            ),
+        ],
+        "geometry_dimension_reader": [
+            FactObservation(
+                fact_key="raw_form",
+                subject_ref="current_object",
+                status="hit",
+                value="tube",
+                evidence=[
+                    EvidenceRef(
+                        page=1,
+                        region="主要视图",
+                        text="右侧截面被误读为矩形闭合空心截面。",
+                    )
+                ],
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="continuous_revolved_surface",
+                subject_ref="current_object",
+                status="not_hit",
+                value=False,
+                evidence=[
+                    EvidenceRef(page=1, region="剖视图", text="非圆形槽形截面。")
+                ],
+                coverage_complete=True,
+            ),
+            FactObservation(
+                fact_key="continuous_rolled_shell_surface_present",
+                subject_ref="current_object",
+                status="not_hit",
+                value=False,
+                evidence=[EvidenceRef(page=1, region="主视图", text="主体为长直段。")],
+                coverage_complete=True,
+            ),
+        ],
+        "geometry_feature_reader": [
+            FactObservation(
+                fact_key="has_bend_feature",
+                subject_ref="current_object",
+                status="hit",
+                value=True,
+                evidence=[
+                    EvidenceRef(page=1, region="剖视图", text="板厚2，多个90°折弯。")
+                ],
+                coverage_complete=True,
+            )
+        ],
+        "requirement_annotation_reader": [
+            FactObservation(
+                fact_key=fact_key,
+                subject_ref="current_object",
+                status="unable_to_judge",
+                value=None,
+                evidence=[
+                    EvidenceRef(page=1, region="技术要求区域", text="未提供可读正文。")
+                ],
+                coverage_complete=False,
+            )
+            for fact_key in [
+                "outer_surface_polish_required",
+                "surface_corrosion_protection_required",
+                "surface_protection_method",
+                "formal_cleaning_required",
+            ]
+        ],
+    }
+
+    class StaticReader:
+        async def read(
+            self,
+            plan: ReaderPlan,
+            pages: tuple[Path, ...],
+            subject_context: str,
+        ) -> ReaderExecution:
+            if plan.reader_key == "requirement_annotation_reader":
+                return ReaderExecution(
+                    reader_key=plan.reader_key,
+                    reader_label=plan.label,
+                    status="error",
+                    response=None,
+                    duration_seconds=40.0,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    error_code="READER_TIMEOUT",
+                    error_message="Request timed out.",
+                )
+            return ReaderExecution(
+                reader_key=plan.reader_key,
+                reader_label=plan.label,
+                status="succeeded",
+                response=ReaderResponse(
+                    reader_key=plan.reader_key,
+                    observations=responses[plan.reader_key],
+                ),
+                duration_seconds=0.01,
+                prompt_tokens=1,
+                completion_tokens=1,
+            )
+
+    plans = tuple(
+        _plan(sequence).model_copy(update={"reader_key": reader_key})
+        for sequence, reader_key in enumerate(responses, start=1)
+    )
+    executions = await read_all(
+        StaticReader(),
+        plans,
+        (Path("page-1.png"),),
+        "current_object",
+    )
+    observations = {
+        observation.fact_key: observation
+        for execution in executions
+        if execution.response is not None
+        for observation in execution.response.observations
+    }
+
+    assert observations["raw_form"].status == "hit"
+    assert observations["raw_form"].value == "plate"
+    for fact_key in [
+        "outer_surface_polish_required",
+        "surface_corrosion_protection_required",
+        "surface_protection_method",
+        "formal_cleaning_required",
+    ]:
+        assert observations[fact_key].status == "not_hit"
+        assert observations[fact_key].value is False
+        assert observations[fact_key].coverage_complete is True
+        assert [item.text for item in observations[fact_key].evidence] == [
+            item.text for item in absent_requirements
+        ]
 
 
 class BarrierReader:

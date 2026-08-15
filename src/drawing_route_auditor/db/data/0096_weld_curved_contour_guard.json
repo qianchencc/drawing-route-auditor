@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "将焊缝轮廓规则收窄到可明确区分的凸形或凹形弧线，排除容易与基准线或基本对接符号混淆的平直线。",
+  "operations": [
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "weld_contour_finish_polish"
+    },
+    {
+      "op": "remove",
+      "collection": "rules",
+      "key": "global_roughness_method_from_weld_contour"
+    },
+    {
+      "op": "remove",
+      "collection": "facts",
+      "key": "weld_contour_symbol_present"
+    },
+    {
+      "op": "upsert",
+      "collection": "readers",
+      "key": "symbol_relation_reader",
+      "value": {
+        "label": "符号关系读取器",
+        "sequence": 4,
+        "reader_key": "symbol_relation_reader",
+        "capability_definition": "读取焊接符号、焊缝标注、明确的凸形或凹形焊缝轮廓弧线和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "weld_curved_contour_symbol_present",
+      "value": {
+        "label": "焊缝曲面轮廓附加符号",
+        "fact_key": "weld_curved_contour_symbol_present",
+        "reader_key": "symbol_relation_reader",
+        "value_type": "boolean",
+        "description": "焊接符号是否带有可明确识别且直接附着于基本焊缝符号的凸形或凹形弧线轮廓附加符号。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "occurrence",
+        "allowed_values": null,
+        "hit_criteria": "至少一个可定位焊接符号带有直接附着于基本焊缝符号的凸弧或凹弧轮廓线；必须能看到弧线曲率并绑定同一基准线上的基本焊缝符号。仅见平直线不得命中。",
+        "not_hit_criteria": "完整检查全部焊接标注后，只见基本角焊缝、对接焊缝、平直线、基准线、全周圆圈、焊脚尺寸或数量标注，未见直接附着的凸形或凹形弧线轮廓附加符号。",
+        "coverage_requirement": "检查每个焊接符号的基准线两侧、基本焊缝符号邻近区域及局部放大图；必须区分曲面轮廓弧线与平直基准线、基本方形对接符号、零件轮廓、表面纹理符号和全周焊圆圈。",
+        "evidence_requirement": "提供凸形或凹形弧线、其绑定的基本焊缝符号、页面和连接位置；无法看清弧线曲率或只能看到平直线时返回NOT_HIT，图像模糊导致线型不可辨时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "只记录焊接符号上的曲面轮廓要求，不输出磨削、抛光或其他工艺答案。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "weld_curved_contour_finish_polish",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "weld_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "weld_curved_contour_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 151,
+        "question": "带曲面轮廓附加符号的焊缝如何完成规定轮廓？",
+        "rule_key": "weld_curved_contour_finish_polish",
+        "branch_key": "3.6",
+        "option_key": "weld_curved_contour_finish_polish",
+        "description": "焊接部件的基本焊缝符号带有明确凸形或凹形轮廓弧线时，按企业工序语义形成焊后抛光整饰；平直线不触发，该判断也不来自Ra数值。",
+        "outcome_key": "weld_curved_contour_finish_polish",
+        "result_kind": "resolved",
+        "decision_key": "weld_curved_contour_finish_stage",
+        "option_label": "抛光",
+        "outcome_type": "process",
+        "outcome_value": {
+          "order_rank": 20,
+          "process_name": "抛光",
+          "operation_key": "weld_seam_finish_polish"
+        },
+        "missing_behavior": "not_match"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "global_roughness_method_from_weld_curved_contour",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "global_surface_roughness_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "global_surface_roughness_ra_um",
+            "operator": "gt",
+            "expected_value": 0
+          },
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "component"
+          },
+          {
+            "fact_key": "component_kind",
+            "operator": "eq",
+            "expected_value": "welded"
+          },
+          {
+            "fact_key": "weld_curved_contour_symbol_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "priority": 242,
+        "question": "全局粗糙度是否由已明确的焊缝曲面轮廓整饰阶段承担？",
+        "rule_key": "global_roughness_method_from_weld_curved_contour",
+        "branch_key": "3.4",
+        "option_key": "global_roughness_polishing_from_weld_curved_contour",
+        "description": "全局Ra数值已实际读出，且焊接符号独立要求凸形或凹形焊缝轮廓整饰时，将已由焊缝符号确定的抛光阶段登记为粗糙度承担方法；Ra数值和平直线自身都不产生抛光。",
+        "outcome_key": "surface_roughness_process_method",
+        "result_kind": "resolved",
+        "decision_key": "surface_roughness_method_from_weld_curved_contour",
+        "option_label": "焊缝曲面轮廓抛光承担",
+        "outcome_type": "fact",
+        "outcome_value": "polishing",
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

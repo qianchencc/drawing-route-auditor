@@ -1,0 +1,1382 @@
+{
+  "运行结果": {
+    "运行编号": "3ef187c6-ebee-4486-bff2-3d4fe43182c7",
+    "输入": {
+      "PDF路径": "docs/demo/welded-frame-assembly.pdf",
+      "图纸哈希": "0d26126fd885865aac54c13121d7b06f494f65feb016d9f1fadf2f81342c23e4"
+    },
+    "决策树键": "drawing-process-tree",
+    "决策树内部修订": 1,
+    "模型版本": "gpt-5.6-luna",
+    "提示词模板版本": "tree-observation-template-v5",
+    "读取器结果": [
+      {
+        "读取器键": "document_structure_reader",
+        "读取器名称": "文档结构读取器",
+        "状态": "成功",
+        "耗时秒": 19.191339665005216,
+        "输入令牌": 22420,
+        "输出令牌": 723,
+        "错误码": null,
+        "错误信息": null,
+        "观察事实": [
+          {
+            "事实键": "drawing_number",
+            "判断对象": "current_object",
+            "状态": "无法判断",
+            "值": null,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右下角主标题栏“图号 DRW. NO”字段",
+                "原文": "主标题栏图号字段为空，未见可辨识图号原文。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "drawing_quantity",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": 1.0,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右下角主标题栏“数量 QTY.”字段",
+                "原文": "数量：1"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "material_grade",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右下角主标题栏“材料 MATERIAL”字段",
+                "原文": "已检查主标题栏材料栏，字段为空，未见材料牌号。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "object_has_bom",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右下方明细栏/BOM区域",
+                "原文": "发现已填写项目行，例如：序号1，名称“板”，数量3，材料“304”；序号2，名称“管”，数量1，材料“304”；序号4，名称“箱部件”，数量1。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "part_name",
+            "判断对象": "current_object",
+            "状态": "无法判断",
+            "值": null,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右下角主标题栏名称字段",
+                "原文": "已检查当前图纸主标题栏名称区域，未见可辨识名称原文。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "technical_requirements_present",
+            "判断对象": "drawing_text",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "图纸右侧技术要求正文区域",
+                "原文": "技术要求：1. 铣边倒钝，去除毛刺；2. 未注公差按ISO2768-c/L执行；3. 其余焊接公差按ISO13920-B执行；4. 焊缝磨平后，焊缝检验按ISO5817-C 100% VT；5. 外表面抛光；6. 未注圆管规格Ø32×2。"
+              }
+            ],
+            "观察覆盖完整": true
+          }
+        ]
+      },
+      {
+        "读取器键": "geometry_dimension_reader",
+        "读取器名称": "全局形态几何读取器",
+        "状态": "成功",
+        "耗时秒": 33.735600511019584,
+        "输入令牌": 13835,
+        "输出令牌": 1434,
+        "错误码": null,
+        "错误信息": null,
+        "观察事实": [
+          {
+            "事实键": "continuous_revolved_surface",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图、剖视图I/II及技术要求区域",
+                "原文": "图中为由多个构件组成的焊接框架/箱体结构，未显示当前对象整体形成连续圆形空心壁或薄壁卷制壳面；技术要求中仅注明未注圆管规格Ø32×2，属于构件规格。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "continuous_rolled_shell_surface_present",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图、底部局部视图及剖视图I/II",
+                "原文": "主体由直线构件、端部圆角和局部板件组成；虽有R47.7等局部圆弧及圆管截面标注，但未见当前对象主体大范围连续卷制曲面及绑定主体曲面的连续卷制半径或实配弧形尺寸。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "critical_fit_and_geometric_tolerance_present",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部尺寸、公差及剖视图区域",
+                "原文": "图中可见普通尺寸、R47.7及技术要求中的未注公差ISO2768-c/L；未见具体尺寸的配合代号或明确上下偏差与引用明确基准字母的形位公差框组合。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "large_axisymmetric_bar_profile",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图、剖视图I/II",
+                "原文": "当前对象整体为框架/箱体类焊接结构，未显示围绕单一主轴形成连续实体外圆或阶梯外圆轮廓；图中圆形截面和圆管规格属于局部构件。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "planar_curved_profile_present",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图、底部局部视图及板件标注区域",
+                "原文": "当前对象整体不是单一平面板件；图中包含框架、管状构件及局部板件，未形成由平面板件外周曲边定义的单一平面轮廓。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "raw_form",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": "other",
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图、剖视图I/II、技术要求及明细栏可见区域",
+                "原文": "当前对象图示为由管、板及箱部件组成的焊接组合结构；技术要求注明未注圆管规格Ø32×2，明细栏可见管和板等不同构件，不能将当前对象整体归一化为单一板、管或棒料。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "single_axis_external_cylindrical_profile",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图、剖视图I/II及端部截面",
+                "原文": "当前对象外部轮廓为框架/箱体结构，横向主体尺寸未以绑定当前对象外部主体的φ/Ø外径或外螺纹定义；圆形截面、Ø32×2圆管及局部圆件均不能证明当前对象整体为单轴外圆实体。"
+              }
+            ],
+            "观察覆盖完整": true
+          }
+        ]
+      },
+      {
+        "读取器键": "geometry_feature_reader",
+        "读取器名称": "局部特征尺寸读取器",
+        "状态": "成功",
+        "耗时秒": 24.73326502001146,
+        "输入令牌": 12455,
+        "输出令牌": 1132,
+        "错误码": null,
+        "错误信息": null,
+        "观察事实": [
+          {
+            "事实键": "has_bend_feature",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图及局部详图I/II",
+                "原文": "主视图和侧视图显示管件存在圆弧弯曲，标注R47.7；局部详图II标注2×R5。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "has_hole_feature",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图下部端部详图C向",
+                "原文": "端部详图标注“3×Ø7 EQS”，表示三个等分孔。"
+              },
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、局部详图I/II",
+                "原文": "主视图中可见重复圆孔轮廓，并有“n=8”“n=5”等重复标注；局部详图I标注“n=4”。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "has_slot_feature",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部主要视图、剖面及局部详图",
+                "原文": "已检查主视图、侧视图、C向端部详图及局部详图I/II，未发现明确槽或缺口轮廓及槽尺寸。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "precision_tolerance_present",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部尺寸标注及技术要求",
+                "原文": "已检查全部具体尺寸、上下偏差、±公差、形位公差框和配合代号；图中仅见普通尺寸及未注公差说明“未注公差按ISO2768-c/L执行”，未发现绑定具体尺寸的数值偏差、形位公差或精密配合代号。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "prismatic_recess_present",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图及局部详图I/II",
+                "原文": "已检查全部主要视图、侧视图和局部剖面/详图；未发现由平行边、封闭边或台阶边界定义且具有有限非贯通深度的实体凹槽或口袋。局部详图II中的“踢脚板抬高，距底板4mm”显示为板件位置/高度关系，未显示实体材料内的非贯通凹入。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "small_hole_relative_to_body_present",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "C向端部详图及主视图",
+                "原文": "端部详图标注“3×Ø7 EQS”，孔径为Ø7；主视图整体高度标注1100，整体宽度标注635，孔径明显不超过本体最大外径的三分之一。孔轴线沿端部管件方向。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "thick_plate_threaded_hole_present",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "BOM及全部孔标注",
+                "原文": "BOM中板件标注“304 t4”，可见板厚为4mm，小于6mm；已检查全部孔轮廓、孔引出线及螺纹规格，未发现绑定具体内孔轮廓或孔轴线的M/m内螺纹标注。"
+              }
+            ],
+            "观察覆盖完整": true
+          }
+        ]
+      },
+      {
+        "读取器键": "symbol_relation_reader",
+        "读取器名称": "符号关系读取器",
+        "状态": "成功",
+        "耗时秒": 30.731532502017217,
+        "输入令牌": 24215,
+        "输出令牌": 1201,
+        "错误码": null,
+        "错误信息": null,
+        "观察事实": [
+          {
+            "事实键": "assembly_relation_present",
+            "判断对象": "bom_link",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右下方BOM及主视图/侧视图连接区域",
+                "原文": "BOM列出板、箱部件和多件管；主视图与侧视图显示这些对象连接组成同一结构。"
+              },
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右上方局部详图I",
+                "原文": "此安装板底部穿线"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "large_precision_internal_cylindrical_surface_present",
+            "判断对象": "current_object",
+            "状态": "无法判断",
+            "值": null,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图、侧视图、底部圆形详图及整页总览",
+                "原文": "已检查全部可见内外轮廓、尺寸引出线、公差、粗糙度和检验标注；底部圆形详图显示同心圆边界并标注Ø65、Ø33、Ø50。未见与Ø33内边界绑定的直径公差、配合或粗糙度标注。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "weld_annotation_present",
+            "判断对象": "occurrence_weld_annotations",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图中部焊接连接处",
+                "原文": "焊接符号包含“1.5”、三角形基本焊缝符号及“n=5”，绑定主视图中部横向构件与立柱连接。"
+              },
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图上部连接处及局部详图I、II",
+                "原文": "可见多处带“1.5”和数量标注“n=2”“n=4”“n=8”的焊接符号，分别指向对应连接位置。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "weld_curved_contour_symbol_present",
+            "判断对象": "occurrence_weld_contour_symbols",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部焊接符号区域，包括主视图中部、上部及局部详图I、II",
+                "原文": "已检查各焊接符号基准线两侧及邻近区域；可见三角形基本焊缝符号、基准线、圆圈和数量标注，未见直接附着于基本焊缝符号且具有可辨曲率的凸形或凹形弧线轮廓附加符号。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "weld_symbol_present",
+            "判断对象": "occurrence_weld_symbols",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "主视图中部横向构件与立柱连接处",
+                "原文": "可见三角形焊缝符号，标注“1.5”和“n=5”，指向该连接位置。"
+              },
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "局部详图I、II及主视图上部连接处",
+                "原文": "可见带三角形基本焊缝符号的标注，包含“1.5”及数量标注“n=2”“n=4”“n=8”，均绑定对应连接位置。"
+              }
+            ],
+            "观察覆盖完整": true
+          }
+        ]
+      },
+      {
+        "读取器键": "requirement_annotation_reader",
+        "读取器名称": "技术要求读取器",
+        "状态": "成功",
+        "耗时秒": 23.84094835599535,
+        "输入令牌": 23401,
+        "输出令牌": 1054,
+        "错误码": null,
+        "错误信息": null,
+        "观察事实": [
+          {
+            "事实键": "edge_deburring_required",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "技术要求第1条",
+                "原文": "锐边倒钝，去除毛刺；"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "external_mechanical_surface_finish_required",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "技术要求第5条",
+                "原文": "外表面抛光；"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "formal_cleaning_required",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部技术要求及表面标注",
+                "原文": "已检查技术要求1至6及图面表面标注，未发现独立清洗或明确清洗方法要求。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "outer_surface_polish_required",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "技术要求第5条",
+                "原文": "外表面抛光；"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "staged_prismatic_machining_annotations_present",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "整页视图、技术要求、工艺图说明及引出文字",
+                "原文": "已检查整页全部视图、技术要求、工艺图说明和局部引出文字，未发现分别明确的粗加工、精加工/精铣并攻丝、最终外形加工或铣外形三类独立标注。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "surface_corrosion_protection_required",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部技术要求、标题栏表面处理字段和局部表面标注",
+                "原文": "已检查全部技术要求、标题栏表面处理字段和局部表面标注，未发现表面防锈、防腐或耐腐蚀处理要求。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "surface_protection_method",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部技术要求、标题栏表面处理字段和局部表面标注",
+                "原文": "已检查全部技术要求、标题栏表面处理字段和局部表面标注，未发现喷塑、粉末喷涂、粉末涂层或其他明确表面保护方法。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "technical_requirement_mentions_assembly",
+            "判断对象": "drawing_text",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "全部技术要求及文字标注",
+                "原文": "已检查全部页面技术要求及文字标注，未提及装配、部装或实配。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "technical_requirement_mentions_welding",
+            "判断对象": "drawing_text",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "技术要求第3、4条",
+                "原文": "3. 其余焊接公差按ISO13920-B执行；4. 焊缝磨平后，焊缝检验按ISO5817-C 100% VT；"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "weld_seam_finishing_required",
+            "判断对象": "current_object",
+            "状态": "命中",
+            "值": true,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "技术要求第4条",
+                "原文": "焊缝磨平后，焊缝检验按ISO5817-C 100% VT；"
+              }
+            ],
+            "观察覆盖完整": true
+          }
+        ]
+      },
+      {
+        "读取器键": "surface_texture_reader",
+        "读取器名称": "表面纹理读取器",
+        "状态": "成功",
+        "耗时秒": 12.326328908005962,
+        "输入令牌": 21254,
+        "输出令牌": 495,
+        "错误码": null,
+        "错误信息": null,
+        "观察事实": [
+          {
+            "事实键": "global_surface_roughness_ra_um",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右上通用表面纹理高分辨率图",
+                "原文": "检查到局部标注中的数值“1.5”，其与具体局部结构及符号连接，未发现全局、‘其余’或‘全部’表面纹理符号旁的Ra数值。"
+              },
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "整页概览、技术要求区及标题栏附近",
+                "原文": "已核对整页、技术要求区和标题栏附近，未发现全局表面纹理符号或全局Ra数值；技术要求中的“外表面抛光”不是表面纹理符号及Ra数值。"
+              }
+            ],
+            "观察覆盖完整": true
+          },
+          {
+            "事实键": "global_surface_roughness_required",
+            "判断对象": "current_object",
+            "状态": "未命中",
+            "值": false,
+            "证据": [
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "右上通用表面纹理高分辨率图",
+                "原文": "未发现独立放置的通用表面纹理符号，也未发现标注‘其余’或‘全部表面’的表面纹理要求；图中可见符号均通过符号之外的引出线连接具体局部结构。"
+              },
+              {
+                "来源": "drawing",
+                "页码": 1,
+                "区域": "整页概览、全部视图、技术要求区及标题栏附近",
+                "原文": "已检查整页全部视图、技术要求区和标题栏附近，未发现全局表面纹理要求。"
+              }
+            ],
+            "观察覆盖完整": true
+          }
+        ]
+      }
+    ],
+    "派生事实": [
+      {
+        "事实键": "drawing_number",
+        "事实值": {
+          "status": "unable_to_judge"
+        }
+      },
+      {
+        "事实键": "drawing_quantity",
+        "事实值": {
+          "status": "hit",
+          "value": 1.0
+        }
+      },
+      {
+        "事实键": "material_grade",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "object_has_bom",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "part_name",
+        "事实值": {
+          "status": "unable_to_judge"
+        }
+      },
+      {
+        "事实键": "technical_requirements_present",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "continuous_revolved_surface",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "continuous_rolled_shell_surface_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "critical_fit_and_geometric_tolerance_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "large_axisymmetric_bar_profile",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "planar_curved_profile_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "raw_form",
+        "事实值": {
+          "status": "hit",
+          "value": "other"
+        }
+      },
+      {
+        "事实键": "single_axis_external_cylindrical_profile",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "has_bend_feature",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "has_hole_feature",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "has_slot_feature",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "precision_tolerance_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "prismatic_recess_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "small_hole_relative_to_body_present",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "thick_plate_threaded_hole_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "assembly_relation_present",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "large_precision_internal_cylindrical_surface_present",
+        "事实值": {
+          "status": "unable_to_judge"
+        }
+      },
+      {
+        "事实键": "weld_annotation_present",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "weld_curved_contour_symbol_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "weld_symbol_present",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "edge_deburring_required",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "external_mechanical_surface_finish_required",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "formal_cleaning_required",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "outer_surface_polish_required",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "staged_prismatic_machining_annotations_present",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "surface_corrosion_protection_required",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "surface_protection_method",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "technical_requirement_mentions_assembly",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "technical_requirement_mentions_welding",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "weld_seam_finishing_required",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "global_surface_roughness_ra_um",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "global_surface_roughness_required",
+        "事实值": {
+          "status": "not_hit",
+          "value": false
+        }
+      },
+      {
+        "事实键": "object_kind",
+        "事实值": {
+          "status": "hit",
+          "value": "component"
+        }
+      },
+      {
+        "事实键": "has_welding_feature",
+        "事实值": {
+          "status": "hit",
+          "value": true
+        }
+      },
+      {
+        "事实键": "component_kind",
+        "事实值": {
+          "status": "hit",
+          "value": "welded"
+        }
+      }
+    ],
+    "规则命中": [
+      {
+        "节点": "1",
+        "分支": "1.2",
+        "规则键": "object_component_by_bom",
+        "决策键": "object_kind",
+        "问题": "当前对象是零件还是部件？",
+        "选项键": "component_by_bom",
+        "选项": "部件",
+        "优先级": 100,
+        "状态": "已确认",
+        "结果类型": "事实",
+        "结果键": "object_kind",
+        "结果值": "component",
+        "决定性事实": [
+          "object_has_bom"
+        ],
+        "原因": "存在 BOM 判为部件",
+        "缺失事实": []
+      },
+      {
+        "节点": "2",
+        "分支": "2.2",
+        "规则键": "welded_component_by_symbol",
+        "决策键": "component_kind",
+        "问题": "部件由焊接还是装配主导？",
+        "选项键": "welded_by_symbol",
+        "选项": "焊接件",
+        "优先级": 0,
+        "状态": "已确认",
+        "结果类型": "事实",
+        "结果键": "component_kind",
+        "结果值": "welded",
+        "决定性事实": [
+          "object_kind",
+          "weld_symbol_present",
+          "weld_annotation_present"
+        ],
+        "原因": "焊接符号和焊缝标注支持焊接件判断",
+        "缺失事实": []
+      },
+      {
+        "节点": "3",
+        "分支": "3.4",
+        "规则键": "component_surface_stage_required",
+        "决策键": "surface_stage_completeness",
+        "问题": "部件外表面机械整饰由哪个可验证制造阶段承担？",
+        "选项键": "component_surface_stage_ready",
+        "选项": "表面承担阶段已确定",
+        "优先级": 232,
+        "状态": "错误",
+        "结果类型": "阶段",
+        "结果键": "component_surface_stage_ready",
+        "结果值": true,
+        "决定性事实": [
+          "object_kind",
+          "external_mechanical_surface_finish_required",
+          "surface_stage_owner"
+        ],
+        "原因": "部件PDF明确外表面机械整饰要求时，还必须由PDF可观察事实确定该要求由独立工序还是已验证工序集成承担；仅有最终表面质量要求不得生成独立抛光。；缺少或无法确定：surface_stage_owner:missing",
+        "缺失事实": [
+          "surface_stage_owner:missing"
+        ]
+      },
+      {
+        "节点": "3",
+        "分支": "3.4",
+        "规则键": "component_external_finish_judgement_required",
+        "决策键": "surface_stage_completeness",
+        "问题": "部件的外表面机械整饰要求是否已可靠判断？",
+        "选项键": "external_finish_judged",
+        "选项": "外表面机械整饰要求已判断",
+        "优先级": 230,
+        "状态": "已确认",
+        "结果类型": "阶段",
+        "结果键": "external_finish_judged",
+        "结果值": true,
+        "决定性事实": [
+          "object_has_bom",
+          "external_mechanical_surface_finish_required"
+        ],
+        "原因": "部件PDF中的外表面机械整饰要求必须完成真/假判断；关键处理词模糊时保持部分结果，不得按无要求放行。",
+        "缺失事实": []
+      },
+      {
+        "节点": "3",
+        "分支": "3.4",
+        "规则键": "surface_stage_required",
+        "决策键": "surface_stage_completeness",
+        "问题": "外表面要求由哪个制造层级承担？",
+        "选项键": "surface_stage_ready",
+        "选项": "表面承载层级已确定",
+        "优先级": 100,
+        "状态": "错误",
+        "结果类型": "阶段",
+        "结果键": "surface_stage_ready",
+        "结果值": true,
+        "决定性事实": [
+          "outer_surface_polish_required",
+          "surface_stage_owner"
+        ],
+        "原因": "存在外表面抛光要求时，必须仅凭当前 PDF 可观察规则确定本级承载方式；缺少或无法确定：surface_stage_owner:missing",
+        "缺失事实": [
+          "surface_stage_owner:missing"
+        ]
+      },
+      {
+        "节点": "3",
+        "分支": "3.6",
+        "规则键": "component_large_bore_judgement_required",
+        "决策键": "route_completeness",
+        "问题": "部件的大型精密内圆柱面是否已可靠判断？",
+        "选项键": "large_bore_judged",
+        "选项": "大型精密内圆柱面已判断",
+        "优先级": 231,
+        "状态": "错误",
+        "结果类型": "阶段",
+        "结果键": "large_bore_judged",
+        "结果值": true,
+        "决定性事实": [
+          "object_has_bom",
+          "large_precision_internal_cylindrical_surface_present"
+        ],
+        "原因": "部件中的大型精密内圆柱面事实必须完成真/假判断；尺寸后缀或检验含义模糊时保持部分结果，不得按无大型内圆放行。；缺少或无法确定：large_precision_internal_cylindrical_surface_present:unable_to_judge",
+        "缺失事实": [
+          "large_precision_internal_cylindrical_surface_present:unable_to_judge"
+        ]
+      },
+      {
+        "节点": "3",
+        "分支": "3.6",
+        "规则键": "weld_seam_finish_polish",
+        "决策键": "weld_finish_stage",
+        "问题": "明确要求修平的首道焊缝如何整饰？",
+        "选项键": "weld_seam_finish_polish",
+        "选项": "抛光",
+        "优先级": 150,
+        "状态": "已确认",
+        "结果类型": "工序",
+        "结果键": "weld_seam_finish_polish",
+        "结果值": {
+          "order_rank": 20,
+          "process_name": "抛光",
+          "operation_key": "weld_seam_finish_polish"
+        },
+        "决定性事实": [
+          "object_kind",
+          "component_kind",
+          "weld_symbol_present",
+          "weld_seam_finishing_required"
+        ],
+        "原因": "技术要求明确焊缝磨平、修平或去除焊接痕迹，且图中存在焊接符号时，生成焊后抛光。",
+        "缺失事实": []
+      },
+      {
+        "节点": "3",
+        "分支": "3.6",
+        "规则键": "welded_component_initial_weld",
+        "决策键": "initial_weld_stage",
+        "问题": "可观察焊接接头组首先如何连接？",
+        "选项键": "welded_component_initial_weld",
+        "选项": "焊接(校正)",
+        "优先级": 150,
+        "状态": "已确认",
+        "结果类型": "工序",
+        "结果键": "welded_component_initial_weld",
+        "结果值": {
+          "order_rank": 10,
+          "process_name": "焊接(校正)",
+          "operation_key": "welded_component_initial_weld"
+        },
+        "决定性事实": [
+          "object_kind",
+          "component_kind",
+          "weld_symbol_present"
+        ],
+        "原因": "BOM结构、焊接符号和焊缝标注共同确定焊接部件的首道焊接校正；不以主观接头组计数作为门槛。",
+        "缺失事实": []
+      },
+      {
+        "节点": "5",
+        "分支": "5.4",
+        "规则键": "welding_feature_by_requirement",
+        "决策键": "welding_feature",
+        "问题": "是否存在焊接特征？",
+        "选项键": "requirement_hit",
+        "选项": "存在",
+        "优先级": 0,
+        "状态": "已确认",
+        "结果类型": "事实",
+        "结果键": "has_welding_feature",
+        "结果值": true,
+        "决定性事实": [
+          "technical_requirement_mentions_welding"
+        ],
+        "原因": "焊接技术要求派生焊接特征",
+        "缺失事实": []
+      },
+      {
+        "节点": "5",
+        "分支": "5.4",
+        "规则键": "welding_feature_by_symbol",
+        "决策键": "welding_feature",
+        "问题": "是否存在焊接特征？",
+        "选项键": "symbol_hit",
+        "选项": "存在",
+        "优先级": 0,
+        "状态": "已确认",
+        "结果类型": "事实",
+        "结果键": "has_welding_feature",
+        "结果值": true,
+        "决定性事实": [
+          "weld_symbol_present"
+        ],
+        "原因": "焊接符号派生焊接特征",
+        "缺失事实": []
+      }
+    ],
+    "路线推荐": {
+      "状态": "部分完成",
+      "确定路线": [
+        {
+          "工序号": 1,
+          "工序实例键": "welded_component_initial_weld",
+          "工序名称": "焊接(校正)",
+          "来源规则": [
+            "welded_component_initial_weld"
+          ],
+          "工序决策": [
+            {
+              "规则键": "welded_component_initial_weld",
+              "决策键": "initial_weld_stage",
+              "问题": "可观察焊接接头组首先如何连接？",
+              "已选选项": "焊接(校正)",
+              "其他选项": [],
+              "性质": "已确认",
+              "规则说明": "BOM结构、焊接符号和焊缝标注共同确定焊接部件的首道焊接校正；不以主观接头组计数作为门槛。",
+              "缺失事实": [],
+              "事实依据": [
+                {
+                  "事实键": "object_has_bom",
+                  "事实名称": "存在明细栏",
+                  "状态": "命中",
+                  "值": true,
+                  "事实证据": [
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "右下方明细栏/BOM区域",
+                      "原文": "发现已填写项目行，例如：序号1，名称“板”，数量3，材料“304”；序号2，名称“管”，数量1，材料“304”；序号4，名称“箱部件”，数量1。"
+                    }
+                  ]
+                },
+                {
+                  "事实键": "weld_symbol_present",
+                  "事实名称": "存在焊接符号",
+                  "状态": "命中",
+                  "值": true,
+                  "事实证据": [
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "主视图中部横向构件与立柱连接处",
+                      "原文": "可见三角形焊缝符号，标注“1.5”和“n=5”，指向该连接位置。"
+                    },
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "局部详图I、II及主视图上部连接处",
+                      "原文": "可见带三角形基本焊缝符号的标注，包含“1.5”及数量标注“n=2”“n=4”“n=8”，均绑定对应连接位置。"
+                    }
+                  ]
+                },
+                {
+                  "事实键": "weld_annotation_present",
+                  "事实名称": "存在焊缝标注",
+                  "状态": "命中",
+                  "值": true,
+                  "事实证据": [
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "主视图中部焊接连接处",
+                      "原文": "焊接符号包含“1.5”、三角形基本焊缝符号及“n=5”，绑定主视图中部横向构件与立柱连接。"
+                    },
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "主视图上部连接处及局部详图I、II",
+                      "原文": "可见多处带“1.5”和数量标注“n=2”“n=4”“n=8”的焊接符号，分别指向对应连接位置。"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "工序号": 2,
+          "工序实例键": "weld_seam_finish_polish",
+          "工序名称": "抛光",
+          "来源规则": [
+            "weld_seam_finish_polish"
+          ],
+          "工序决策": [
+            {
+              "规则键": "weld_seam_finish_polish",
+              "决策键": "weld_finish_stage",
+              "问题": "明确要求修平的首道焊缝如何整饰？",
+              "已选选项": "抛光",
+              "其他选项": [],
+              "性质": "已确认",
+              "规则说明": "技术要求明确焊缝磨平、修平或去除焊接痕迹，且图中存在焊接符号时，生成焊后抛光。",
+              "缺失事实": [],
+              "事实依据": [
+                {
+                  "事实键": "object_has_bom",
+                  "事实名称": "存在明细栏",
+                  "状态": "命中",
+                  "值": true,
+                  "事实证据": [
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "右下方明细栏/BOM区域",
+                      "原文": "发现已填写项目行，例如：序号1，名称“板”，数量3，材料“304”；序号2，名称“管”，数量1，材料“304”；序号4，名称“箱部件”，数量1。"
+                    }
+                  ]
+                },
+                {
+                  "事实键": "weld_symbol_present",
+                  "事实名称": "存在焊接符号",
+                  "状态": "命中",
+                  "值": true,
+                  "事实证据": [
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "主视图中部横向构件与立柱连接处",
+                      "原文": "可见三角形焊缝符号，标注“1.5”和“n=5”，指向该连接位置。"
+                    },
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "局部详图I、II及主视图上部连接处",
+                      "原文": "可见带三角形基本焊缝符号的标注，包含“1.5”及数量标注“n=2”“n=4”“n=8”，均绑定对应连接位置。"
+                    }
+                  ]
+                },
+                {
+                  "事实键": "weld_annotation_present",
+                  "事实名称": "存在焊缝标注",
+                  "状态": "命中",
+                  "值": true,
+                  "事实证据": [
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "主视图中部焊接连接处",
+                      "原文": "焊接符号包含“1.5”、三角形基本焊缝符号及“n=5”，绑定主视图中部横向构件与立柱连接。"
+                    },
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "主视图上部连接处及局部详图I、II",
+                      "原文": "可见多处带“1.5”和数量标注“n=2”“n=4”“n=8”的焊接符号，分别指向对应连接位置。"
+                    }
+                  ]
+                },
+                {
+                  "事实键": "weld_seam_finishing_required",
+                  "事实名称": "焊缝修平要求",
+                  "状态": "命中",
+                  "值": true,
+                  "事实证据": [
+                    {
+                      "来源": "drawing",
+                      "页码": 1,
+                      "区域": "技术要求第4条",
+                      "原文": "焊缝磨平后，焊缝检验按ISO5817-C 100% VT；"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "候选路线": [],
+      "候选差异": [],
+      "局部问题": [
+        {
+          "类型": "错误",
+          "错误码": "DECISION_FACT_UNRESOLVED",
+          "位置": "3/3.4",
+          "说明": "部件PDF明确外表面机械整饰要求时，还必须由PDF可观察事实确定该要求由独立工序还是已验证工序集成承担；仅有最终表面质量要求不得生成独立抛光。；缺少或无法确定：surface_stage_owner:missing",
+          "缺失事实": [
+            "surface_stage_owner:missing"
+          ]
+        },
+        {
+          "类型": "错误",
+          "错误码": "DECISION_FACT_UNRESOLVED",
+          "位置": "3/3.4",
+          "说明": "存在外表面抛光要求时，必须仅凭当前 PDF 可观察规则确定本级承载方式；缺少或无法确定：surface_stage_owner:missing",
+          "缺失事实": [
+            "surface_stage_owner:missing"
+          ]
+        },
+        {
+          "类型": "错误",
+          "错误码": "DECISION_FACT_UNRESOLVED",
+          "位置": "3/3.6",
+          "说明": "部件中的大型精密内圆柱面事实必须完成真/假判断；尺寸后缀或检验含义模糊时保持部分结果，不得按无大型内圆放行。；缺少或无法确定：large_precision_internal_cylindrical_surface_present:unable_to_judge",
+          "缺失事实": [
+            "large_precision_internal_cylindrical_surface_present:unable_to_judge"
+          ]
+        }
+      ]
+    },
+    "总耗时秒": 35.51473856897792,
+    "渲染耗时秒": 0.4553263810230419,
+    "读取器耗时秒": 33.81119790600496
+  },
+  "开发评估": null,
+  "参考路线": []
+}

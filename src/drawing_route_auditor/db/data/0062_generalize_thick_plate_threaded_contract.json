@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "将厚板内螺纹组合事实表述泛化为可变板厚、孔数和螺纹规格，避免任何单案例尺寸成为判断捷径。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "thick_plate_threaded_hole_present",
+      "value": {
+        "label": "厚板内螺纹孔组合特征",
+        "fact_key": "thick_plate_threaded_hole_present",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否为板厚不小于6毫米的板件，且图面存在绑定孔轮廓或孔轴线的明确内螺纹规格。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "同时满足：图纸明确给出板厚且厚度不小于6毫米；至少一个M/m螺纹规格、螺纹孔文字或等价内螺纹标注绑定到圆孔轮廓、孔引出线或孔轴线。螺纹孔数量和公称规格可以变化。",
+        "not_hit_criteria": "完整检查后板厚小于6毫米，或没有内螺纹孔；外轮廓上的外螺纹、普通Ø/φ通孔、孔位尺寸、粗糙度和未注公差不得命中。",
+        "coverage_requirement": "检查板厚标注、全部孔轮廓、孔引出线、剖视图、M/m螺纹规格及其对象绑定；必须区分内螺纹孔与轴端外螺纹。",
+        "evidence_requirement": "同时提供板厚原文，以及绑定具体孔轮廓或孔轴线的内螺纹规格原文；缺少任一项或对象绑定不清时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "这是两个PDF可观察几何条件的组合事实，不是工序答案。板厚阈值固定为不小于6毫米；螺纹孔数量与公称规格可以变化。只有M/m文字但无法确认是内孔，或只有厚板和普通光孔时不得命中。"
+      }
+    }
+  ]
+}

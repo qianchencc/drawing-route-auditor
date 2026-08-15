@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "恢复客户厚板精工判定：厚度不小于6毫米且存在明确内螺纹孔时进入精加工板件路线，并在激光下料或割板之后追加铣。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "thick_plate_threaded_hole_present",
+      "value": {
+        "label": "厚板内螺纹孔组合特征",
+        "fact_key": "thick_plate_threaded_hole_present",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否为板厚不小于6毫米的板件，且图面存在绑定孔轮廓或孔轴线的明确内螺纹规格。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "同时满足：图纸明确给出板厚且厚度不小于6毫米；至少一个M/m螺纹规格、螺纹孔文字或等价内螺纹标注绑定到圆孔轮廓、孔引出线或孔轴线。",
+        "not_hit_criteria": "完整检查后板厚小于6毫米，或没有内螺纹孔；外轮廓上的外螺纹、普通Ø/φ通孔、孔位尺寸、粗糙度和未注公差不得命中。",
+        "coverage_requirement": "检查板厚标注、全部孔轮廓、孔引出线、剖视图、M/m螺纹规格及其对象绑定；必须区分内螺纹孔与轴端外螺纹。",
+        "evidence_requirement": "同时提供板厚原文，以及绑定具体孔轮廓或孔轴线的内螺纹规格原文；缺少任一项或对象绑定不清时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "这是两个PDF可观察几何条件的组合事实，不是工序答案。示例正形态为板厚14且4×M16明确引向四个孔；只有M16文字但无法确认是内孔，或只有厚板和普通光孔时不得命中。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "requires_precision_machining",
+      "value": {
+        "label": "需要精加工",
+        "fact_key": "requires_precision_machining",
+        "reader_key": null,
+        "value_type": "boolean",
+        "description": "孔槽、公差或厚板内螺纹等可观察特征需要通过精加工保证。",
+        "source_kind": "derived",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "not_hit_criteria": null,
+        "coverage_requirement": null,
+        "evidence_requirement": "引用派生所需的孔槽、公差、板厚和内螺纹PDF证据。",
+        "judgement_definition": "只由通用几何和尺寸规则派生；板厚不小于6毫米且存在明确内螺纹孔时可派生，不能从零件名称、图号或历史路线派生。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "precision_by_thick_plate_threaded_hole",
+      "value": {
+        "branch_key": "5.5",
+        "rule_key": "precision_by_thick_plate_threaded_hole",
+        "description": "板厚不小于6毫米且存在明确内螺纹孔时，按厚板精工规则派生精加工需求。",
+        "decision_key": "precision_need",
+        "question": "厚板内螺纹孔是否需要精加工？",
+        "option_key": "thick_plate_threaded_hole_precision",
+        "option_label": "需要",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "requires_precision_machining",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "plate"
+          },
+          {
+            "fact_key": "thick_plate_threaded_hole_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 120
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "machined_plate_family",
+      "value": {
+        "branch_key": "5.5",
+        "rule_key": "machined_plate_family",
+        "description": "无折弯、无回转或卷制壳面且已由PDF特征派生精加工需求的板件进入精加工板件路线族。",
+        "decision_key": "route_family",
+        "question": "选择哪个基础路线族？",
+        "option_key": "machined_plate",
+        "option_label": "精加工板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "machined_plate_part",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "plate"
+          },
+          {
+            "fact_key": "requires_precision_machining",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "has_bend_feature",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "continuous_rolled_shell_surface_present",
+            "operator": "eq",
+            "expected_value": false
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 5
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "flat_sheet_family",
+      "value": {
+        "branch_key": "5.1",
+        "rule_key": "flat_sheet_family",
+        "description": "无连续卷制壳面、无回转曲面、无离散折弯且没有厚板内螺纹组合特征时选择普通平板路线族。",
+        "decision_key": "route_family",
+        "question": "选择哪个基础路线族？",
+        "option_key": "flat_sheet",
+        "option_label": "平板件",
+        "result_kind": "resolved",
+        "outcome_type": "fact",
+        "outcome_key": "route_family",
+        "outcome_value": "flat_cut_plate_part",
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "plate"
+          },
+          {
+            "fact_key": "has_bend_feature",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "continuous_rolled_shell_surface_present",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "thick_plate_threaded_hole_present",
+            "operator": "eq",
+            "expected_value": false
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 10
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "laser_blanking_candidate",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "laser_blanking_candidate",
+        "description": "普通板类和精加工板件路线保留激光下料候选。",
+        "decision_key": "blanking_method",
+        "question": "板类零件采用哪种下料方式？",
+        "option_key": "laser",
+        "option_label": "激光下料",
+        "result_kind": "candidate",
+        "outcome_type": "process",
+        "outcome_key": "blanking_laser",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "激光下料",
+          "operation_key": "blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "in",
+            "expected_value": [
+              "flat_cut_plate_part",
+              "bent_sheet_part",
+              "welded_sheet_part",
+              "machined_plate_part"
+            ]
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 0
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "machined_plate_cut_blanking_candidate",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "machined_plate_cut_blanking_candidate",
+        "description": "精加工厚板保留割板下料候选，不把割板误写为剪板下料。",
+        "decision_key": "blanking_method",
+        "question": "精加工厚板采用哪种下料方式？",
+        "option_key": "cut_plate",
+        "option_label": "割板",
+        "result_kind": "candidate",
+        "outcome_type": "process",
+        "outcome_key": "blanking_cut_plate",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "割板",
+          "operation_key": "blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 0
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "machined_plate_milling",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "machined_plate_milling",
+        "description": "厚板内螺纹已建立精加工板件路线族时，在下料后以铣工序承担企业板件精工阶段。",
+        "decision_key": "plate_precision_operation",
+        "question": "精加工板件采用哪种精工工序？",
+        "option_key": "machined_plate_milling",
+        "option_label": "铣",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "machined_plate_milling",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "铣",
+          "operation_key": "machined_plate_milling"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "machined_plate_part"
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 140
+      }
+    }
+  ]
+}

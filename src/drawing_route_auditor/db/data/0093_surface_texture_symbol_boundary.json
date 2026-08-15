@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "明确表面纹理符号自身的短斜线、横线或小圆圈不是局部引出线，避免把图框通用区独立符号误判为局部表面标注。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_surface_roughness_required",
+      "value": {
+        "label": "整体表面粗糙度要求",
+        "fact_key": "global_surface_roughness_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在作用于其余表面、全部表面或整体未单独标注表面的全局粗糙度要求。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "满足任一条件即可命中：文字或符号明确写有“其余”“全部表面”并给出粗糙度；或表面纹理符号独立放置在图框通用要求区域、标题栏附近或页面右上通用标注区，附有粗糙度数值且没有额外引出线、箭头或尺寸界线连接到任何单一几何面。表面纹理符号自身的两条短斜线、附加横线、小圆圈或加工纹理附加标记都是符号组成部分，不得当作局部引出线。",
+        "not_hit_criteria": "完整检查后没有全局粗糙度要求；只有符号之外另有一条连续引出线、箭头或尺寸界线实际连接某个孔、外圆、端面或局部平面时才可据此返回NOT_HIT。不得仅因符号没有“其余”文字，或因符号自身带短斜线、横线、小圆圈，就把通用区独立符号判为局部。",
+        "coverage_requirement": "检查整页、图框右上通用标注区、标题栏附近、技术要求和全部局部引出线；先识别完整表面纹理符号边界，再检查是否存在超出该符号并连接具体几何轮廓的额外引出线。",
+        "evidence_requirement": "提供符号、数值、页面区域及对象绑定关系；通用区独立符号必须明确记录“符号之外无连接几何面的额外引出线”，局部符号必须记录额外引出线所绑定的具体几何面。",
+        "judgement_definition": "这是作用范围事实，不是工序答案。Ra数值既可全局也可局部；作用范围由“其余/全部”文字，或符号在图框通用区域独立放置且符号之外没有连接具体几何面的额外引出线来确定。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_surface_roughness_ra_um",
+      "value": {
+        "label": "整体表面粗糙度数值",
+        "fact_key": "global_surface_roughness_ra_um",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "number",
+        "description": "全局粗糙度要求明确给出的Ra数值，单位为微米。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "全局粗糙度要求已命中，且“其余/全部”文字旁或图框通用区域独立表面纹理符号给出唯一可读的正数Ra值；符号自身的短斜线、横线或小圆圈不否定其全局范围。",
+        "not_hit_criteria": "完整检查后没有可读的全局Ra数值；仅有通过符号之外的额外引出线、箭头或尺寸界线连接具体几何面的Ra数值时返回NOT_HIT。",
+        "coverage_requirement": "只读取已证明为全局的符号数值；忽略通过额外引出线或具体轮廓绑定局部面的粗糙度数值。",
+        "evidence_requirement": "提供全局符号、数值、页面区域和符号之外无局部绑定的证据；数值缺失、模糊或多个全局数值冲突时返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "只记录全局Ra数值，不据此选择制造方法；表面纹理符号自身的短线、横线或小圆圈不是局部引出线。"
+      }
+    }
+  ]
+}

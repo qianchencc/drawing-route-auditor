@@ -9,7 +9,7 @@ from PIL import Image
 
 from drawing_route_auditor.workflow.models import RenderedDrawing
 
-READER_VIEW_VERSION = "v3"
+READER_VIEW_VERSION = "v4"
 
 
 class DrawingRenderError(RuntimeError):
@@ -72,6 +72,7 @@ def prepare_reader_views(pages: tuple[Path, ...]) -> tuple[Path, ...]:
         "title": (0.38, 0.67, 1.0, 1.0),
         "geometry": (0.10, 0.08, 0.93, 0.74),
         "requirements": (0.0, 0.62, 0.58, 1.0),
+        "surface": (0.55, 0.0, 1.0, 0.38),
     }
     for page in pages:
         detail_paths: list[Path] = []

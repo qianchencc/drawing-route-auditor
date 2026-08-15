@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "平面曲线外周同样可确定折弯板展开轮廓的激光下料方式。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "flat_plate_curved_profile_laser_blanking",
+      "value": {
+        "branch_key": "3.1",
+        "rule_key": "flat_plate_curved_profile_laser_blanking",
+        "description": "平板件或折弯板件的平面展开外周包含半径、圆弧或样条定义的曲边时，以激光下料一次形成不可由直线剪切完成的轮廓。",
+        "decision_key": "blanking_method",
+        "question": "板件展开轮廓的曲线外周采用哪种下料方式？",
+        "option_key": "flat_plate_curved_profile_laser",
+        "option_label": "激光下料",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "blanking_laser",
+        "outcome_value": {
+          "order_rank": 10,
+          "process_name": "激光下料",
+          "operation_key": "blanking"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "in",
+            "expected_value": [
+              "flat_cut_plate_part",
+              "bent_sheet_part"
+            ]
+          },
+          {
+            "fact_key": "planar_curved_profile_present",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 130
+      }
+    }
+  ]
+}

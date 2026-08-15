@@ -219,6 +219,414 @@ def test_continuous_rolled_shell_route_is_identity_invariant_and_feature_sensiti
 
 
 @pytest.mark.integration
+def test_revolved_welded_rolled_shell_sequence_is_identity_invariant_and_feature_sensitive(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    shell_facts = {
+        "object_has_bom": {"status": "not_hit", "value": False},
+        "raw_form": {"status": "hit", "value": "plate"},
+        "continuous_revolved_surface": {"status": "hit", "value": True},
+        "continuous_rolled_shell_surface_present": {
+            "status": "hit",
+            "value": True,
+        },
+        "has_bend_feature": {"status": "not_hit", "value": False},
+        "outer_surface_polish_required": {"status": "not_hit", "value": False},
+        "formal_cleaning_required": {"status": "not_hit", "value": False},
+    }
+    for drawing_number, part_name in [
+        ("IDENTITY-CYLINDER", "闭合卷壳"),
+        ("UNRELATED-IDENTITY", "任意名称"),
+    ]:
+        scenarios = evaluate_scenarios(
+            connection,
+            runtime,
+            {
+                **shell_facts,
+                "drawing_number": {"status": "hit", "value": drawing_number},
+                "part_name": {"status": "hit", "value": part_name},
+                "technical_requirement_mentions_welding": {
+                    "status": "hit",
+                    "value": True,
+                },
+            },
+        )
+        recommendation = assemble_recommendation(
+            scenarios,
+            tree_revision=runtime.revision,
+        )
+
+        assert recommendation.status == "complete"
+        assert recommendation.route is not None
+        assert tuple(item.process_name for item in recommendation.route) == (
+            "激光下料",
+            "卷圆",
+            "焊接(校正)",
+            "卷圆",
+        )
+
+    without_welding = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **shell_facts,
+            "technical_requirement_mentions_welding": {
+                "status": "not_hit",
+                "value": False,
+            },
+        },
+    )
+    recommendation = assemble_recommendation(
+        without_welding,
+        tree_revision=runtime.revision,
+    )
+    assert recommendation.status == "complete"
+    assert recommendation.route is not None
+    assert tuple(item.process_name for item in recommendation.route) == (
+        "激光下料",
+        "卷圆",
+    )
+
+
+@pytest.mark.integration
+def test_flat_curved_plate_uses_laser_by_features_not_identity(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    plate_facts = {
+        "object_has_bom": {"status": "not_hit", "value": False},
+        "raw_form": {"status": "hit", "value": "plate"},
+        "continuous_revolved_surface": {"status": "not_hit", "value": False},
+        "continuous_rolled_shell_surface_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "has_bend_feature": {"status": "not_hit", "value": False},
+        "thick_plate_threaded_hole_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "prismatic_recess_present": {"status": "not_hit", "value": False},
+        "staged_prismatic_machining_annotations_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "outer_surface_polish_required": {"status": "not_hit", "value": False},
+        "formal_cleaning_required": {"status": "not_hit", "value": False},
+    }
+    for drawing_number, part_name in [
+        ("IDENTITY-CURVED-PLATE", "曲边板"),
+        ("UNRELATED-IDENTITY", "任意名称"),
+    ]:
+        scenarios = evaluate_scenarios(
+            connection,
+            runtime,
+            {
+                **plate_facts,
+                "drawing_number": {"status": "hit", "value": drawing_number},
+                "part_name": {"status": "hit", "value": part_name},
+                "planar_curved_profile_present": {
+                    "status": "hit",
+                    "value": True,
+                },
+            },
+        )
+        recommendation = assemble_recommendation(
+            scenarios,
+            tree_revision=runtime.revision,
+        )
+        assert recommendation.status == "complete"
+        assert recommendation.route is not None
+        assert tuple(item.process_name for item in recommendation.route) == (
+            "激光下料",
+        )
+
+    bent_scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **plate_facts,
+            "has_bend_feature": {"status": "hit", "value": True},
+            "planar_curved_profile_present": {
+                "status": "hit",
+                "value": True,
+            },
+        },
+    )
+    recommendation = assemble_recommendation(
+        bent_scenarios,
+        tree_revision=runtime.revision,
+    )
+    assert recommendation.status == "complete"
+    assert recommendation.route is not None
+    assert tuple(item.process_name for item in recommendation.route) == (
+        "激光下料",
+        "折弯",
+    )
+
+    straight_scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **plate_facts,
+            "planar_curved_profile_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+        },
+    )
+    recommendation = assemble_recommendation(
+        straight_scenarios,
+        tree_revision=runtime.revision,
+    )
+    assert recommendation.status == "complete_with_candidates"
+    assert recommendation.route is None
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {("激光下料",), ("剪板下料",)}
+
+
+@pytest.mark.integration
+def test_flat_plate_threaded_holes_add_milling_to_all_blanking_candidates(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            "object_has_bom": {"status": "not_hit", "value": False},
+            "raw_form": {"status": "hit", "value": "plate"},
+            "continuous_revolved_surface": {"status": "not_hit", "value": False},
+            "continuous_rolled_shell_surface_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "has_bend_feature": {"status": "not_hit", "value": False},
+            "planar_curved_profile_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "has_hole_feature": {"status": "hit", "value": True},
+            "thick_plate_threaded_hole_present": {
+                "status": "hit",
+                "value": True,
+            },
+            "outer_surface_polish_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "formal_cleaning_required": {"status": "not_hit", "value": False},
+            "staged_prismatic_machining_annotations_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+        },
+    )
+
+    recommendation = assemble_recommendation(
+        scenarios,
+        tree_revision=runtime.revision,
+    )
+
+    assert recommendation.status == "complete_with_candidates"
+    assert recommendation.route is None
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {("激光下料", "铣"), ("割板", "铣")}
+
+
+@pytest.mark.integration
+def test_prismatic_recess_adds_milling_without_identity_or_tolerance(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    base_facts = {
+        "object_has_bom": {"status": "not_hit", "value": False},
+        "raw_form": {"status": "hit", "value": "plate"},
+        "continuous_revolved_surface": {"status": "not_hit", "value": False},
+        "continuous_rolled_shell_surface_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "has_bend_feature": {"status": "not_hit", "value": False},
+        "planar_curved_profile_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "thick_plate_threaded_hole_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "outer_surface_polish_required": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "staged_prismatic_machining_annotations_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "formal_cleaning_required": {"status": "not_hit", "value": False},
+    }
+    for drawing_number, part_name in [
+        ("IDENTITY-PRISMATIC-RECESS", "带槽块"),
+        ("UNRELATED-IDENTITY", "任意名称"),
+    ]:
+        scenarios = evaluate_scenarios(
+            connection,
+            runtime,
+            {
+                **base_facts,
+                "drawing_number": {"status": "hit", "value": drawing_number},
+                "part_name": {"status": "hit", "value": part_name},
+                "prismatic_recess_present": {"status": "hit", "value": True},
+            },
+        )
+        recommendation = assemble_recommendation(
+            scenarios,
+            tree_revision=runtime.revision,
+        )
+        assert recommendation.status == "complete_with_candidates"
+        assert recommendation.route is None
+        assert {
+            tuple(item.process_name for item in candidate.operations)
+            for candidate in recommendation.route_candidates
+        } == {("激光下料", "铣"), ("割板", "铣")}
+
+    without_recess = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **base_facts,
+            "prismatic_recess_present": {"status": "not_hit", "value": False},
+        },
+    )
+    recommendation = assemble_recommendation(
+        without_recess,
+        tree_revision=runtime.revision,
+    )
+    assert recommendation.status == "complete_with_candidates"
+    assert recommendation.route is None
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {("激光下料",), ("剪板下料",)}
+
+
+@pytest.mark.integration
+def test_staged_prismatic_annotations_preserve_repetition_order_and_negatives(
+    imported_tree: tuple[Connection, object],
+) -> None:
+    connection, runtime = imported_tree
+    base_facts = {
+        "object_has_bom": {"status": "not_hit", "value": False},
+        "raw_form": {"status": "hit", "value": "plate"},
+        "continuous_revolved_surface": {"status": "not_hit", "value": False},
+        "continuous_rolled_shell_surface_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "has_bend_feature": {"status": "not_hit", "value": False},
+        "planar_curved_profile_present": {"status": "not_hit", "value": False},
+        "precision_tolerance_present": {"status": "hit", "value": True},
+        "prismatic_recess_present": {"status": "not_hit", "value": False},
+        "thick_plate_threaded_hole_present": {
+            "status": "not_hit",
+            "value": False,
+        },
+        "has_hole_feature": {"status": "hit", "value": True},
+        "staged_prismatic_machining_annotations_present": {
+            "status": "hit",
+            "value": True,
+        },
+        "critical_fit_and_geometric_tolerance_present": {
+            "status": "hit",
+            "value": True,
+        },
+        "outer_surface_polish_required": {"status": "not_hit", "value": False},
+        "formal_cleaning_required": {"status": "not_hit", "value": False},
+    }
+
+    for drawing_number, part_name in [
+        ("IDENTITY-STAGED-PRISMATIC", "常规上模座"),
+        ("UNRELATED-IDENTITY", "任意棱柱件"),
+    ]:
+        scenarios = evaluate_scenarios(
+            connection,
+            runtime,
+            {
+                **base_facts,
+                "drawing_number": {"status": "hit", "value": drawing_number},
+                "part_name": {"status": "hit", "value": part_name},
+            },
+        )
+        recommendation = assemble_recommendation(
+            scenarios,
+            tree_revision=runtime.revision,
+        )
+        assert recommendation.status == "complete_with_candidates"
+        assert recommendation.route is None
+        assert {
+            tuple(item.process_name for item in candidate.operations)
+            for candidate in recommendation.route_candidates
+        } == {
+            ("激光下料", "铣", "铣", "钻孔", "铣", "专项检验"),
+            ("割板", "铣", "铣", "钻孔", "铣", "专项检验"),
+        }
+
+    without_stages = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **base_facts,
+            "prismatic_recess_present": {"status": "hit", "value": True},
+            "staged_prismatic_machining_annotations_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "critical_fit_and_geometric_tolerance_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+        },
+    )
+    recommendation = assemble_recommendation(
+        without_stages,
+        tree_revision=runtime.revision,
+    )
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {("激光下料", "铣"), ("割板", "铣")}
+
+    without_critical_combination = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            **base_facts,
+            "critical_fit_and_geometric_tolerance_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+        },
+    )
+    recommendation = assemble_recommendation(
+        without_critical_combination,
+        tree_revision=runtime.revision,
+    )
+    assert {
+        tuple(item.process_name for item in candidate.operations)
+        for candidate in recommendation.route_candidates
+    } == {
+        ("激光下料", "铣", "铣", "钻孔", "铣"),
+        ("割板", "铣", "铣", "钻孔", "铣"),
+    }
+
+
+@pytest.mark.integration
 def test_feature_routes_are_identity_invariant_and_feature_sensitive(
     imported_tree: tuple[Connection, object],
 ) -> None:
@@ -619,6 +1027,151 @@ def test_component_surface_requirement_without_stage_evidence_is_partial(
     )
     assert any(
         missing.startswith("surface_stage_owner:")
+        for issue in recommendation.local_issues
+        for missing in issue.missing_facts
+    )
+
+
+@pytest.mark.parametrize(
+    ("drawing_number", "part_name"),
+    [("RENAMED-A", "支架部件"), ("UNRELATED-B", "更名后的焊接部件")],
+)
+@pytest.mark.integration
+def test_welded_stainless_sheet_global_roughness_derives_polishing_stage(
+    imported_tree: tuple[Connection, object],
+    drawing_number: str,
+    part_name: str,
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            "object_has_bom": {"status": "hit", "value": True},
+            "drawing_number": {"status": "hit", "value": drawing_number},
+            "part_name": {"status": "hit", "value": part_name},
+            "material_grade": {"status": "hit", "value": "304"},
+            "raw_form": {"status": "hit", "value": "plate"},
+            "has_bend_feature": {"status": "hit", "value": True},
+            "has_hole_feature": {"status": "hit", "value": True},
+            "weld_symbol_present": {"status": "hit", "value": True},
+            "weld_annotation_present": {"status": "hit", "value": True},
+            "weld_curved_contour_symbol_present": {"status": "hit", "value": True},
+            "weld_seam_finishing_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "large_precision_internal_cylindrical_surface_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "external_mechanical_surface_finish_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "outer_surface_polish_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "formal_cleaning_required": {"status": "not_hit", "value": False},
+            "global_surface_roughness_required": {
+                "status": "hit",
+                "value": True,
+            },
+            "global_surface_roughness_ra_um": {
+                "status": "hit",
+                "value": 3.2,
+            },
+        },
+    )
+
+    recommendation = assemble_recommendation(
+        scenarios,
+        tree_revision=runtime.revision,
+    )
+
+    assert recommendation.status == "complete"
+    assert recommendation.route is not None
+    assert tuple(item.process_name for item in recommendation.route) == (
+        "焊接(校正)",
+        "抛光",
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    (
+        "contour_status",
+        "contour_value",
+        "roughness_status",
+        "roughness_value",
+        "expected_route",
+    ),
+    [
+        ("not_hit", False, "hit", 3.2, ("焊接(校正)",)),
+        ("hit", True, "unable_to_judge", None, ("焊接(校正)", "抛光")),
+    ],
+)
+def test_global_roughness_method_is_feature_and_numeric_sensitive(
+    imported_tree: tuple[Connection, object],
+    contour_status: str,
+    contour_value: bool,
+    roughness_status: str,
+    roughness_value: float | None,
+    expected_route: tuple[str, ...],
+) -> None:
+    connection, runtime = imported_tree
+    scenarios = evaluate_scenarios(
+        connection,
+        runtime,
+        {
+            "drawing_number": {"status": "hit", "value": "SAME-IDENTITY"},
+            "part_name": {"status": "hit", "value": "同一焊接部件"},
+            "object_has_bom": {"status": "hit", "value": True},
+            "weld_symbol_present": {"status": "hit", "value": True},
+            "weld_annotation_present": {"status": "hit", "value": True},
+            "weld_curved_contour_symbol_present": {
+                "status": contour_status,
+                "value": contour_value,
+            },
+            "weld_seam_finishing_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "large_precision_internal_cylindrical_surface_present": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "external_mechanical_surface_finish_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "outer_surface_polish_required": {
+                "status": "not_hit",
+                "value": False,
+            },
+            "formal_cleaning_required": {"status": "not_hit", "value": False},
+            "global_surface_roughness_required": {
+                "status": "hit",
+                "value": True,
+            },
+            "global_surface_roughness_ra_um": {
+                "status": roughness_status,
+                "value": roughness_value,
+            },
+        },
+    )
+
+    recommendation = assemble_recommendation(
+        scenarios,
+        tree_revision=runtime.revision,
+    )
+
+    assert recommendation.status == "partial"
+    assert recommendation.route is not None
+    assert tuple(item.process_name for item in recommendation.route) == expected_route
+    assert any(
+        missing.startswith("surface_roughness_process_method:")
         for issue in recommendation.local_issues
         for missing in issue.missing_facts
     )

@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "闭合圆筒或圆锥卷壳在PDF明确存在焊接特征时，形成初卷、接缝焊接和焊后再次卷圆校正的可观察特征路线。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_shell_seam_welding",
+      "value": {
+        "branch_key": "3.3",
+        "rule_key": "rolled_shell_seam_welding",
+        "description": "板料卷成闭合圆筒或圆锥壳且PDF明确存在焊接特征时，初次卷圆后形成壳体接缝焊接工序。",
+        "decision_key": "rolled_shell_connection_stage",
+        "question": "闭合圆筒或圆锥卷壳如何连接？",
+        "option_key": "rolled_shell_seam_welding",
+        "option_label": "焊接(校正)",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "rolled_shell_seam_welding",
+        "outcome_value": {
+          "order_rank": 40,
+          "process_name": "焊接(校正)",
+          "operation_key": "rolled_shell_seam_welding"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "has_welding_feature",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 160
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "rolled_shell_postweld_reroll",
+      "value": {
+        "branch_key": "3.6",
+        "rule_key": "rolled_shell_postweld_reroll",
+        "description": "闭合圆筒或圆锥卷壳完成接缝焊接后，以再次卷圆校正焊接变形并恢复连续圆度或锥度。",
+        "decision_key": "rolled_shell_calibration_stage",
+        "question": "闭合卷壳焊后如何恢复圆度或锥度？",
+        "option_key": "rolled_shell_postweld_reroll",
+        "option_label": "卷圆",
+        "result_kind": "resolved",
+        "outcome_type": "process",
+        "outcome_key": "rolled_shell_postweld_reroll",
+        "outcome_value": {
+          "order_rank": 50,
+          "process_name": "卷圆",
+          "operation_key": "rolled_shell_postweld_reroll"
+        },
+        "clauses": [
+          {
+            "fact_key": "route_family",
+            "operator": "eq",
+            "expected_value": "rolled_sheet_part"
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "has_welding_feature",
+            "operator": "eq",
+            "expected_value": true
+          }
+        ],
+        "missing_behavior": "not_match",
+        "priority": 160
+      }
+    }
+  ]
+}

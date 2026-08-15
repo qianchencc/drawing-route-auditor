@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "整体或其余表面粗糙度要求只能证明最终质量；没有可验证承担方法时保持部分结果。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_surface_roughness_required",
+      "value": {
+        "label": "整体表面粗糙度要求",
+        "fact_key": "global_surface_roughness_required",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "boolean",
+        "description": "当前对象是否存在作用于其余表面、全部表面或整体未单独标注表面的全局粗糙度要求。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "出现“其余”粗糙度符号、全部表面粗糙度或等价全局表面粗糙度要求，并可确定其约束当前对象的未单独标注表面。",
+        "not_hit_criteria": "完整检查后没有全局粗糙度要求；仅有绑定单个局部面的粗糙度符号不得命中。",
+        "coverage_requirement": "检查标题栏附近、图框右上角、全部视图和技术要求中的全局及局部粗糙度符号，区分“其余/全部”与单个引出面。",
+        "evidence_requirement": "提供全局粗糙度符号或原文及其数值，并说明其对象范围。",
+        "judgement_definition": "这是最终表面质量事实，不是磨、铣、车或抛光工序答案；全局粗糙度不能单独确定由哪种制造方法承担。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_surface_roughness_ra_um",
+      "value": {
+        "label": "整体表面粗糙度数值",
+        "fact_key": "global_surface_roughness_ra_um",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "number",
+        "description": "全局粗糙度要求明确给出的Ra数值，单位为微米。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "全局或“其余”粗糙度符号明确给出可读Ra数值。",
+        "not_hit_criteria": null,
+        "coverage_requirement": "检查全局粗糙度符号及相邻数值，避免读取局部表面数值。",
+        "evidence_requirement": "提供符号、数值和对象范围。",
+        "judgement_definition": "只记录全局Ra数值，不据此选择制造工序。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "surface_roughness_process_method",
+      "value": {
+        "label": "整体粗糙度承担方法",
+        "fact_key": "surface_roughness_process_method",
+        "reader_key": null,
+        "value_type": "text",
+        "description": "由其他PDF可观察特征派生的整体粗糙度制造承担方式。",
+        "source_kind": "derived",
+        "subject_scope": "current_object",
+        "allowed_values": [
+          "machining_integrated",
+          "grinding",
+          "polishing",
+          "other"
+        ],
+        "hit_criteria": null,
+        "not_hit_criteria": null,
+        "coverage_requirement": null,
+        "evidence_requirement": null,
+        "judgement_definition": "必须由经正反例审查的PDF特征规则派生；最终Ra数值本身不能填写该方法。"
+      }
+    },
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "global_surface_roughness_method_required",
+      "value": {
+        "branch_key": "3.4",
+        "rule_key": "global_surface_roughness_method_required",
+        "description": "PDF只有整体或其余表面粗糙度要求时，必须另由可观察特征确定制造承担方法；仅有Ra数值保持部分结果。",
+        "decision_key": "surface_stage_completeness",
+        "question": "整体表面粗糙度由哪种可验证制造方法承担？",
+        "option_key": "global_roughness_method_ready",
+        "option_label": "整体粗糙度承担方法已确定",
+        "result_kind": "resolved",
+        "outcome_type": "stage",
+        "outcome_key": "global_roughness_method_ready",
+        "outcome_value": true,
+        "clauses": [
+          {
+            "fact_key": "global_surface_roughness_required",
+            "operator": "eq",
+            "expected_value": true
+          },
+          {
+            "fact_key": "surface_roughness_process_method",
+            "operator": "in",
+            "expected_value": [
+              "machining_integrated",
+              "grinding",
+              "polishing",
+              "other"
+            ]
+          }
+        ],
+        "evaluation_mode": "all",
+        "missing_behavior": "error",
+        "priority": 233
+      }
+    }
+  ]
+}

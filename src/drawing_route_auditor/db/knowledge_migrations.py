@@ -1672,3 +1672,582 @@ def apply_scope_rolled_shell_completion(
         _upgrade_patch(tree_key, "0056_scope_rolled_shell_completion.json"),
         source_label="migration:0056_scope_rolled_shell_completion",
     )
+
+
+def apply_rolled_shell_weld_calibration(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    rule_keys = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    required_rule_keys = {
+        "rolled_shell_seam_welding",
+        "rolled_shell_postweld_reroll",
+    }
+    if required_rule_keys <= rule_keys:
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0057_rolled_shell_weld_calibration.json"),
+        source_label="migration:0057_rolled_shell_weld_calibration",
+    )
+
+
+def apply_planar_curved_profile(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact_keys = {
+        item.get("fact_key")
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rule_keys = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    if (
+        "planar_curved_profile_present" in fact_keys
+        and "flat_plate_curved_profile_laser_blanking" in rule_keys
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0058_planar_curved_profile.json"),
+        source_label="migration:0058_planar_curved_profile",
+    )
+
+
+def apply_curved_profile_sheet_scope(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    rule = next(
+        (
+            item
+            for item in payload.get("rules", [])
+            if isinstance(item, dict)
+            and item.get("rule_key") == "flat_plate_curved_profile_laser_blanking"
+        ),
+        None,
+    )
+    if isinstance(rule, dict) and any(
+        isinstance(clause, dict)
+        and clause.get("fact_key") == "route_family"
+        and clause.get("operator") == "in"
+        and set(clause.get("expected_value", []))
+        == {"flat_cut_plate_part", "bent_sheet_part"}
+        for clause in rule.get("clauses", [])
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0059_curved_profile_sheet_scope.json"),
+        source_label="migration:0059_curved_profile_sheet_scope",
+    )
+
+
+def apply_case_geometry_surface_contracts(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    facts = {
+        item.get("fact_key"): item
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    expected_phrases = {
+        "raw_form": "两个明显大于厚度的平面尺寸",
+        "continuous_rolled_shell_surface_present": "主体为长直板段、仅两端折弯或翻边",
+        "external_mechanical_surface_finish_required": "无限定处理语句默认约束当前对象",
+        "outer_surface_polish_required": "无限定抛光语句默认约束当前对象",
+    }
+    if all(
+        isinstance(facts.get(fact_key), dict)
+        and phrase in str(facts[fact_key].get("judgement_definition", ""))
+        for fact_key, phrase in expected_phrases.items()
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0060_case_geometry_surface_contracts.json"),
+        source_label="migration:0060_case_geometry_surface_contracts",
+    )
+
+
+def apply_thick_plate_threaded_machining(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    facts = {
+        item.get("fact_key")
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rules = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    if (
+        "thick_plate_threaded_hole_present" in facts
+        and {
+            "precision_by_thick_plate_threaded_hole",
+            "machined_plate_cut_blanking_candidate",
+            "machined_plate_milling",
+        }
+        <= rules
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0061_thick_plate_threaded_machining.json"),
+        source_label="migration:0061_thick_plate_threaded_machining",
+    )
+
+
+def apply_generalize_thick_plate_threaded_contract(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict)
+            and item.get("fact_key") == "thick_plate_threaded_hole_present"
+        ),
+        None,
+    )
+    if isinstance(fact, dict) and "螺纹孔数量与公称规格可以变化" in str(
+        fact.get("judgement_definition", "")
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(
+            tree_key,
+            "0062_generalize_thick_plate_threaded_contract.json",
+        ),
+        source_label="migration:0062_generalize_thick_plate_threaded_contract",
+    )
+
+
+def apply_technical_requirements_presence(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict)
+            and item.get("fact_key") == "technical_requirements_present"
+        ),
+        None,
+    )
+    if isinstance(fact, dict) and "完整整页明确没有技术要求正文" in str(
+        fact.get("judgement_definition", "")
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0063_technical_requirements_presence.json"),
+        source_label="migration:0063_technical_requirements_presence",
+    )
+
+
+def apply_prismatic_recess_machining(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact_keys = {
+        item.get("fact_key")
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rule_keys = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    if (
+        "prismatic_recess_present" in fact_keys
+        and "machining_by_prismatic_recess" in rule_keys
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0064_prismatic_recess_machining.json"),
+        source_label="migration:0064_prismatic_recess_machining",
+    )
+
+
+def apply_prismatic_recess_depth_contract(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict)
+            and item.get("fact_key") == "prismatic_recess_present"
+        ),
+        None,
+    )
+    if isinstance(fact, dict) and "不得因剩余厚度未单独标注" in str(
+        fact.get("judgement_definition", "")
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0065_prismatic_recess_depth_contract.json"),
+        source_label="migration:0065_prismatic_recess_depth_contract",
+    )
+
+
+def apply_global_surface_roughness_guard(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact_keys = {
+        item.get("fact_key")
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rule_keys = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    required_fact_keys = {
+        "global_surface_roughness_required",
+        "global_surface_roughness_ra_um",
+        "surface_roughness_process_method",
+    }
+    if (
+        required_fact_keys <= fact_keys
+        and "global_surface_roughness_method_required" in rule_keys
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0066_global_surface_roughness_guard.json"),
+        source_label="migration:0066_global_surface_roughness_guard",
+    )
+
+
+def apply_global_roughness_numeric_contract(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict)
+            and item.get("fact_key") == "global_surface_roughness_ra_um"
+        ),
+        None,
+    )
+    if isinstance(fact, dict) and (
+        any(
+            marker in str(fact.get("not_hit_criteria", ""))
+            for marker in ("仅有绑定局部面的Ra数值", "符号之外的额外引出线")
+        )
+        or "逐字符抄录" in str(fact.get("hit_criteria", ""))
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0090_global_roughness_numeric_contract.json"),
+        source_label="migration:0090_global_roughness_numeric_contract",
+    )
+
+
+def apply_global_roughness_scope_contract(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict)
+            and item.get("fact_key") == "global_surface_roughness_required"
+        ),
+        None,
+    )
+    if isinstance(fact, dict) and (
+        any(
+            marker in str(fact.get("judgement_definition", ""))
+            for marker in ("无局部引出线", "额外引出线")
+        )
+        or "右上或其他通用标注区" in str(fact.get("hit_criteria", ""))
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0092_global_roughness_scope_contract.json"),
+        source_label="migration:0092_global_roughness_scope_contract",
+    )
+
+
+def apply_surface_texture_symbol_boundary(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    fact = next(
+        (
+            item
+            for item in payload.get("facts", [])
+            if isinstance(item, dict)
+            and item.get("fact_key") == "global_surface_roughness_required"
+        ),
+        None,
+    )
+    if isinstance(fact, dict) and any(
+        marker in str(fact.get("hit_criteria", ""))
+        for marker in ("符号自身的两条短斜线", "符号自身的短斜线")
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0093_surface_texture_symbol_boundary.json"),
+        source_label="migration:0093_surface_texture_symbol_boundary",
+    )
+
+
+def apply_staged_prismatic_machining(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    facts = {
+        item.get("fact_key")
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rules = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    required_facts = {
+        "staged_prismatic_machining_annotations_present",
+        "critical_fit_and_geometric_tolerance_present",
+    }
+    required_rules = {
+        "staged_prismatic_rough_milling",
+        "staged_prismatic_precision_milling",
+        "staged_prismatic_thread_drilling",
+        "staged_prismatic_profile_milling",
+        "critical_prismatic_special_inspection",
+    }
+    if required_facts <= facts and required_rules <= rules:
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0110_staged_prismatic_machining.json"),
+        source_label="migration:0110_staged_prismatic_machining",
+    )
+
+
+def apply_surface_texture_reader(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    reader_keys = {
+        item.get("reader_key")
+        for item in payload.get("readers", [])
+        if isinstance(item, dict)
+    }
+    facts = {
+        item.get("fact_key"): item
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    if "surface_texture_reader" in reader_keys and all(
+        isinstance(facts.get(fact_key), dict)
+        and facts[fact_key].get("reader_key") == "surface_texture_reader"
+        for fact_key in {
+            "global_surface_roughness_required",
+            "global_surface_roughness_ra_um",
+        }
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0094_surface_texture_reader.json"),
+        source_label="migration:0094_surface_texture_reader",
+    )
+
+
+def apply_staged_prismatic_family_guard(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    rule = next(
+        (
+            item
+            for item in payload.get("rules", [])
+            if isinstance(item, dict) and item.get("rule_key") == "flat_sheet_family"
+        ),
+        None,
+    )
+    if isinstance(rule, dict) and any(
+        isinstance(clause, dict)
+        and clause.get("fact_key") == "staged_prismatic_machining_annotations_present"
+        and clause.get("expected_value") is False
+        for clause in rule.get("clauses", [])
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0190_staged_prismatic_family_guard.json"),
+        source_label="migration:0190_staged_prismatic_family_guard",
+    )
+
+
+def apply_weld_contour_surface_method(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    facts = {
+        item.get("fact_key"): item
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rules = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    legacy_rules = {
+        "weld_contour_finish_polish",
+        "global_roughness_method_from_weld_contour",
+        "global_roughness_method_from_explicit_weld_finish",
+    }
+    curved_rules = {
+        "weld_curved_contour_finish_polish",
+        "global_roughness_method_from_weld_curved_contour",
+        "global_roughness_method_from_explicit_weld_finish",
+    }
+    roughness = facts.get("global_surface_roughness_ra_um")
+    contour_contract_ready = (
+        "weld_contour_symbol_present" in facts and legacy_rules <= rules
+    ) or ("weld_curved_contour_symbol_present" in facts and curved_rules <= rules)
+    if (
+        contour_contract_ready
+        and isinstance(roughness, dict)
+        and "逐字符抄录" in str(roughness.get("hit_criteria", ""))
+    ):
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0095_weld_contour_surface_method.json"),
+        source_label="migration:0095_weld_contour_surface_method",
+    )
+
+
+def apply_weld_curved_contour_guard(
+    connection: Connection,
+    *,
+    tree_key: str = DEFAULT_TREE_KEY,
+) -> TreeUpdateSummary | None:
+    payload = _active_source_payload(connection, tree_key)
+    if payload is None:
+        return None
+    facts = {
+        item.get("fact_key")
+        for item in payload.get("facts", [])
+        if isinstance(item, dict)
+    }
+    rules = {
+        item.get("rule_key")
+        for item in payload.get("rules", [])
+        if isinstance(item, dict)
+    }
+    required_rules = {
+        "weld_curved_contour_finish_polish",
+        "global_roughness_method_from_weld_curved_contour",
+    }
+    if "weld_curved_contour_symbol_present" in facts and required_rules <= rules:
+        return None
+    return apply_tree_patch_model(
+        connection,
+        _upgrade_patch(tree_key, "0096_weld_curved_contour_guard.json"),
+        source_label="migration:0096_weld_curved_contour_guard",
+    )

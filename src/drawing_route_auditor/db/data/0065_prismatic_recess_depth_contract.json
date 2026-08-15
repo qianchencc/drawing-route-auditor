@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "明确非贯通棱柱凹槽可由同一剖面中的凹入深度与本体总厚度比较证明，不要求单独标注剩余厚度。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "prismatic_recess_present",
+      "value": {
+        "label": "棱柱非贯通凹槽",
+        "fact_key": "prismatic_recess_present",
+        "reader_key": "geometry_feature_reader",
+        "value_type": "boolean",
+        "description": "板状或块状实心对象是否存在具有明确宽度和有限深度、底部或背后仍保留材料的非贯通槽、口袋、台阶凹腔或开口凹槽。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "主要视图显示由平行边、封闭边或台阶边界定义的槽/口袋/凹腔；或者任一剖视图/侧视图在实体外边界内显示从一侧开口的矩形或台阶凹入。若同一视图给出本体总厚度和更小的凹入深度，可直接比较两数并判定背后保留材料，不要求另行标注剩余厚度；槽可在外周一端开口。",
+        "not_hit_criteria": "完整检查后仅有贯穿孔、贯穿轮廓切口、外周缺口、倒角、圆角、折弯线、板材平面外形或没有有限深度的槽腔；只有槽形轮廓但无法证明非贯通深度时不得命中。",
+        "coverage_requirement": "检查全部主视图、剖视图和侧视图；优先在单个剖面内关联实体外边界、凹入台阶、本体总厚度和凹入深度，并在深度小于总厚度时确认剩余实体。平面槽宽与剖面深度能可靠对应时可合并取证。",
+        "evidence_requirement": "命中时提供非贯通凹入的剖面边界，以及凹入深度小于本体总厚度的尺寸比较；剩余厚度可由两个已标尺寸相减得到，无需单独标注。若没有深度尺寸、总厚度或清晰底面边界则返回UNABLE_TO_JUDGE。",
+        "judgement_definition": "这是实体材料中的三维凹入拓扑事实，不是铣削工序答案。斜向槽、直槽、台阶口袋和开口凹槽均可命中；在同一剖面中，凹入深度小于本体总厚度本身就证明非贯通和底部剩余材料，不得因剩余厚度未单独标注而返回UNABLE_TO_JUDGE。"
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "增加技术要求存在性事实，使完整图纸明确没有技术要求栏时可以安全关闭表面、清洗和焊接文字要求，而不是把缺失正文误报为无法判断。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "technical_requirements_present",
+      "value": {
+        "label": "存在技术要求正文",
+        "fact_key": "technical_requirements_present",
+        "reader_key": "document_structure_reader",
+        "value_type": "boolean",
+        "description": "当前图纸是否存在技术要求、制造说明、表面处理字段或其他可承载工艺文字要求的正文区域。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "drawing_text",
+        "allowed_values": null,
+        "hit_criteria": "任一页面出现编号技术要求、制造/检验说明、明确表面处理字段、焊接文字要求、清洗要求或其他独立工艺文字正文。",
+        "not_hit_criteria": "完整检查全部页面后，仅有视图、尺寸、主标题栏、签字栏、修订栏和空白表格，没有任何技术要求或工艺文字正文区域。",
+        "coverage_requirement": "检查全部页面整页、标题栏附近、图框空白区、技术要求常见区域及独立文字标注；不得只看预裁剪的技术要求区域。",
+        "evidence_requirement": "命中时提供正文标题或原文；未命中时说明已完整检查全部页面且仅见视图、尺寸、标题栏、修订栏或空白区域。",
+        "judgement_definition": "这是文档结构存在性事实，不判断具体工艺要求。完整整页明确没有技术要求正文时返回NOT_HIT；页面缺失、遮挡或分辨率不足以检查全页时返回UNABLE_TO_JUDGE。"
+      }
+    }
+  ]
+}

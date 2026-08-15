@@ -23,6 +23,7 @@ def test_tree_definition_is_the_single_reader_fact_rule_source() -> None:
         "geometry_feature_reader",
         "symbol_relation_reader",
         "requirement_annotation_reader",
+        "surface_texture_reader",
     ]
     fact_keys = {item.fact_key for item in definition.facts}
     assert {

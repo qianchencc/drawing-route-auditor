@@ -9,3 +9,16 @@ build/
 dist/
 .coverage
 .runtime/
+.private/
+
+# Private evaluation and organization-specific source data
+docs/cases/
+docs/index.csv
+docs/routes_*.csv
+docs/customer_decision_tree_original.json
+docs/operations.csv
+docs/rules.csv
+docs/teams.csv
+docs/work_centers.csv
+docs/base_research.md
+docs/iteration_protocol.md

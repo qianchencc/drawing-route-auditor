@@ -9,7 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from drawing_route_auditor.db.connection import Connection
 from drawing_route_auditor.decision_tree.definition import DecisionTreeDefinition
-from drawing_route_auditor.decision_tree.importer import TreeUpdateSummary, persist_tree_revision
+from drawing_route_auditor.decision_tree.importer import (
+    TreeUpdateSummary,
+    persist_tree_revision,
+)
 
 
 TreeCollection = Literal[

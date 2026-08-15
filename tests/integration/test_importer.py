@@ -7,9 +7,27 @@ from drawing_route_auditor.db.connection import Connection
 from drawing_route_auditor.decision_tree.editor import apply_tree_patch
 from drawing_route_auditor.db.knowledge_migrations import (
     apply_axis_stock_and_internal_surface_consistency,
+    apply_case_geometry_surface_contracts,
+    apply_generalize_thick_plate_threaded_contract,
+    apply_thick_plate_threaded_machining,
+    apply_technical_requirements_presence,
+    apply_prismatic_recess_machining,
+    apply_prismatic_recess_depth_contract,
+    apply_global_surface_roughness_guard,
+    apply_global_roughness_numeric_contract,
+    apply_global_roughness_scope_contract,
+    apply_surface_texture_symbol_boundary,
+    apply_surface_texture_reader,
+    apply_weld_contour_surface_method,
+    apply_weld_curved_contour_guard,
+    apply_staged_prismatic_machining,
+    apply_staged_prismatic_family_guard,
     apply_continuous_rolled_shell_route,
     apply_exclude_rolled_shell_from_flat_bent,
     apply_scope_rolled_shell_completion,
+    apply_rolled_shell_weld_calibration,
+    apply_planar_curved_profile,
+    apply_curved_profile_sheet_scope,
     apply_general_axis_stock_guard,
     apply_external_cylindrical_precision_route,
     apply_compact_geometry_features,
@@ -136,11 +154,11 @@ def test_init_is_idempotent_and_patch_updates_current_tree(
     with pytest.raises(ValueError, match="请使用增量补丁更新"):
         initialize_decision_tree(db_connection, source)
     assert second.revision_id == first.revision_id
-    assert first.reader_count == 5
-    assert first.fact_count == 35
+    assert first.reader_count == 6
+    assert first.fact_count == 45
     assert first.node_count == 4
     assert first.branch_count == 15
-    assert first.rule_count == 47
+    assert first.rule_count == 63
 
     ownership = db_connection.execute(
         """
@@ -160,9 +178,9 @@ def test_init_is_idempotent_and_patch_updates_current_tree(
         (first.revision_id,),
     ).fetchone()
     assert ownership == {
-        "observed_owned": 28,
-        "non_observed_unowned": 7,
-        "total": 35,
+        "observed_owned": 37,
+        "non_observed_unowned": 8,
+        "total": 45,
     }
 
     payload = json.loads(source.read_text(encoding="utf-8"))
@@ -260,6 +278,69 @@ def test_current_tree_is_pdf_only_and_all_cleanup_migrations_are_idempotent(
         ]
     )
     assert "不得只检查最大横向尺寸" in facts_by_key["raw_form"]["coverage_requirement"]
+    assert (
+        "两个明显大于厚度的平面尺寸" in facts_by_key["raw_form"]["judgement_definition"]
+    )
+    assert (
+        "主体为长直板段、仅两端折弯或翻边"
+        in facts_by_key["continuous_rolled_shell_surface_present"][
+            "judgement_definition"
+        ]
+    )
+    assert (
+        "无限定处理语句默认约束当前对象"
+        in facts_by_key["external_mechanical_surface_finish_required"][
+            "judgement_definition"
+        ]
+    )
+    assert (
+        "无限定抛光语句默认约束当前对象"
+        in facts_by_key["outer_surface_polish_required"]["judgement_definition"]
+    )
+    assert (
+        "螺纹孔数量与公称规格可以变化"
+        in facts_by_key["thick_plate_threaded_hole_present"]["judgement_definition"]
+    )
+    assert (
+        "完整整页明确没有技术要求正文"
+        in facts_by_key["technical_requirements_present"]["judgement_definition"]
+    )
+    assert (
+        "不得因剩余厚度未单独标注"
+        in facts_by_key["prismatic_recess_present"]["judgement_definition"]
+    )
+    assert (
+        "通过额外引出线绑定局部面"
+        in facts_by_key["global_surface_roughness_ra_um"]["not_hit_criteria"]
+    )
+    assert (
+        facts_by_key["global_surface_roughness_required"]["reader_key"]
+        == "surface_texture_reader"
+    )
+    assert (
+        "符号自身的短斜线"
+        in facts_by_key["global_surface_roughness_required"]["hit_criteria"]
+    )
+    assert "weld_curved_contour_symbol_present" in facts_by_key
+    assert (
+        facts_by_key["weld_curved_contour_symbol_present"]["reader_key"]
+        == "symbol_relation_reader"
+    )
+    assert (
+        "逐字符抄录" in facts_by_key["global_surface_roughness_ra_um"]["hit_criteria"]
+    )
+    assert (
+        "三个独立制造状态"
+        in facts_by_key["staged_prismatic_machining_annotations_present"][
+            "judgement_definition"
+        ]
+    )
+    assert (
+        "图号、名称和历史检验记录不得参与判断"
+        in facts_by_key["critical_fit_and_geometric_tolerance_present"][
+            "judgement_definition"
+        ]
+    )
     assert "surface_corrosion_protection_required" in facts_by_key
     assert "surface_protection_method" in facts_by_key
     assert "weld_finish_precision_order_supported" in facts_by_key
@@ -338,6 +419,47 @@ def test_current_tree_is_pdf_only_and_all_cleanup_migrations_are_idempotent(
         is None
     )
     assert apply_scope_rolled_shell_completion(db_connection, tree_key=tree_key) is None
+    assert apply_rolled_shell_weld_calibration(db_connection, tree_key=tree_key) is None
+    assert apply_planar_curved_profile(db_connection, tree_key=tree_key) is None
+    assert apply_curved_profile_sheet_scope(db_connection, tree_key=tree_key) is None
+    assert (
+        apply_case_geometry_surface_contracts(db_connection, tree_key=tree_key) is None
+    )
+    assert (
+        apply_thick_plate_threaded_machining(db_connection, tree_key=tree_key) is None
+    )
+    assert (
+        apply_generalize_thick_plate_threaded_contract(
+            db_connection,
+            tree_key=tree_key,
+        )
+        is None
+    )
+    assert (
+        apply_technical_requirements_presence(db_connection, tree_key=tree_key) is None
+    )
+    assert apply_prismatic_recess_machining(db_connection, tree_key=tree_key) is None
+    assert (
+        apply_prismatic_recess_depth_contract(db_connection, tree_key=tree_key) is None
+    )
+    assert (
+        apply_global_surface_roughness_guard(db_connection, tree_key=tree_key) is None
+    )
+    assert (
+        apply_global_roughness_numeric_contract(db_connection, tree_key=tree_key)
+        is None
+    )
+    assert (
+        apply_global_roughness_scope_contract(db_connection, tree_key=tree_key) is None
+    )
+    assert (
+        apply_surface_texture_symbol_boundary(db_connection, tree_key=tree_key) is None
+    )
+    assert apply_surface_texture_reader(db_connection, tree_key=tree_key) is None
+    assert apply_weld_contour_surface_method(db_connection, tree_key=tree_key) is None
+    assert apply_weld_curved_contour_guard(db_connection, tree_key=tree_key) is None
+    assert apply_staged_prismatic_machining(db_connection, tree_key=tree_key) is None
+    assert apply_staged_prismatic_family_guard(db_connection, tree_key=tree_key) is None
 
 
 @pytest.mark.integration
@@ -534,12 +656,12 @@ def test_validation_and_details_use_current_tree(
         "nodes": 4,
         "branches": 15,
         "edges": 5,
-        "rules": 47,
-        "clauses": 123,
+        "rules": 63,
+        "clauses": 173,
     }
-    assert len(details["readers"]) == 5
-    assert len(details["facts"]) == 35
-    assert len(details["rules"]) == 47
+    assert len(details["readers"]) == 6
+    assert len(details["facts"]) == 45
+    assert len(details["rules"]) == 63
     assert {
         item["reader_key"]
         for item in details["facts"]
@@ -550,4 +672,5 @@ def test_validation_and_details_use_current_tree(
         "geometry_feature_reader",
         "symbol_relation_reader",
         "requirement_annotation_reader",
+        "surface_texture_reader",
     }

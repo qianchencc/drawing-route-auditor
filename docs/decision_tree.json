@@ -116,13 +116,13 @@
       "judgement_definition": "只有至少一条已填写的物料项目行才算存在 BOM。仅看到表格线、项目号栏标题、空白格、标记处数/更改文件号修订表或设计校对审核栏必须返回 NOT_HIT。"
     },
     {
-      "label": "原始形态",
+      "label": "原始材料形态",
       "fact_key": "raw_form",
       "reader_key": "geometry_dimension_reader",
       "value_type": "text",
-      "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局截面共同决定，局部后加工特征不得改变原材料形态。",
+      "description": "板、管、棒、铸件、锻件或其他制造前原始形态；材料规格和全局几何共同决定，局部后加工特征不得改变原材料形态。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局截面复核。明确管材规格或沿长度连续的闭合空心截面归一化为tube；明确板料规格、展开或卷制板壳证据归一化为plate。若材料栏只给牌号或形态文字缺失，但整件具有同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓且无连续管腔，则必须归一化为bar，不受总长和最大外径阈值限制，也不得返回UNABLE_TO_JUDGE。",
+      "hit_criteria": "优先读取材料栏中的板/方管/矩形管/圆管/无缝管/棒材/铸锻规格，再用全局几何复核。明确管材规格或沿长度连续的闭合空心截面归一化为tube；明确板料规格、展开或卷制板壳证据，或当前零件呈两个大平行面、厚度为最小尺寸且整体实心无连续管腔的平板/板状棱柱，归一化为plate。若材料栏只给牌号或形态文字缺失，但整件具有同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓且无连续管腔，则必须归一化为bar，不受总长和最大外径阈值限制，也不得返回UNABLE_TO_JUDGE。",
       "subject_scope": "current_object",
       "allowed_values": [
         "plate",
@@ -133,9 +133,9 @@
         "other"
       ],
       "not_hit_criteria": null,
-      "coverage_requirement": "检查材料规格、全部主要视图、整个阶梯外轮廓、中心线、每个绑定外部轮廓的φ/Ø外径和外螺纹、轴向长度、闭合截面、内外尺寸、壁厚、展开图和卷制接缝；不得只检查最大横向尺寸，也不得忽略材料中的方管/矩形管/圆管字样。",
-      "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定bar，必须提供中心线、至少一个绑定外部主体的φ/Ø外径或外螺纹、阶梯实体外轮廓以及无连续管腔证据。若材料与几何冲突则返回UNABLE_TO_JUDGE。",
-      "judgement_definition": "判断制造前原材料形态。304方管80×50×5等标准方管、矩形管和圆管归一化为tube；板料展开或卷制壳体归一化为plate。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形或平行直边；同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓以及无连续管腔共同成立时必须归一化为bar，即使材料栏只给牌号。短轴、长细轴和小直径阶梯轴同样适用；长大轴阈值只控制后续路线细分，不控制棒料事实。局部后加工孔不改变该判断。"
+      "coverage_requirement": "检查材料规格、全部主要视图、整个阶梯外轮廓、中心线、每个绑定外部轮廓的φ/Ø外径和外螺纹、轴向长度、闭合截面、内外尺寸、两个主要平面尺寸、厚度、实体或空心状态、展开图和卷制接缝；不得只检查最大横向尺寸，也不得忽略材料中的方管/矩形管/圆管字样。",
+      "evidence_requirement": "提供材料规格原文和对应全局截面；若用几何判定plate，必须提供两个大平行面、明确厚度以及无连续管腔证据；若用几何判定bar，必须提供中心线、至少一个绑定外部主体的φ/Ø外径或外螺纹、阶梯实体外轮廓以及无连续管腔证据。若材料与几何冲突则返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "判断制造前原材料形态。304方管80×50×5等标准方管、矩形管和圆管归一化为tube；板料展开或卷制壳体归一化为plate。材料形态文字缺失时，当前零件若具有两个明显大于厚度的平面尺寸、两个大平行面且整体实心无连续管腔，也必须归一化为plate；零件标题只可确认对象范围，不得单独决定形态。实体简单圆柱或阶梯轴在轴向投影中本来呈矩形或平行直边；同一中心轴、绑定外部主体的φ/Ø外径或外螺纹、简单或阶梯实体外轮廓以及无连续管腔共同成立时必须归一化为bar，即使材料栏只给牌号。短轴、长细轴和小直径阶梯轴同样适用；长大轴阈值只控制后续路线细分，不控制棒料事实。局部后加工孔不改变该判断。"
     },
     {
       "label": "存在折弯特征",
@@ -165,21 +165,6 @@
       "coverage_requirement": "检查全部主要视图、剖视图、截面形状、中心线、φ/Ø尺寸、内外轮廓、板厚/壁厚、材料形态和旋转校正视图；明确区分圆形空心管壁/薄壁壳面、非圆管截面与实体车削外圆。",
       "evidence_requirement": "命中时同时提供连续圆形空心壁或薄壁/板厚证据，以及φ/Ø直径、圆锥母线或圆形空心截面；未命中时提供非圆闭合截面，或实体件外径、局部孔和无连续空心壁的证据。",
       "judgement_definition": "连续回转曲面在此指圆形空心管壁或薄壁卷制壳面，不泛指所有数学上的回转表面。圆管可命中且raw_form独立为tube；矩形方管必须返回NOT_HIT。围绕中心线的实体外圆属于单轴外圆实体轮廓，不得命中本事实。"
-    },
-    {
-      "label": "连续卷制板壳曲面",
-      "fact_key": "continuous_rolled_shell_surface_present",
-      "reader_key": "geometry_dimension_reader",
-      "value_type": "boolean",
-      "description": "当前对象是否为由均匀板厚形成、沿主体大范围保持连续曲率的薄壁板壳；截面可以是圆形、非圆闭合或开放曲线，主体轴线也可以弯曲。",
-      "source_kind": "observed_drawing",
-      "hit_criteria": "主要视图或剖视图显示成对内外轮廓或明确板厚，主体壳面沿显著长度连续弯曲，并有大半径、圆弧、曲率或实配弧形尺寸约束。非圆截面和弯曲主体轴线不否定；关键是连续曲率而非若干离散直线折弯。",
-      "subject_scope": "current_object",
-      "allowed_values": null,
-      "not_hit_criteria": "完整检查后仅有平板、标准成品管材，或仅由明确折弯线、折角、短翻边和直线板段组成的离散钣金折弯件；局部倒圆或单个折弯圆角不得命中。",
-      "coverage_requirement": "检查全部主要视图、端视图、剖视图、成对内外轮廓、板厚、曲率半径、圆弧尺寸、展开线和离散折弯线；区分连续卷制壳面、标准管材和折弯板件。",
-      "evidence_requirement": "提供均匀板厚或成对内外轮廓、连续弯曲主体，以及大半径/圆弧/曲率尺寸之一；未命中时提供平板、标准管材或离散折弯线证据。",
-      "judgement_definition": "这是连续卷制形态事实，不是工序答案。圆筒圆锥可命中，非圆闭合截面、开放曲线截面和弯曲轴线薄壁壳也可命中；仅15°等截面开口角不能单独证明折弯，必须寻找独立折弯线或短翻边。"
     },
     {
       "label": "存在孔特征",
@@ -295,18 +280,19 @@
       "judgement_definition": "只读取技术要求和文字标注。"
     },
     {
-      "label": "要求整体外表面抛光",
+      "label": "外表面抛光要求",
       "fact_key": "outer_surface_polish_required",
       "reader_key": "requirement_annotation_reader",
       "value_type": "boolean",
       "description": "图纸是否明确要求当前对象整体外表面或全部外表面进行抛光。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "明确写有当前对象外表面抛光、全部外表面抛光、整体表面抛光或等价的全局表面要求。",
+      "hit_criteria": "明确写有当前对象外表面抛光、全部外表面抛光、整体表面抛光或等价的全局表面要求。技术要求中无焊缝、焊道、局部区域等限定的“镜面抛光处理”“抛光处理”或“机械抛光”，默认约束当前图纸对象整体，也必须命中。",
       "subject_scope": "current_object",
+      "allowed_values": null,
       "not_hit_criteria": "完整检查全部要求后没有整体外表面抛光要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。",
-      "coverage_requirement": "检查全部技术要求和表面标注，逐项区分当前对象整体外表面与焊缝、焊道、焊接处等局部对象。",
-      "evidence_requirement": "提供要求原文，并明确其对象范围是整体外表面还是局部焊缝。",
-      "judgement_definition": "只读取当前对象整体外表面抛光要求，不判断工艺承担层级。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达。"
+      "coverage_requirement": "检查全部技术要求和表面标注，逐项区分当前图纸对象整体外表面与焊缝、焊道、焊接处等局部对象；无局部限定的抛光要求不得因省略“外表面”字样而返回UNABLE_TO_JUDGE。",
+      "evidence_requirement": "提供要求原文，并明确其对象范围是当前图纸对象整体还是局部焊缝；若要求没有显式对象词，必须同时证明该文字位于当前图纸技术要求且没有局部限定。",
+      "judgement_definition": "只读取当前对象整体外表面抛光要求，不判断工艺承担层级。当前图纸技术要求中的无限定抛光语句默认约束当前对象；“镜面抛光处理”等完整要求即使省略“外表面”也可命中。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达。"
     },
     {
       "label": "要求锐边倒钝",
@@ -380,10 +366,14 @@
       "fact_key": "requires_precision_machining",
       "reader_key": null,
       "value_type": "boolean",
-      "description": "孔槽等特征需要通过精加工保证。",
+      "description": "孔槽、公差或厚板内螺纹等可观察特征需要通过精加工保证。",
       "source_kind": "derived",
       "subject_scope": "current_object",
-      "judgement_definition": "由几何特征和精密公差派生。"
+      "allowed_values": null,
+      "not_hit_criteria": null,
+      "coverage_requirement": null,
+      "evidence_requirement": "引用派生所需的孔槽、公差、板厚和内螺纹PDF证据。",
+      "judgement_definition": "只由通用几何和尺寸规则派生；板厚不小于6毫米且存在明确内螺纹孔时可派生，不能从零件名称、图号或历史路线派生。"
     },
     {
       "label": "路线族",
@@ -483,19 +473,19 @@
       "judgement_definition": "判定整件的全局轴类棒料轮廓，而不是要求最终零件绝对无孔。满足单一主轴、连续整体外圆、总长和最大外径阈值，且没有连续管壁或贯穿大型内腔时返回HIT；M10等局部后加工孔不否定整体棒料。局部套筒、局部圆柱或板壳上的孔也不得反向把非轴类整件判为HIT。"
     },
     {
-      "label": "整体外表面机械整饰要求",
+      "label": "外表面机械整饰要求",
       "fact_key": "external_mechanical_surface_finish_required",
       "reader_key": "requirement_annotation_reader",
       "value_type": "boolean",
       "description": "技术要求是否明确要求当前对象整体外表面进行拉丝、亚光、抛光、磨光或其他机械纹理/光泽整饰。",
       "source_kind": "observed_drawing",
-      "hit_criteria": "明确出现当前对象外表面拉丝、外表面亚光、外表面抛光、全部表面磨光、整体表面抛丸或等价的全局机械整饰要求。",
+      "hit_criteria": "明确出现当前对象外表面拉丝、外表面亚光、外表面抛光、全部表面磨光、整体表面抛丸或等价的全局机械整饰要求。技术要求中无焊缝、焊道、局部区域等限定的“镜面抛光处理”“抛光处理”“机械抛光”或“拉丝处理”，默认约束当前图纸对象整体，也必须命中。",
       "subject_scope": "current_object",
       "allowed_values": null,
       "not_hit_criteria": "完整技术要求清晰可读且没有整体外表面机械整饰要求；仅有外露焊缝磨平、焊缝亚抛光、焊道抛光或其他局部焊缝整饰时必须返回NOT_HIT。仅内表面酸洗、钝化等化学处理也不得命中。",
-      "coverage_requirement": "检查全部表面技术要求，区分整体外表面、内表面和焊缝等局部对象，并区分机械整饰与化学处理。",
-      "evidence_requirement": "提供要求原文、对象范围和表面效果。",
-      "judgement_definition": "这是当前对象整体外表面要求事实。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达；外表面处理关键字模糊或对象范围不清时返回UNABLE_TO_JUDGE。"
+      "coverage_requirement": "检查全部表面技术要求，区分当前图纸对象整体、外表面、内表面和焊缝等局部对象，并区分机械整饰与化学处理；无局部限定的处理要求不得因省略“外表面”字样而返回UNABLE_TO_JUDGE。",
+      "evidence_requirement": "提供要求原文、对象范围和表面效果；若要求没有显式对象词，必须同时证明该文字位于当前图纸技术要求且没有焊缝、焊道或局部区域限定。",
+      "judgement_definition": "这是当前对象整体外表面要求事实。当前图纸技术要求中的无限定处理语句默认约束当前对象；“镜面抛光处理”等完整要求即使省略“外表面”也可命中。局部焊缝整饰不得命中本事实，应由weld_seam_finishing_required表达；只有确有局部对象限定冲突或文字无法读清时才返回UNABLE_TO_JUDGE。"
     },
     {
       "label": "单轴外圆实体轮廓",
@@ -554,6 +544,176 @@
       "subject_scope": "current_object",
       "allowed_values": null,
       "judgement_definition": "仅可由不引用图号、名称或历史答案的通用特征顺序规则派生；当前没有经过正反例验证的规则时保持缺失。"
+    },
+    {
+      "label": "连续卷制板壳曲面",
+      "fact_key": "continuous_rolled_shell_surface_present",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否为由均匀板厚形成、沿主体大范围保持连续曲率的薄壁板壳；截面可以是圆形、非圆闭合或开放曲线，主体轴线也可以弯曲。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "主要视图或剖视图显示成对内外轮廓或明确板厚，主体壳面沿显著长度连续弯曲，并有大半径、圆弧、曲率或实配弧形尺寸约束。非圆截面和弯曲主体轴线不否定；关键是主体大范围连续曲率而非若干离散直线折弯。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后仅有平板、标准成品管材，或主体为长直板段而只在端部形成明确折弯线、折角、短翻边或局部圆弧过渡；局部倒圆、单个折弯圆角和端部翻边不得命中。没有绑定主体曲面的曲率半径、圆弧或实配尺寸时，不得仅凭连续弯曲措辞命中。",
+      "coverage_requirement": "检查全部主要视图、端视图、剖视图、成对内外轮廓、板厚、曲率半径、圆弧尺寸、实配尺寸、主体直线段、端部翻边、展开线和离散折弯线；区分主体连续卷制壳面、标准管材和直板加局部折弯。",
+      "evidence_requirement": "命中时同时提供均匀板厚或成对内外轮廓、主体大范围连续弯曲，以及绑定该主体曲面的曲率半径、圆弧或实配尺寸之一；未命中时提供平板、标准管材、主体长直段、端部翻边或离散折弯线证据。",
+      "judgement_definition": "这是连续卷制形态事实，不是工序答案。圆筒圆锥可命中，非圆闭合截面、开放曲线截面和弯曲轴线薄壁壳也可命中；仅15°等截面开口角不能单独证明折弯，必须寻找独立折弯线或短翻边。主体为长直板段、仅两端折弯或翻边且没有绑定主体曲面的明确大半径/曲率/实配尺寸时，必须返回NOT_HIT，不得把端部圆弧过渡泛化为连续卷制。"
+    },
+    {
+      "label": "平面曲边轮廓",
+      "fact_key": "planar_curved_profile_present",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否为具有明确厚度的单一平面板件，且板件平面内的外周轮廓包含至少一段由半径、圆弧或样条定义的非直线切割边界。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "主要视图显示单一平面板件外周，材料栏或视图给出板厚，并且至少一段外周边界由 R 半径、圆弧、曲线或样条尺寸定义；侧视图若存在，应显示恒定板厚而不是成形壳面。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后外周仅由直线段组成，或者所见圆弧属于折弯截面、卷制壳面、圆管/圆筒轮廓、孔、局部倒圆或倒角，而不是平面板件的外周切割边界。",
+      "coverage_requirement": "检查主要视图、侧视图、板厚标注、外周全部直线与曲线边界、R/圆弧/样条尺寸，并区分平面内曲边与出平面的折弯或卷制曲面。",
+      "evidence_requirement": "命中时同时提供平面板厚证据和至少一段绑定外周边界的 R/圆弧/曲线尺寸；未命中时说明外周仅为直线，或圆弧实际属于孔、倒角、折弯或卷制曲面。",
+      "judgement_definition": "这是平面板件外周拓扑事实，不是下料工序答案。平面轮廓中的曲边可命中；仅有斜直边、C 倒角、孔圆、折弯圆角或卷制壳面不得命中。"
+    },
+    {
+      "label": "厚板内螺纹孔组合特征",
+      "fact_key": "thick_plate_threaded_hole_present",
+      "reader_key": "geometry_feature_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否为板厚不小于6毫米的板件，且图面存在绑定孔轮廓或孔轴线的明确内螺纹规格。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "同时满足：图纸明确给出板厚且厚度不小于6毫米；至少一个M/m螺纹规格、螺纹孔文字或等价内螺纹标注绑定到圆孔轮廓、孔引出线或孔轴线。螺纹孔数量和公称规格可以变化。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后板厚小于6毫米，或没有内螺纹孔；外轮廓上的外螺纹、普通Ø/φ通孔、孔位尺寸、粗糙度和未注公差不得命中。",
+      "coverage_requirement": "检查板厚标注、全部孔轮廓、孔引出线、剖视图、M/m螺纹规格及其对象绑定；必须区分内螺纹孔与轴端外螺纹。",
+      "evidence_requirement": "同时提供板厚原文，以及绑定具体孔轮廓或孔轴线的内螺纹规格原文；缺少任一项或对象绑定不清时返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "这是两个PDF可观察几何条件的组合事实，不是工序答案。板厚阈值固定为不小于6毫米；螺纹孔数量与公称规格可以变化。只有M/m文字但无法确认是内孔，或只有厚板和普通光孔时不得命中。"
+    },
+    {
+      "label": "存在技术要求正文",
+      "fact_key": "technical_requirements_present",
+      "reader_key": "document_structure_reader",
+      "value_type": "boolean",
+      "description": "当前图纸是否存在技术要求、制造说明、表面处理字段或其他可承载工艺文字要求的正文区域。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "任一页面出现编号技术要求、制造/检验说明、明确表面处理字段、焊接文字要求、清洗要求或其他独立工艺文字正文。",
+      "subject_scope": "drawing_text",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查全部页面后，仅有视图、尺寸、主标题栏、签字栏、修订栏和空白表格，没有任何技术要求或工艺文字正文区域。",
+      "coverage_requirement": "检查全部页面整页、标题栏附近、图框空白区、技术要求常见区域及独立文字标注；不得只看预裁剪的技术要求区域。",
+      "evidence_requirement": "命中时提供正文标题或原文；未命中时说明已完整检查全部页面且仅见视图、尺寸、标题栏、修订栏或空白区域。",
+      "judgement_definition": "这是文档结构存在性事实，不判断具体工艺要求。完整整页明确没有技术要求正文时返回NOT_HIT；页面缺失、遮挡或分辨率不足以检查全页时返回UNABLE_TO_JUDGE。"
+    },
+    {
+      "label": "棱柱非贯通凹槽",
+      "fact_key": "prismatic_recess_present",
+      "reader_key": "geometry_feature_reader",
+      "value_type": "boolean",
+      "description": "板状或块状实心对象是否存在具有明确宽度和有限深度、底部或背后仍保留材料的非贯通槽、口袋、台阶凹腔或开口凹槽。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "主要视图显示由平行边、封闭边或台阶边界定义的槽/口袋/凹腔；或者任一剖视图/侧视图在实体外边界内显示从一侧开口的矩形或台阶凹入。若同一视图给出本体总厚度和更小的凹入深度，可直接比较两数并判定背后保留材料，不要求另行标注剩余厚度；槽可在外周一端开口。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后仅有贯穿孔、贯穿轮廓切口、外周缺口、倒角、圆角、折弯线、板材平面外形或没有有限深度的槽腔；只有槽形轮廓但无法证明非贯通深度时不得命中。",
+      "coverage_requirement": "检查全部主视图、剖视图和侧视图；优先在单个剖面内关联实体外边界、凹入台阶、本体总厚度和凹入深度，并在深度小于总厚度时确认剩余实体。平面槽宽与剖面深度能可靠对应时可合并取证。",
+      "evidence_requirement": "命中时提供非贯通凹入的剖面边界，以及凹入深度小于本体总厚度的尺寸比较；剩余厚度可由两个已标尺寸相减得到，无需单独标注。若没有深度尺寸、总厚度或清晰底面边界则返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "这是实体材料中的三维凹入拓扑事实，不是铣削工序答案。斜向槽、直槽、台阶口袋和开口凹槽均可命中；在同一剖面中，凹入深度小于本体总厚度本身就证明非贯通和底部剩余材料，不得因剩余厚度未单独标注而返回UNABLE_TO_JUDGE。"
+    },
+    {
+      "label": "整体表面粗糙度要求",
+      "fact_key": "global_surface_roughness_required",
+      "reader_key": "surface_texture_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否存在作用于其余表面、全部表面或整体未单独标注表面的全局粗糙度要求。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "右上或其他通用标注区出现‘其余’、‘全部表面’或等价文字绑定的表面纹理符号；或者出现独立放置且符号之外没有额外引出线连接具体几何面的通用表面纹理符号。符号自身的短斜线、横线、小圆圈属于符号组成，不算局部引出线。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查右上高分辨率图、整页和其他通用标注区后没有全局粗糙度要求；仅有通过符号之外的额外引出线、箭头或尺寸界线连接具体几何面的局部符号时返回NOT_HIT。",
+      "coverage_requirement": "先逐字检查右上通用表面纹理高分辨率图，再核对整页、标题栏附近、全部视图和技术要求；必须覆盖‘其余’、‘全部’及独立通用符号。",
+      "evidence_requirement": "提供全局文字或独立符号、逐字数值、页面和区域，并明确说明符号之外是否存在连接具体几何面的额外引出线；范围模糊时返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "这是最终表面质量及作用范围事实，不是工序答案；不得由全局粗糙度或Ra数值单独选择磨、铣、车或抛光。"
+    },
+    {
+      "label": "整体表面粗糙度数值",
+      "fact_key": "global_surface_roughness_ra_um",
+      "reader_key": "surface_texture_reader",
+      "value_type": "number",
+      "description": "全局粗糙度要求明确印刷的Ra数值，单位为微米。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "全局、‘其余’或‘全部’表面纹理符号旁存在清晰可读数值；必须从右上高分辨率图逐字符抄录，并用整页核对，禁止按常见值猜测。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后没有全局表面纹理符号；仅有通过额外引出线绑定局部面的Ra数值时返回NOT_HIT。若全局符号存在但数字模糊、例如无法区分1.6、3.2、6.3或其他数值，返回UNABLE_TO_JUDGE而不是NOT_HIT。",
+      "coverage_requirement": "优先检查右上通用表面纹理高分辨率图中的全部数字，再核对整页、标题栏附近、技术要求和局部表面纹理符号，区分全局与局部数值。",
+      "evidence_requirement": "逐字提供全局符号旁印刷数值、作用范围文字、页面和区域；高分辨率图与整页读数冲突时返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "只记录全局Ra数值，不据此选择制造工序；数值必须被实际读取，不能由历史路线、文件名或常见默认值补全。"
+    },
+    {
+      "label": "整体粗糙度承担方法",
+      "fact_key": "surface_roughness_process_method",
+      "reader_key": null,
+      "value_type": "text",
+      "description": "由其他PDF可观察特征派生的整体粗糙度制造承担方式。",
+      "source_kind": "derived",
+      "hit_criteria": null,
+      "subject_scope": "current_object",
+      "allowed_values": [
+        "machining_integrated",
+        "grinding",
+        "polishing",
+        "other"
+      ],
+      "not_hit_criteria": null,
+      "coverage_requirement": null,
+      "evidence_requirement": null,
+      "judgement_definition": "必须由经正反例审查的PDF特征规则派生；最终Ra数值本身不能填写该方法。"
+    },
+    {
+      "label": "多阶段棱柱加工标注",
+      "fact_key": "staged_prismatic_machining_annotations_present",
+      "reader_key": "requirement_annotation_reader",
+      "value_type": "boolean",
+      "description": "图面是否在不同视图或独立文字区域同时明确区分粗加工状态、精加工并攻丝状态和最终外形加工状态。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "必须同时看到三类彼此独立且绑定当前棱柱板件或块件的原文标注：一处明确粗加工或粗铣；一处明确按工艺卡片精加工/精铣并攻丝；一处另行明确最终外形加工或铣外形。三类文字可分布在不同视图，但必须能确定各自约束的几何区域。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后缺少上述任一独立阶段，或只有泛称加工、单次铣削、单独攻丝、普通尺寸/公差而没有三个被明确区分的加工状态时返回NOT_HIT。",
+      "coverage_requirement": "检查整页全部视图上方、视图内部、工艺图说明、技术要求和局部引出文字；逐项记录粗加工、精加工/攻丝、最终外形三类文字及其所绑定视图。",
+      "evidence_requirement": "分别逐字提供三类原文及页面区域；任一文字模糊、被裁切或无法确认绑定当前对象时返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "这只记录PDF明示的三个独立制造状态，不输出工艺路线，也不从物料编码、图号、名称或历史路线补齐阶段。只有三个阶段均被图面文字分别建立时才命中。"
+    },
+    {
+      "label": "关键配合与基准形位公差组合",
+      "fact_key": "critical_fit_and_geometric_tolerance_present",
+      "reader_key": "geometry_dimension_reader",
+      "value_type": "boolean",
+      "description": "当前对象是否同时具有明确的配合/窄带尺寸公差和引用基准的形位公差。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "必须同时满足：至少一个具体尺寸带配合代号或明确上下偏差形成的窄公差带；至少一个形位公差框引用明确基准字母。两者必须绑定当前对象的可识别几何要素。",
+      "subject_scope": "current_object",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查后只有未注公差、普通尺寸、单独配合尺寸、单独形位公差或没有基准引用时返回NOT_HIT。",
+      "coverage_requirement": "检查全部尺寸、公差上下偏差、配合代号、形位公差框、基准符号及其引出对象；不得把表面粗糙度数值当作尺寸公差。",
+      "evidence_requirement": "同时提供配合/上下偏差原文、形位公差框原文、基准字母及各自绑定的几何要素。任一关系不可读时返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "这是可验证的尺寸与几何控制组合事实，不是检验工序答案。图号、名称和历史检验记录不得参与判断。"
+    },
+    {
+      "label": "焊缝曲面轮廓附加符号",
+      "fact_key": "weld_curved_contour_symbol_present",
+      "reader_key": "symbol_relation_reader",
+      "value_type": "boolean",
+      "description": "焊接符号是否带有可明确识别且直接附着于基本焊缝符号的凸形或凹形弧线轮廓附加符号。",
+      "source_kind": "observed_drawing",
+      "hit_criteria": "至少一个可定位焊接符号带有直接附着于基本焊缝符号的凸弧或凹弧轮廓线；必须能看到弧线曲率并绑定同一基准线上的基本焊缝符号。仅见平直线不得命中。",
+      "subject_scope": "occurrence",
+      "allowed_values": null,
+      "not_hit_criteria": "完整检查全部焊接标注后，只见基本角焊缝、对接焊缝、平直线、基准线、全周圆圈、焊脚尺寸或数量标注，未见直接附着的凸形或凹形弧线轮廓附加符号。",
+      "coverage_requirement": "检查每个焊接符号的基准线两侧、基本焊缝符号邻近区域及局部放大图；必须区分曲面轮廓弧线与平直基准线、基本方形对接符号、零件轮廓、表面纹理符号和全周焊圆圈。",
+      "evidence_requirement": "提供凸形或凹形弧线、其绑定的基本焊缝符号、页面和连接位置；无法看清弧线曲率或只能看到平直线时返回NOT_HIT，图像模糊导致线型不可辨时返回UNABLE_TO_JUDGE。",
+      "judgement_definition": "只记录焊接符号上的曲面轮廓要求，不输出磨削、抛光或其他工艺答案。"
     }
   ],
   "nodes": [
@@ -761,38 +921,6 @@
     {
       "clauses": [
         {
-          "fact_key": "object_kind",
-          "operator": "eq",
-          "expected_value": "part"
-        },
-        {
-          "fact_key": "single_axis_external_cylindrical_profile",
-          "operator": "eq",
-          "expected_value": true
-        },
-        {
-          "fact_key": "precision_tolerance_present",
-          "operator": "eq",
-          "expected_value": true
-        }
-      ],
-      "priority": 120,
-      "question": "单轴实体外圆的明确尺寸公差是否需要精加工？",
-      "rule_key": "precision_by_external_cylindrical_tolerance",
-      "branch_key": "5.5",
-      "option_key": "external_cylindrical_tolerance",
-      "description": "零件具有单轴实体外圆轮廓，且至少一个绑定该外圆的尺寸带明确数值公差时，派生精加工需求。",
-      "outcome_key": "requires_precision_machining",
-      "result_kind": "resolved",
-      "decision_key": "precision_need",
-      "option_label": "需要",
-      "outcome_type": "fact",
-      "outcome_value": true,
-      "missing_behavior": "not_match"
-    },
-    {
-      "clauses": [
-        {
           "fact_key": "has_hole_feature",
           "operator": "eq",
           "expected_value": true
@@ -840,38 +968,6 @@
       "option_label": "需要",
       "outcome_type": "fact",
       "outcome_value": true,
-      "missing_behavior": "not_match"
-    },
-    {
-      "clauses": [
-        {
-          "fact_key": "object_kind",
-          "operator": "eq",
-          "expected_value": "part"
-        },
-        {
-          "fact_key": "raw_form",
-          "operator": "eq",
-          "expected_value": "plate"
-        },
-        {
-          "fact_key": "continuous_rolled_shell_surface_present",
-          "operator": "eq",
-          "expected_value": true
-        }
-      ],
-      "priority": 55,
-      "question": "连续曲率薄壁板壳属于哪个基础路线族？",
-      "rule_key": "continuous_rolled_shell_family",
-      "branch_key": "5.3",
-      "option_key": "continuous_rolled_shell",
-      "description": "板料形成大范围连续曲率薄壁壳面时选择卷制板件路线族，不要求固定回转轴或圆形截面。",
-      "outcome_key": "route_family",
-      "result_kind": "resolved",
-      "decision_key": "route_family",
-      "option_label": "卷制板件",
-      "outcome_type": "fact",
-      "outcome_value": "rolled_sheet_part",
       "missing_behavior": "not_match"
     },
     {
@@ -943,13 +1039,14 @@
       "rule_key": "bent_sheet_family",
       "branch_key": "5.2",
       "option_key": "bent_sheet",
-      "description": "板件存在离散折弯特征且不存在连续卷制壳面时选择折弯路线族",
+      "description": "板件存在离散折弯特征且不存在连续卷制壳面时选择折弯路线族。",
       "outcome_key": "route_family",
       "result_kind": "resolved",
       "decision_key": "route_family",
       "option_label": "折弯板件",
       "outcome_type": "fact",
-      "outcome_value": "bent_sheet_part"
+      "outcome_value": "bent_sheet_part",
+      "missing_behavior": "not_match"
     },
     {
       "clauses": [
@@ -977,6 +1074,21 @@
           "fact_key": "continuous_rolled_shell_surface_present",
           "operator": "eq",
           "expected_value": false
+        },
+        {
+          "fact_key": "thick_plate_threaded_hole_present",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "prismatic_recess_present",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "staged_prismatic_machining_annotations_present",
+          "operator": "eq",
+          "expected_value": false
         }
       ],
       "priority": 10,
@@ -984,13 +1096,14 @@
       "rule_key": "flat_sheet_family",
       "branch_key": "5.1",
       "option_key": "flat_sheet",
-      "description": "无连续卷制壳面、无回转曲面且无离散折弯特征时选择平板路线族",
+      "description": "无连续卷制壳面、无回转曲面、无离散折弯、无厚板内螺纹、无非贯通凹槽且无显式多阶段棱柱加工标注时选择普通平板路线族。",
       "outcome_key": "route_family",
       "result_kind": "resolved",
       "decision_key": "route_family",
       "option_label": "平板件",
       "outcome_type": "fact",
-      "outcome_value": "flat_cut_plate_part"
+      "outcome_value": "flat_cut_plate_part",
+      "missing_behavior": "not_match"
     },
     {
       "clauses": [
@@ -1040,16 +1153,31 @@
           "fact_key": "requires_precision_machining",
           "operator": "eq",
           "expected_value": true
+        },
+        {
+          "fact_key": "has_bend_feature",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "continuous_revolved_surface",
+          "operator": "eq",
+          "expected_value": false
+        },
+        {
+          "fact_key": "continuous_rolled_shell_surface_present",
+          "operator": "eq",
+          "expected_value": false
         }
       ],
-      "priority": 30,
+      "priority": 5,
       "question": "选择哪个基础路线族？",
       "rule_key": "machined_plate_family",
       "branch_key": "5.5",
       "option_key": "machined_plate",
-      "description": "板件需要精加工保留精加工板件路线族",
+      "description": "无折弯、无回转或卷制壳面且已由PDF特征派生精加工需求的板件进入精加工板件路线族。",
       "outcome_key": "route_family",
-      "result_kind": "candidate",
+      "result_kind": "resolved",
       "decision_key": "route_family",
       "option_label": "精加工板件",
       "outcome_type": "fact",
@@ -1101,15 +1229,17 @@
           "expected_value": [
             "flat_cut_plate_part",
             "bent_sheet_part",
-            "welded_sheet_part"
+            "welded_sheet_part",
+            "machined_plate_part"
           ]
         }
       ],
+      "priority": 0,
       "question": "板类零件采用哪种下料方式？",
       "rule_key": "laser_blanking_candidate",
       "branch_key": "3.1",
       "option_key": "laser",
-      "description": "板类路线保留激光下料候选",
+      "description": "普通板类和精加工板件路线保留激光下料候选。",
       "outcome_key": "blanking_laser",
       "result_kind": "candidate",
       "decision_key": "blanking_method",
@@ -1119,7 +1249,8 @@
         "order_rank": 10,
         "process_name": "激光下料",
         "operation_key": "blanking"
-      }
+      },
+      "missing_behavior": "not_match"
     },
     {
       "clauses": [
@@ -2093,6 +2224,615 @@
       "outcome_type": "stage",
       "outcome_value": true,
       "missing_behavior": "error"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "single_axis_external_cylindrical_profile",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "precision_tolerance_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 120,
+      "question": "单轴实体外圆的明确尺寸公差是否需要精加工？",
+      "rule_key": "precision_by_external_cylindrical_tolerance",
+      "branch_key": "5.5",
+      "option_key": "external_cylindrical_tolerance",
+      "description": "零件具有单轴实体外圆轮廓，且至少一个绑定该外圆的尺寸带明确数值公差时，派生精加工需求。",
+      "outcome_key": "requires_precision_machining",
+      "result_kind": "resolved",
+      "decision_key": "precision_need",
+      "option_label": "需要",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "plate"
+        },
+        {
+          "fact_key": "continuous_rolled_shell_surface_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 55,
+      "question": "连续曲率薄壁板壳属于哪个基础路线族？",
+      "rule_key": "continuous_rolled_shell_family",
+      "branch_key": "5.3",
+      "option_key": "continuous_rolled_shell",
+      "description": "板料形成大范围连续曲率薄壁壳面时选择卷制板件路线族，不要求固定回转轴或圆形截面。",
+      "outcome_key": "route_family",
+      "result_kind": "resolved",
+      "decision_key": "route_family",
+      "option_label": "卷制板件",
+      "outcome_type": "fact",
+      "outcome_value": "rolled_sheet_part",
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "rolled_sheet_part"
+        },
+        {
+          "fact_key": "continuous_revolved_surface",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "has_welding_feature",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 160,
+      "question": "闭合圆筒或圆锥卷壳如何连接？",
+      "rule_key": "rolled_shell_seam_welding",
+      "branch_key": "3.3",
+      "option_key": "rolled_shell_seam_welding",
+      "description": "板料卷成闭合圆筒或圆锥壳且PDF明确存在焊接特征时，初次卷圆后形成壳体接缝焊接工序。",
+      "outcome_key": "rolled_shell_seam_welding",
+      "result_kind": "resolved",
+      "decision_key": "rolled_shell_connection_stage",
+      "option_label": "焊接(校正)",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 40,
+        "process_name": "焊接(校正)",
+        "operation_key": "rolled_shell_seam_welding"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "rolled_sheet_part"
+        },
+        {
+          "fact_key": "continuous_revolved_surface",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "has_welding_feature",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 160,
+      "question": "闭合卷壳焊后如何恢复圆度或锥度？",
+      "rule_key": "rolled_shell_postweld_reroll",
+      "branch_key": "3.6",
+      "option_key": "rolled_shell_postweld_reroll",
+      "description": "闭合圆筒或圆锥卷壳完成接缝焊接后，以再次卷圆校正焊接变形并恢复连续圆度或锥度。",
+      "outcome_key": "rolled_shell_postweld_reroll",
+      "result_kind": "resolved",
+      "decision_key": "rolled_shell_calibration_stage",
+      "option_label": "卷圆",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 50,
+        "process_name": "卷圆",
+        "operation_key": "rolled_shell_postweld_reroll"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "in",
+          "expected_value": [
+            "flat_cut_plate_part",
+            "bent_sheet_part"
+          ]
+        },
+        {
+          "fact_key": "planar_curved_profile_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 130,
+      "question": "板件展开轮廓的曲线外周采用哪种下料方式？",
+      "rule_key": "flat_plate_curved_profile_laser_blanking",
+      "branch_key": "3.1",
+      "option_key": "flat_plate_curved_profile_laser",
+      "description": "平板件或折弯板件的平面展开外周包含半径、圆弧或样条定义的曲边时，以激光下料一次形成不可由直线剪切完成的轮廓。",
+      "outcome_key": "blanking_laser",
+      "result_kind": "resolved",
+      "decision_key": "blanking_method",
+      "option_label": "激光下料",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "激光下料",
+        "operation_key": "blanking"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "part"
+        },
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "plate"
+        },
+        {
+          "fact_key": "thick_plate_threaded_hole_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 120,
+      "question": "厚板内螺纹孔是否需要精加工？",
+      "rule_key": "precision_by_thick_plate_threaded_hole",
+      "branch_key": "5.5",
+      "option_key": "thick_plate_threaded_hole_precision",
+      "description": "板厚不小于6毫米且存在明确内螺纹孔时，按厚板精工规则派生精加工需求。",
+      "outcome_key": "requires_precision_machining",
+      "result_kind": "resolved",
+      "decision_key": "precision_need",
+      "option_label": "需要",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "machined_plate_part"
+        }
+      ],
+      "priority": 0,
+      "question": "精加工厚板采用哪种下料方式？",
+      "rule_key": "machined_plate_cut_blanking_candidate",
+      "branch_key": "3.1",
+      "option_key": "cut_plate",
+      "description": "精加工厚板保留割板下料候选，不把割板误写为剪板下料。",
+      "outcome_key": "blanking_cut_plate",
+      "result_kind": "candidate",
+      "decision_key": "blanking_method",
+      "option_label": "割板",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 10,
+        "process_name": "割板",
+        "operation_key": "blanking"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "machined_plate_part"
+        },
+        {
+          "fact_key": "staged_prismatic_machining_annotations_present",
+          "operator": "eq",
+          "expected_value": false
+        }
+      ],
+      "priority": 140,
+      "question": "精加工板件采用哪种精工工序？",
+      "rule_key": "machined_plate_milling",
+      "branch_key": "3.6",
+      "option_key": "machined_plate_milling",
+      "description": "板件已由PDF特征建立精加工路线族且图面没有明确拆分多个棱柱加工阶段时，在下料后以一次铣工序形成对应实体特征。",
+      "outcome_key": "machined_plate_milling",
+      "result_kind": "resolved",
+      "decision_key": "plate_precision_operation",
+      "option_label": "铣",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 50,
+        "process_name": "铣",
+        "operation_key": "machined_plate_milling"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "raw_form",
+          "operator": "eq",
+          "expected_value": "plate"
+        },
+        {
+          "fact_key": "prismatic_recess_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 125,
+      "question": "厚板或块状板件的非贯通凹槽是否需要实体加工？",
+      "rule_key": "machining_by_prismatic_recess",
+      "branch_key": "5.5",
+      "option_key": "prismatic_recess_machining",
+      "description": "板状实心对象具有明确宽度和有限深度的非贯通槽、口袋或台阶凹腔时，派生实体精加工需求。",
+      "outcome_key": "requires_precision_machining",
+      "result_kind": "resolved",
+      "decision_key": "precision_need",
+      "option_label": "需要",
+      "outcome_type": "fact",
+      "outcome_value": true,
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "global_surface_roughness_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "surface_roughness_process_method",
+          "operator": "in",
+          "expected_value": [
+            "machining_integrated",
+            "grinding",
+            "polishing",
+            "other"
+          ]
+        }
+      ],
+      "priority": 233,
+      "question": "整体表面粗糙度由哪种可验证制造方法承担？",
+      "rule_key": "global_surface_roughness_method_required",
+      "branch_key": "3.4",
+      "option_key": "global_roughness_method_ready",
+      "description": "PDF只有整体或其余表面粗糙度要求时，必须另由可观察特征确定制造承担方法；仅有Ra数值保持部分结果。",
+      "outcome_key": "global_roughness_method_ready",
+      "result_kind": "resolved",
+      "decision_key": "surface_stage_completeness",
+      "option_label": "整体粗糙度承担方法已确定",
+      "outcome_type": "stage",
+      "outcome_value": true,
+      "evaluation_mode": "all",
+      "missing_behavior": "error"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "machined_plate_part"
+        },
+        {
+          "fact_key": "staged_prismatic_machining_annotations_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 170,
+      "question": "图面明确拆分多阶段棱柱加工时先形成哪个加工状态？",
+      "rule_key": "staged_prismatic_rough_milling",
+      "branch_key": "3.6",
+      "option_key": "staged_prismatic_rough_milling",
+      "description": "图面独立标出粗加工/粗铣状态时，先以铣去除主要余量，为后续精加工、孔加工和外形加工建立稳定基准。",
+      "outcome_key": "staged_prismatic_rough_milling",
+      "result_kind": "resolved",
+      "decision_key": "staged_prismatic_rough_stage",
+      "option_label": "铣",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 40,
+        "process_name": "铣",
+        "operation_key": "staged_prismatic_rough_milling"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "machined_plate_part"
+        },
+        {
+          "fact_key": "staged_prismatic_machining_annotations_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 170,
+      "question": "粗加工后如何形成图面独立标出的精加工状态？",
+      "rule_key": "staged_prismatic_precision_milling",
+      "branch_key": "3.6",
+      "option_key": "staged_prismatic_precision_milling",
+      "description": "图面在粗加工之外另行标出按工艺卡片精加工/精铣状态时，以第二次铣形成精密平面、台阶或斜面。",
+      "outcome_key": "staged_prismatic_precision_milling",
+      "result_kind": "resolved",
+      "decision_key": "staged_prismatic_precision_stage",
+      "option_label": "铣",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 50,
+        "process_name": "铣",
+        "operation_key": "staged_prismatic_precision_milling"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "machined_plate_part"
+        },
+        {
+          "fact_key": "staged_prismatic_machining_annotations_present",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "has_hole_feature",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 170,
+      "question": "精加工标注同时明确攻丝且图面存在孔时如何形成螺纹孔？",
+      "rule_key": "staged_prismatic_thread_drilling",
+      "branch_key": "3.6",
+      "option_key": "staged_prismatic_thread_drilling",
+      "description": "多阶段棱柱加工标注明确包含攻丝且图面建立孔特征时，在精铣后以钻孔工序承担螺纹底孔及攻丝。",
+      "outcome_key": "staged_prismatic_thread_drilling",
+      "result_kind": "resolved",
+      "decision_key": "staged_prismatic_hole_stage",
+      "option_label": "钻孔",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 60,
+        "process_name": "钻孔",
+        "operation_key": "staged_prismatic_thread_drilling"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "machined_plate_part"
+        },
+        {
+          "fact_key": "staged_prismatic_machining_annotations_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 170,
+      "question": "孔加工后如何形成图面另行标出的最终外形？",
+      "rule_key": "staged_prismatic_profile_milling",
+      "branch_key": "3.6",
+      "option_key": "staged_prismatic_profile_milling",
+      "description": "图面在粗铣和精铣/攻丝之外另行标出铣外形时，以第三次铣在孔加工后形成最终外周轮廓。",
+      "outcome_key": "staged_prismatic_profile_milling",
+      "result_kind": "resolved",
+      "decision_key": "staged_prismatic_profile_stage",
+      "option_label": "铣",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 70,
+        "process_name": "铣",
+        "operation_key": "staged_prismatic_profile_milling"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "route_family",
+          "operator": "eq",
+          "expected_value": "machined_plate_part"
+        },
+        {
+          "fact_key": "staged_prismatic_machining_annotations_present",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "critical_fit_and_geometric_tolerance_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 170,
+      "question": "多阶段精加工件同时具有关键配合和基准形位公差时如何验证？",
+      "rule_key": "critical_prismatic_special_inspection",
+      "branch_key": "3.6",
+      "option_key": "critical_prismatic_special_inspection",
+      "description": "多阶段棱柱精加工完成后，同时存在配合/窄带尺寸公差和引用基准的形位公差时，以专项检验验证组合精度。",
+      "outcome_key": "critical_prismatic_special_inspection",
+      "result_kind": "resolved",
+      "decision_key": "critical_prismatic_inspection_stage",
+      "option_label": "专项检验",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 80,
+        "process_name": "专项检验",
+        "operation_key": "critical_prismatic_special_inspection"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "global_surface_roughness_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "global_surface_roughness_ra_um",
+          "operator": "gt",
+          "expected_value": 0
+        },
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
+        {
+          "fact_key": "component_kind",
+          "operator": "eq",
+          "expected_value": "welded"
+        },
+        {
+          "fact_key": "weld_seam_finishing_required",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 243,
+      "question": "全局粗糙度是否由图纸明示的焊后整饰阶段承担？",
+      "rule_key": "global_roughness_method_from_explicit_weld_finish",
+      "branch_key": "3.4",
+      "option_key": "global_roughness_polishing_from_explicit_weld_finish",
+      "description": "全局Ra数值已实际读出，且技术要求明确焊缝磨平、抛光或清除焊接痕迹时，将已由文字确定的抛光阶段登记为粗糙度承担方法；Ra数值自身不产生抛光。",
+      "outcome_key": "surface_roughness_process_method",
+      "result_kind": "resolved",
+      "decision_key": "surface_roughness_method_from_explicit_weld_finish",
+      "option_label": "明示焊后抛光承担",
+      "outcome_type": "fact",
+      "outcome_value": "polishing",
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
+        {
+          "fact_key": "component_kind",
+          "operator": "eq",
+          "expected_value": "welded"
+        },
+        {
+          "fact_key": "weld_symbol_present",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "weld_curved_contour_symbol_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 151,
+      "question": "带曲面轮廓附加符号的焊缝如何完成规定轮廓？",
+      "rule_key": "weld_curved_contour_finish_polish",
+      "branch_key": "3.6",
+      "option_key": "weld_curved_contour_finish_polish",
+      "description": "焊接部件的基本焊缝符号带有明确凸形或凹形轮廓弧线时，按企业工序语义形成焊后抛光整饰；平直线不触发，该判断也不来自Ra数值。",
+      "outcome_key": "weld_curved_contour_finish_polish",
+      "result_kind": "resolved",
+      "decision_key": "weld_curved_contour_finish_stage",
+      "option_label": "抛光",
+      "outcome_type": "process",
+      "outcome_value": {
+        "order_rank": 20,
+        "process_name": "抛光",
+        "operation_key": "weld_seam_finish_polish"
+      },
+      "missing_behavior": "not_match"
+    },
+    {
+      "clauses": [
+        {
+          "fact_key": "global_surface_roughness_required",
+          "operator": "eq",
+          "expected_value": true
+        },
+        {
+          "fact_key": "global_surface_roughness_ra_um",
+          "operator": "gt",
+          "expected_value": 0
+        },
+        {
+          "fact_key": "object_kind",
+          "operator": "eq",
+          "expected_value": "component"
+        },
+        {
+          "fact_key": "component_kind",
+          "operator": "eq",
+          "expected_value": "welded"
+        },
+        {
+          "fact_key": "weld_curved_contour_symbol_present",
+          "operator": "eq",
+          "expected_value": true
+        }
+      ],
+      "priority": 242,
+      "question": "全局粗糙度是否由已明确的焊缝曲面轮廓整饰阶段承担？",
+      "rule_key": "global_roughness_method_from_weld_curved_contour",
+      "branch_key": "3.4",
+      "option_key": "global_roughness_polishing_from_weld_curved_contour",
+      "description": "全局Ra数值已实际读出，且焊接符号独立要求凸形或凹形焊缝轮廓整饰时，将已由焊缝符号确定的抛光阶段登记为粗糙度承担方法；Ra数值和平直线自身都不产生抛光。",
+      "outcome_key": "surface_roughness_process_method",
+      "result_kind": "resolved",
+      "decision_key": "surface_roughness_method_from_weld_curved_contour",
+      "option_label": "焊缝曲面轮廓抛光承担",
+      "outcome_type": "fact",
+      "outcome_value": "polishing",
+      "missing_behavior": "not_match"
     }
   ],
   "readers": [
@@ -2112,7 +2852,7 @@
       "label": "符号关系读取器",
       "sequence": 4,
       "reader_key": "symbol_relation_reader",
-      "capability_definition": "读取焊接符号、焊缝标注和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
+      "capability_definition": "读取焊接符号、焊缝标注、明确的凸形或凹形焊缝轮廓弧线和装配连接关系；同时在几何裁剪和整页总览中核对受公差、粗糙度或检验尺寸控制的大型内圆柱面。只报告图纸事实，不输出工序答案或焊接阶段数。"
     },
     {
       "label": "技术要求读取器",
@@ -2125,6 +2865,12 @@
       "sequence": 3,
       "reader_key": "geometry_feature_reader",
       "capability_definition": "读取折弯、孔槽、尺寸公差和局部孔相对本体比例；区分局部加工特征与整体主体轮廓，并完整检查全部主要视图和局部详图。"
+    },
+    {
+      "label": "表面纹理读取器",
+      "sequence": 6,
+      "reader_key": "surface_texture_reader",
+      "capability_definition": "只读取表面纹理符号的作用范围和逐字Ra数值。优先检查右上通用表面纹理高分辨率图，再以整页核对；同时检查标题栏附近、技术要求区和其他通用标注区。严格区分‘其余/全部’或通用区独立符号与通过额外引出线连接具体几何面的局部符号。符号自身的短斜线、横线、小圆圈不是局部引出线。只报告图纸事实，不输出抛光、磨削、车削、铣削或其他工序答案。"
     }
   ],
   "branches": [
@@ -2265,6 +3011,6 @@
     }
   ],
   "tree_key": "drawing-process-tree",
-  "description": "明确逐尺寸单边或双边数值公差属于精密公差，避免Reader引用公差原文后仍返回NOT_HIT。",
+  "description": "将焊缝轮廓规则收窄到可明确区分的凸形或凹形弧线，排除容易与基准线或基本对接符号混淆的平直线。",
   "schema_version": 2
 }

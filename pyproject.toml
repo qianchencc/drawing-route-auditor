@@ -24,7 +24,7 @@ dev = [
 ]
 
 [project.scripts]
-jn = "drawing_route_auditor.cli:app"
+draw-route = "drawing_route_auditor.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "为全局Ra数值补充完整未命中条件，避免无全局粗糙度的图纸导致技术要求Reader失败。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "facts",
+      "key": "global_surface_roughness_ra_um",
+      "value": {
+        "label": "整体表面粗糙度数值",
+        "fact_key": "global_surface_roughness_ra_um",
+        "reader_key": "requirement_annotation_reader",
+        "value_type": "number",
+        "description": "全局粗糙度要求明确给出的Ra数值，单位为微米。",
+        "source_kind": "observed_drawing",
+        "subject_scope": "current_object",
+        "allowed_values": null,
+        "hit_criteria": "全局或“其余”粗糙度符号明确给出可读Ra数值。",
+        "not_hit_criteria": "完整检查全部全局、其余和全部表面粗糙度符号后，没有可读的全局Ra数值；仅有绑定局部面的Ra数值也返回NOT_HIT。",
+        "coverage_requirement": "检查全局粗糙度符号及相邻数值，避免读取局部表面数值。",
+        "evidence_requirement": "提供符号、数值和对象范围。",
+        "judgement_definition": "只记录全局Ra数值，不据此选择制造工序。"
+      }
+    }
+  ]
+}

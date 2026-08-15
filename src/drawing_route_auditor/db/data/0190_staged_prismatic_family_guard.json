@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "tree_key": "drawing-process-tree",
+  "description": "显式多阶段棱柱加工标注排除普通平板路线族，避免平板族覆盖由孔、公差和阶段标注建立的精加工板件路线。",
+  "operations": [
+    {
+      "op": "upsert",
+      "collection": "rules",
+      "key": "flat_sheet_family",
+      "value": {
+        "clauses": [
+          {
+            "fact_key": "object_kind",
+            "operator": "eq",
+            "expected_value": "part"
+          },
+          {
+            "fact_key": "raw_form",
+            "operator": "eq",
+            "expected_value": "plate"
+          },
+          {
+            "fact_key": "has_bend_feature",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "continuous_revolved_surface",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "continuous_rolled_shell_surface_present",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "thick_plate_threaded_hole_present",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "prismatic_recess_present",
+            "operator": "eq",
+            "expected_value": false
+          },
+          {
+            "fact_key": "staged_prismatic_machining_annotations_present",
+            "operator": "eq",
+            "expected_value": false
+          }
+        ],
+        "priority": 10,
+        "question": "选择哪个基础路线族？",
+        "rule_key": "flat_sheet_family",
+        "branch_key": "5.1",
+        "option_key": "flat_sheet",
+        "description": "无连续卷制壳面、无回转曲面、无离散折弯、无厚板内螺纹、无非贯通凹槽且无显式多阶段棱柱加工标注时选择普通平板路线族。",
+        "outcome_key": "route_family",
+        "result_kind": "resolved",
+        "decision_key": "route_family",
+        "option_label": "平板件",
+        "outcome_type": "fact",
+        "outcome_value": "flat_cut_plate_part",
+        "missing_behavior": "not_match"
+      }
+    }
+  ]
+}

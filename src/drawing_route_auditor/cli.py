@@ -13,7 +13,11 @@ from rich.table import Table
 
 from drawing_route_auditor.config import get_settings
 from drawing_route_auditor.db.connection import connect, wait_for_database
-from drawing_route_auditor.db.migrations import current_versions, load_migrations, migrate
+from drawing_route_auditor.db.migrations import (
+    current_versions,
+    load_migrations,
+    migrate,
+)
 from drawing_route_auditor.decision_tree.editor import apply_tree_patch
 from drawing_route_auditor.decision_tree.importer import initialize_decision_tree
 from drawing_route_auditor.decision_tree.repository import (
@@ -28,7 +32,11 @@ from drawing_route_auditor.workflow.golden import (
     GoldenEvaluation,
     load_golden_routes,
 )
-from drawing_route_auditor.workflow.models import DrawingInput, ProgressCallback, WorkflowProgress
+from drawing_route_auditor.workflow.models import (
+    DrawingInput,
+    ProgressCallback,
+    WorkflowProgress,
+)
 from drawing_route_auditor.workflow.runner import (
     DEFAULT_TREE_KEY,
     run_and_evaluate,

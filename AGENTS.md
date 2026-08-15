@@ -4,7 +4,7 @@
 
 - Route inference MUST use only visual or textual facts extracted from the supplied PDF pages.
 - The PDF path, filename, material code, case identifier, database row identity, and command-line metadata MAY identify a run, but MUST NOT become decision facts.
-- Runtime recommendation MUST NOT read or receive `docs/index.csv`, `docs/routes_1.csv`, `docs/routes_2.csv`, `docs/cases/**`, golden routes, review files, PLM/BOM exports, or manually prepared external facts.
+- Runtime recommendation MUST NOT read or receive `docs/index.csv`, `docs/routes_1.csv`, `docs/routes_2.csv`, `docs/cases/**`, `.private/**`, golden routes, review files, PLM/BOM exports, or manually prepared external facts.
 - Historical routes MAY be loaded only after the recommendation and all inference evidence have been persisted. They are evaluation data, never inference context.
 - If a required fact cannot be established from the PDF, return `unable_to_judge`, `partial`, or `error`. NEVER fill it from a CSV, filename, nearby sample, expected answer, or human-prepared case file.
 

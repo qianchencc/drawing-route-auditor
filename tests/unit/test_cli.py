@@ -440,7 +440,7 @@ def test_missing_reference_route_is_printed_explicitly(monkeypatch: object) -> N
     assert stream.getvalue().strip() == "参考路线：未提供"
 
 
-def test_pdf_stem_loads_reference_route_outside_project_directory(
+def test_missing_reference_data_returns_no_route_outside_project_directory(
     monkeypatch: object,
     tmp_path: Path,
 ) -> None:
@@ -451,10 +451,10 @@ def test_pdf_stem_loads_reference_route_outside_project_directory(
         evaluation=None,
     )
 
-    assert references == [["焊接(校正)", "镗", "抛光", "喷塑", "转部装"]]
+    assert references == []
 
 
-def test_route_prints_reference_answer_last_outside_project_directory(
+def test_route_prints_missing_reference_last_outside_project_directory(
     monkeypatch: object,
     tmp_path: Path,
 ) -> None:
@@ -484,9 +484,7 @@ def test_route_prints_reference_answer_last_outside_project_directory(
     result = runner.invoke(cli.app, ["route", str(pdf)])
 
     assert result.exit_code == 0
-    assert result.stdout.rstrip().endswith(
-        "参考路线：焊接(校正) → 镗 → 抛光 → 喷塑 → 转部装"
-    )
+    assert result.stdout.rstrip().endswith("参考路线：未提供")
 
 
 def test_route_cli_exposes_no_non_pdf_inference_inputs() -> None:
